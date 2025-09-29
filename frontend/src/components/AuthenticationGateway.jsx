@@ -28,8 +28,8 @@ export default function AuthenticationGateway({ onTeamLogin, onAdminLogin, error
   }
 
   return (
-    <div className="flex min-h-[70vh] w-full items-center justify-center p-6 text-slate-100">
-      <div className="w-full max-w-4xl grid gap-10 rounded-3xl border border-slate-800/60 bg-slate-900/40 p-6 backdrop-blur lg:grid-cols-[1.2fr,1fr] lg:p-10">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
+      <div className="w-full max-w-4xl grid gap-10 lg:grid-cols-[1.2fr,1fr]">
         <section className="rounded-3xl bg-slate-900/60 border border-slate-800 p-10 shadow-2xl shadow-sky-500/10">
           <p className="text-sm uppercase tracking-widest text-sky-400 mb-4">Financial Football Quiz Arena</p>
           <h1 className="text-4xl font-semibold text-white mb-6">

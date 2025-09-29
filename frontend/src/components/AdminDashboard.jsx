@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
 import ScoreboardTable from './ScoreboardTable'
-import CoinFlipAnimation from './CoinFlipAnimation'
 
-function MatchSetupForm({ teams, busyTeams, onStart }) {
 
+function MatchSetupForm({ teams, onStart, disabled }) {
   const eligibleTeams = useMemo(
     () => teams.filter((team) => !team.eliminated),
     [teams],
@@ -14,9 +13,8 @@ function MatchSetupForm({ teams, busyTeams, onStart }) {
     selection.teamA &&
     selection.teamB &&
     selection.teamA !== selection.teamB &&
-    !busyTeams.has(selection.teamA) &&
-    !busyTeams.has(selection.teamB)
 
+    !disabled
 
   const handleSubmit = (event) => {
     event.preventDefault()
@@ -45,7 +43,7 @@ function MatchSetupForm({ teams, busyTeams, onStart }) {
           className={`rounded-2xl px-5 py-2 text-sm font-semibold transition ${
             canStart
               ? 'bg-sky-500 text-white shadow shadow-sky-500/40 hover:bg-sky-400'
-              : 'cursor-not-allowed border border-slate-800 bg-slate-900/60 text-slate-500'
+              : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-500'
           }`}
         >
           Launch match
@@ -61,16 +59,11 @@ function MatchSetupForm({ teams, busyTeams, onStart }) {
             className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-base text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
           >
             <option value="">Select team</option>
-            {eligibleTeams.map((team) => {
-              const isBusy = busyTeams.has(team.id)
-              return (
-                <option key={team.id} value={team.id} disabled={isBusy}>
-                  {team.name}
-                  {isBusy ? ' (in a match)' : ''}
-                </option>
-              )
-            })}
-
+            {eligibleTeams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -82,16 +75,11 @@ function MatchSetupForm({ teams, busyTeams, onStart }) {
             className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-base text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
           >
             <option value="">Select team</option>
-            {eligibleTeams.map((team) => {
-              const isBusy = busyTeams.has(team.id)
-              return (
-                <option key={team.id} value={team.id} disabled={isBusy}>
-                  {team.name}
-                  {isBusy ? ' (in a match)' : ''}
-                </option>
-              )
-            })}
-
+            {eligibleTeams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name}
+              </option>
+            ))}
           </select>
         </label>
       </div>
@@ -107,55 +95,6 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
   const opponentId = match.coinToss.winnerId === teamAId ? teamBId : teamAId
   const decision = match.coinToss.decision
   const firstTeam = decision ? teams.find((team) => team.id === decision.firstTeamId) : null
-  const status = match.coinToss.status
-  const isFlipping = status === 'flipping'
-  const canFlip = status === 'ready'
-  const buttonLabel = isFlipping ? 'Flipping…' : canFlip ? 'Flip coin' : 'Coin flipped'
-
-  let statusMessage = null
-
-  if (status === 'ready') {
-    statusMessage = (
-      <p className="text-slate-300">
-        Flip the coin to determine who gains the opening question advantage.
-      </p>
-    )
-  } else if (status === 'flipping') {
-    statusMessage = (
-      <p className="text-slate-300">
-        The coin is in the air&mdash;once it lands the winning team will choose who starts.
-      </p>
-    )
-  } else if (status === 'flipped') {
-    statusMessage = (
-      <div className="space-y-3">
-        <p className="text-base font-semibold text-white">
-          {winner ? `${winner.name} won the toss!` : 'Toss result received.'}
-        </p>
-        <p className="text-slate-300">Decide who should answer first.</p>
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={() => onSelectFirst(match.coinToss.winnerId, match.coinToss.winnerId)}
-            className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-sky-500/40 transition hover:bg-sky-400"
-          >
-            {winner?.name} will answer first
-          </button>
-          <button
-            onClick={() => onSelectFirst(match.coinToss.winnerId, opponentId)}
-            className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-          >
-            Defer to {teams.find((team) => team.id === opponentId)?.name}
-          </button>
-        </div>
-      </div>
-    )
-  } else if (status === 'decided') {
-    statusMessage = (
-      <p className="text-slate-300">
-        Coin toss decision locked in. {winner?.name} chose {firstTeam?.name} to begin the quiz.
-      </p>
-    )
-  }
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl shadow-slate-900/40">
@@ -168,29 +107,47 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
         </div>
         <button
           onClick={onFlip}
-          disabled={!canFlip || isFlipping}
+          disabled={match.coinToss.status !== 'ready'}
           className={`rounded-2xl px-5 py-2 text-sm font-semibold transition ${
-            canFlip
+            match.coinToss.status === 'ready'
               ? 'bg-sky-500 text-white shadow shadow-sky-500/40 hover:bg-sky-400'
-              : isFlipping
-              ? 'cursor-wait border border-slate-700 bg-slate-900/60 text-slate-300'
-              : 'cursor-not-allowed border border-emerald-500/40 bg-emerald-500/20 text-emerald-200'
+              : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-400'
           }`}
         >
-          {buttonLabel}
-
+          Flip coin
         </button>
       </div>
 
-      <div className="mt-6 space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <CoinFlipAnimation status={status} teamA={teamA} teamB={teamB} winner={winner} />
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-            Heads: {teamA?.name ?? 'Team A'} &bull; Tails: {teamB?.name ?? 'Team B'}
+      {match.coinToss.status !== 'ready' ? (
+        <div className="mt-6 space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200">
+          <p className="text-base font-semibold text-white">
+            Winner: {winner?.name}
           </p>
+          {match.coinToss.status === 'flipped' ? (
+            <div className="space-y-3">
+              <p className="text-slate-300">Decide who answers first.</p>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => onSelectFirst(match.coinToss.winnerId, match.coinToss.winnerId)}
+                  className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-sky-500/40 transition hover:bg-sky-400"
+                >
+                  {winner?.name} will answer first
+                </button>
+                <button
+                  onClick={() => onSelectFirst(match.coinToss.winnerId, opponentId)}
+                  className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                >
+                  Defer to {teams.find((team) => team.id === opponentId)?.name}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-slate-300">
+              Coin toss decision locked in. {winner?.name} chose {firstTeam?.name} to begin the quiz.
+            </p>
+          )}
         </div>
-        {statusMessage}
-      </div>
+      ) : null}
     </div>
   )
 }
@@ -202,14 +159,6 @@ function LiveMatchPanel({ match, teams }) {
   const opponentId = match.activeTeamId === teamAId ? teamBId : teamAId
   const opponent = teams.find((team) => team.id === opponentId)
   const awaitingSteal = match.awaitingSteal
-  const lastResponse =
-    match.lastResponse && match.lastResponse.questionId === question.instanceId
-      ? match.lastResponse
-      : null
-  const lastResponder = lastResponse ? teams.find((team) => team.id === lastResponse.teamId) : null
-  const stealTargetId = lastResponse ? match.teams.find((id) => id !== lastResponse.teamId) : null
-  const stealTarget = stealTargetId ? teams.find((team) => team.id === stealTargetId) : null
-
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl shadow-slate-900/40">
@@ -241,24 +190,8 @@ function LiveMatchPanel({ match, teams }) {
             <span className="text-lg font-bold text-amber-400">{match.scores[teamBId]}</span>
           </div>
           <div className="mt-4 space-y-3">
-            {lastResponse ? (
-              <p
-                className={`font-semibold ${
-                  lastResponse.isCorrect ? 'text-emerald-300' : 'text-rose-300'
-                }`}
-              >
-                {lastResponse.isCorrect
-                  ? `${lastResponder?.name ?? 'A team'} converted the point!`
-                  : `${lastResponder?.name ?? 'A team'} missed their shot.${
-                      awaitingSteal && stealTarget ? ` ${stealTarget.name} can steal.` : ''
-                    }`}
-              </p>
-            ) : (
-              <p className="font-semibold text-white">
-                {awaitingSteal ? `${opponent?.name} is attempting a steal.` : `${activeTeam?.name} is responding.`}
-              </p>
-            )}
 
+            <p className="font-semibold text-white">{awaitingSteal ? `${opponent?.name} is attempting a steal.` : `${activeTeam?.name} is responding.`}</p>
             <p className="text-xs text-slate-400">
               The moderator now observes progress only. Teams submit answers directly from their dashboards.
             </p>
@@ -278,34 +211,6 @@ function LiveMatchPanel({ match, teams }) {
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function ActiveMatchesList({ matches, teams, onFlip, onSelectFirst }) {
-  if (!matches.length) {
-    return (
-      <div className="rounded-3xl border border-dashed border-slate-800 bg-slate-900/30 p-6 text-sm text-slate-300">
-        No live matches are running at the moment.
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      {matches.map((match) =>
-        match.status === 'coin-toss' ? (
-          <CoinTossPanel
-            key={match.id}
-            match={match}
-            teams={teams}
-            onFlip={() => onFlip(match.id)}
-            onSelectFirst={(deciderId, firstTeamId) => onSelectFirst(deciderId, match.id, firstTeamId)}
-          />
-        ) : (
-          <LiveMatchPanel key={match.id} match={match} teams={teams} />
-        ),
-      )}
     </div>
   )
 }
@@ -409,7 +314,7 @@ function TeamAnalyticsPanel({ teams }) {
 
 export default function AdminDashboard({
   teams,
-  matches,
+  currentMatch,
   recentResult,
   history,
   onStartMatch,
@@ -418,21 +323,8 @@ export default function AdminDashboard({
   onDismissRecent,
   onLogout,
 }) {
-  const activeMatches = matches.filter((match) => match.status !== 'completed')
-  const busyTeams = useMemo(
-    () =>
-      new Set(
-        activeMatches.reduce((accumulator, match) => {
-          accumulator.push(...match.teams)
-          return accumulator
-        }, []),
-      ),
-    [activeMatches],
-  )
-
   return (
-    <div className="flex min-h-screen flex-col text-slate-100">
-
+    <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>
@@ -470,18 +362,15 @@ export default function AdminDashboard({
 
         <section className="grid gap-8 lg:grid-cols-[1.1fr,0.9fr]">
           <div className="space-y-6">
-            <MatchSetupForm teams={teams} busyTeams={busyTeams} onStart={onStartMatch} />
-
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-white">Live Matches</h2>
-              <ActiveMatchesList
-                matches={activeMatches}
-                teams={teams}
-                onFlip={onFlipCoin}
-                onSelectFirst={onSelectFirst}
-              />
-            </div>
-
+            {currentMatch ? (
+              currentMatch.status === 'coin-toss' ? (
+                <CoinTossPanel match={currentMatch} teams={teams} onFlip={onFlipCoin} onSelectFirst={onSelectFirst} />
+              ) : (
+                <LiveMatchPanel match={currentMatch} teams={teams} />
+              )
+            ) : (
+              <MatchSetupForm teams={teams} onStart={onStartMatch} disabled={Boolean(currentMatch)} />
+            )}
 
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-white">Tournament Standings</h2>
