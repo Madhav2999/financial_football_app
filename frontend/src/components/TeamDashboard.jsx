@@ -1,13 +1,29 @@
+import { useEffect, useState } from 'react'
 import ScoreboardTable from './ScoreboardTable'
 
-function CurrentMatchCard({ match, teamId, teams }) {
+function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const opponentId = match.teams.find((id) => id !== teamId)
   const activeTeam = teams.find((team) => team.id === match.activeTeamId)
   const opponent = teams.find((team) => team.id === opponentId)
   const thisTeam = teams.find((team) => team.id === teamId)
   const question = match.questionQueue[match.questionIndex]
 
-  const isSteal = match.awaitingSteal && match.activeTeamId === teamId
+  const [selectedOption, setSelectedOption] = useState(null)
+  const isActive = match.activeTeamId === teamId
+  const isSteal = match.awaitingSteal && isActive
+
+  useEffect(() => {
+    setSelectedOption(null)
+  }, [match.questionIndex, match.awaitingSteal, match.activeTeamId])
+
+  const handleClick = (option) => {
+    if (!isActive || selectedOption !== null) {
+      return
+    }
+
+    setSelectedOption(option)
+    onAnswer(option)
+  }
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-lg shadow-slate-900/40">
@@ -27,6 +43,37 @@ function CurrentMatchCard({ match, teamId, teams }) {
           <p className="text-xs uppercase tracking-wider text-slate-400">Category</p>
           <p className="text-lg font-semibold text-sky-300">{question.category}</p>
           <p className="text-sm leading-relaxed text-slate-200">{question.prompt}</p>
+          <div className="mt-4 space-y-3">
+            {question.options.map((option, index) => {
+              const optionKey = `${question.instanceId}-${index}`
+              const isChoiceSelected = selectedOption === option
+              const disabled = !isActive || (selectedOption !== null && !isChoiceSelected)
+
+              return (
+                <button
+                  key={optionKey}
+                  type="button"
+                  onClick={() => handleClick(option)}
+                  disabled={disabled}
+                  className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                    isChoiceSelected
+                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-200'
+                      : disabled
+                      ? 'border-slate-800 bg-slate-900/40 text-slate-400'
+                      : 'border-slate-700 bg-slate-900/70 text-slate-100 hover:border-sky-500 hover:text-white'
+                  }`}
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-600 text-xs font-semibold uppercase">
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                  <span className="flex-1">{option}</span>
+                  {isChoiceSelected ? (
+                    <span className="text-xs font-semibold uppercase tracking-wide text-emerald-300">Submitted</span>
+                  ) : null}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-300">
@@ -114,7 +161,7 @@ function RecentResults({ history, teamId, teams }) {
   )
 }
 
-export default function TeamDashboard({ team, teams, match, history, onLogout }) {
+export default function TeamDashboard({ team, teams, match, history, onAnswer, onLogout }) {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
@@ -153,7 +200,7 @@ export default function TeamDashboard({ team, teams, match, history, onLogout })
               </p>
             </div>
           ) : (
-            <CurrentMatchCard match={match} teamId={team.id} teams={teams} />
+            <CurrentMatchCard match={match} teamId={team.id} teams={teams} onAnswer={onAnswer} />
           )
         ) : (
           <div className="rounded-3xl border border-dashed border-slate-800 bg-slate-900/30 p-8 text-center text-slate-300 shadow-inner shadow-slate-900/30">

@@ -146,12 +146,14 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
   )
 }
 
-function LiveMatchPanel({ match, teams, onPrimaryResult, onStealResult }) {
+function LiveMatchPanel({ match, teams }) {
+
   const question = match.questionQueue[match.questionIndex]
   const [teamAId, teamBId] = match.teams
   const activeTeam = teams.find((team) => team.id === match.activeTeamId)
   const opponentId = match.activeTeamId === teamAId ? teamBId : teamAId
   const opponent = teams.find((team) => team.id === opponentId)
+  const awaitingSteal = match.awaitingSteal
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl shadow-slate-900/40">
@@ -183,43 +185,24 @@ function LiveMatchPanel({ match, teams, onPrimaryResult, onStealResult }) {
             <span className="text-lg font-bold text-amber-400">{match.scores[teamBId]}</span>
           </div>
           <div className="mt-4 space-y-3">
-            {match.awaitingSteal ? (
-              <>
-                <p className="font-semibold text-white">{opponent?.name} is attempting a steal.</p>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => onStealResult(true)}
-                    className="rounded-2xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-emerald-500/40 transition hover:bg-emerald-400"
-                  >
-                    Award steal point
-                  </button>
-                  <button
-                    onClick={() => onStealResult(false)}
-                    className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                  >
-                    Steal missed
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="font-semibold text-white">{activeTeam?.name} is answering.</p>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => onPrimaryResult(true)}
-                    className="rounded-2xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-emerald-500/40 transition hover:bg-emerald-400"
-                  >
-                    Mark correct
-                  </button>
-                  <button
-                    onClick={() => onPrimaryResult(false)}
-                    className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                  >
-                    Mark incorrect
-                  </button>
-                </div>
-              </>
-            )}
+            <p className="font-semibold text-white">{awaitingSteal ? `${opponent?.name} is attempting a steal.` : `${activeTeam?.name} is responding.`}</p>
+            <p className="text-xs text-slate-400">
+              The moderator now observes progress only. Teams submit answers directly from their dashboards.
+            </p>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-300">
+              <p className="font-semibold text-slate-200">Multiple-choice options</p>
+              <ol className="mt-3 space-y-2">
+                {question.options.map((option, index) => (
+                  <li key={option} className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 text-[11px] uppercase text-slate-400">
+                      {String.fromCharCode(65 + index)}
+                    </span>
+                    <span>{option}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
           </div>
         </div>
       </div>
@@ -276,6 +259,54 @@ function MatchHistoryList({ history, teams }) {
   )
 }
 
+function TeamAnalyticsPanel({ teams }) {
+  const activeTeams = teams.map((team) => ({
+    id: team.id,
+    name: team.name,
+    wins: team.wins,
+    losses: team.losses,
+    points: team.totalScore,
+    eliminated: team.eliminated,
+  }))
+
+  return (
+    <div className="space-y-4">
+      {activeTeams.map((team) => (
+        <div
+          key={team.id}
+          className="rounded-3xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200 shadow shadow-slate-900/30"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-base font-semibold text-white">{team.name}</p>
+            <span
+              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                team.eliminated ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'
+              }`}
+            >
+              {team.eliminated ? 'Eliminated' : 'Active'}
+            </span>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-3">
+            <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-3 text-center">
+              <p className="text-[10px] uppercase tracking-widest text-slate-400">Wins</p>
+              <p className="text-lg font-semibold text-white">{team.wins}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-3 text-center">
+              <p className="text-[10px] uppercase tracking-widest text-slate-400">Losses</p>
+              <p className="text-lg font-semibold text-white">{team.losses}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-3 text-center">
+              <p className="text-[10px] uppercase tracking-widest text-slate-400">Points</p>
+              <p className="text-lg font-semibold text-white">{team.points}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+
 export default function AdminDashboard({
   teams,
   currentMatch,
@@ -284,8 +315,6 @@ export default function AdminDashboard({
   onStartMatch,
   onFlipCoin,
   onSelectFirst,
-  onPrimaryResult,
-  onStealResult,
   onDismissRecent,
   onLogout,
 }) {
@@ -332,12 +361,7 @@ export default function AdminDashboard({
               currentMatch.status === 'coin-toss' ? (
                 <CoinTossPanel match={currentMatch} teams={teams} onFlip={onFlipCoin} onSelectFirst={onSelectFirst} />
               ) : (
-                <LiveMatchPanel
-                  match={currentMatch}
-                  teams={teams}
-                  onPrimaryResult={onPrimaryResult}
-                  onStealResult={onStealResult}
-                />
+                <LiveMatchPanel match={currentMatch} teams={teams} />
               )
             ) : (
               <MatchSetupForm teams={teams} onStart={onStartMatch} disabled={Boolean(currentMatch)} />
@@ -349,9 +373,16 @@ export default function AdminDashboard({
             </div>
           </div>
 
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-white">Match History</h2>
-            <MatchHistoryList history={history} teams={teams} />
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-white">Team Analytics</h2>
+              <TeamAnalyticsPanel teams={teams} />
+            </div>
+
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-white">Match History</h2>
+              <MatchHistoryList history={history} teams={teams} />
+            </div>
           </div>
         </section>
       </main>

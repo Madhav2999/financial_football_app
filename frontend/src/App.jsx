@@ -18,6 +18,41 @@ function buildInitialTeams() {
   }))
 }
 
+function shuffleArray(array) {
+  const items = [...array]
+  for (let index = items.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1))
+    ;[items[index], items[swapIndex]] = [items[swapIndex], items[index]]
+  }
+  return items
+}
+
+function buildOptions(question) {
+  const distractorPool = questionBank.filter((item) => item.id !== question.id).map((item) => item.answer)
+  const distractors = []
+
+  while (distractors.length < 3 && distractorPool.length) {
+    const index = Math.floor(Math.random() * distractorPool.length)
+    const [choice] = distractorPool.splice(index, 1)
+
+    if (!distractors.includes(choice) && choice !== question.answer) {
+      distractors.push(choice)
+    }
+  }
+
+  const fallbackChoices = ['None of the above', 'All of the above', 'Insufficient information']
+  let fallbackIndex = 0
+  while (distractors.length < 3) {
+    const fallback = fallbackChoices[fallbackIndex % fallbackChoices.length]
+    if (!distractors.includes(fallback) && fallback !== question.answer) {
+      distractors.push(fallback)
+    }
+    fallbackIndex += 1
+  }
+
+  return shuffleArray([question.answer, ...distractors])
+}
+
 function drawQuestions(count) {
   const pool = [...questionBank]
   const selected = []
@@ -34,6 +69,7 @@ function drawQuestions(count) {
   return selected.map((question, index) => ({
     ...question,
     instanceId: `${question.id}-${timestamp}-${index}`,
+    options: buildOptions(question),
   }))
 }
 
@@ -258,17 +294,36 @@ export default function App() {
     setCurrentMatch(null)
   }
 
-  const handlePrimaryResult = (wasCorrect) => {
+  const handleTeamAnswer = (teamId, selectedOption) => {
     setCurrentMatch((previous) => {
-      if (!previous || previous.status !== 'in-progress' || previous.awaitingSteal) return previous
+      if (!previous || previous.status !== 'in-progress') return previous
+      if (previous.activeTeamId !== teamId) return previous
 
-      const activeTeamId = previous.activeTeamId
-      const opponentId = previous.teams.find((teamId) => teamId !== activeTeamId)
+      const question = previous.questionQueue[previous.questionIndex]
+      const isCorrect = question.answer === selectedOption
 
-      if (wasCorrect) {
+      if (previous.awaitingSteal) {
+        const updatedScores = isCorrect
+          ? {
+              ...previous.scores,
+              [teamId]: previous.scores[teamId] + 1,
+            }
+          : { ...previous.scores }
+
+        const { completed, match } = advanceMatchState(previous, updatedScores)
+
+        if (completed) {
+          finalizeMatch(match)
+          return null
+        }
+
+        return match
+      }
+
+      if (isCorrect) {
         const updatedScores = {
           ...previous.scores,
-          [activeTeamId]: previous.scores[activeTeamId] + 1,
+          [teamId]: previous.scores[teamId] + 1,
         }
 
         const { completed, match } = advanceMatchState(previous, updatedScores)
@@ -280,33 +335,12 @@ export default function App() {
         return match
       }
 
+      const opponentId = previous.teams.find((item) => item !== teamId)
       return {
         ...previous,
         awaitingSteal: true,
         activeTeamId: opponentId,
       }
-    })
-  }
-
-  const handleStealResult = (wasCorrect) => {
-    setCurrentMatch((previous) => {
-      if (!previous || !previous.awaitingSteal) return previous
-
-      const updatedScores = wasCorrect
-        ? {
-            ...previous.scores,
-            [previous.activeTeamId]: previous.scores[previous.activeTeamId] + 1,
-          }
-        : { ...previous.scores }
-
-      const { completed, match } = advanceMatchState(previous, updatedScores)
-
-      if (completed) {
-        finalizeMatch(match)
-        return null
-      }
-
-      return match
     })
   }
 
@@ -332,8 +366,6 @@ export default function App() {
         onStartMatch={handleStartMatch}
         onFlipCoin={handleFlipCoin}
         onSelectFirst={handleSelectFirst}
-        onPrimaryResult={handlePrimaryResult}
-        onStealResult={handleStealResult}
         onDismissRecent={handleDismissRecent}
         onLogout={handleLogout}
       />
@@ -347,6 +379,7 @@ export default function App() {
         teams={teams}
         match={currentMatch}
         history={matchHistory}
+        onAnswer={(option) => handleTeamAnswer(activeTeam.id, option)}
         onLogout={handleLogout}
       />
     )
