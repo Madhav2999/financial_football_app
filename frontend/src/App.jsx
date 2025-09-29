@@ -97,6 +97,7 @@ function buildQuestionOrder(firstTeamId, teams, questionsPerTeam) {
   return order
 }
 
+
 function AppLayout({ children }) {
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
@@ -238,6 +239,7 @@ export default function App() {
             }
           }),
         )
+
       }, 1800)
     }
   }
@@ -269,6 +271,7 @@ export default function App() {
         }
       }),
     )
+
   }
 
   const finalizeMatch = (match) => {
@@ -493,6 +496,7 @@ export default function App() {
         history={matchHistory}
         onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
         onSelectFirst={(matchId, firstTeamId) => handleSelectFirst(activeTeam.id, matchId, firstTeamId)}
+
         onLogout={handleLogout}
       />
     )

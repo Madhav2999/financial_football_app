@@ -3,6 +3,7 @@ import ScoreboardTable from './ScoreboardTable'
 import CoinFlipAnimation from './CoinFlipAnimation'
 
 function MatchSetupForm({ teams, busyTeams, onStart }) {
+
   const eligibleTeams = useMemo(
     () => teams.filter((team) => !team.eliminated),
     [teams],
@@ -15,6 +16,7 @@ function MatchSetupForm({ teams, busyTeams, onStart }) {
     selection.teamA !== selection.teamB &&
     !busyTeams.has(selection.teamA) &&
     !busyTeams.has(selection.teamB)
+
 
   const handleSubmit = (event) => {
     event.preventDefault()
@@ -68,6 +70,7 @@ function MatchSetupForm({ teams, busyTeams, onStart }) {
                 </option>
               )
             })}
+
           </select>
         </label>
 
@@ -88,6 +91,7 @@ function MatchSetupForm({ teams, busyTeams, onStart }) {
                 </option>
               )
             })}
+
           </select>
         </label>
       </div>
@@ -174,6 +178,7 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
           }`}
         >
           {buttonLabel}
+
         </button>
       </div>
 
@@ -204,6 +209,7 @@ function LiveMatchPanel({ match, teams }) {
   const lastResponder = lastResponse ? teams.find((team) => team.id === lastResponse.teamId) : null
   const stealTargetId = lastResponse ? match.teams.find((id) => id !== lastResponse.teamId) : null
   const stealTarget = stealTargetId ? teams.find((team) => team.id === stealTargetId) : null
+
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl shadow-slate-900/40">
@@ -252,6 +258,7 @@ function LiveMatchPanel({ match, teams }) {
                 {awaitingSteal ? `${opponent?.name} is attempting a steal.` : `${activeTeam?.name} is responding.`}
               </p>
             )}
+
             <p className="text-xs text-slate-400">
               The moderator now observes progress only. Teams submit answers directly from their dashboards.
             </p>
@@ -302,6 +309,7 @@ function ActiveMatchesList({ matches, teams, onFlip, onSelectFirst }) {
     </div>
   )
 }
+
 
 function MatchHistoryList({ history, teams }) {
   if (!history.length) {
@@ -424,6 +432,7 @@ export default function AdminDashboard({
 
   return (
     <div className="flex min-h-screen flex-col text-slate-100">
+
       <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>
@@ -472,6 +481,7 @@ export default function AdminDashboard({
                 onSelectFirst={onSelectFirst}
               />
             </div>
+
 
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-white">Tournament Standings</h2>

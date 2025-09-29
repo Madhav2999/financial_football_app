@@ -34,6 +34,7 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
           </p>
         </div>
         <p className="mt-4">The coin is flipping now. Watch for the outcome to see who controls the opener.</p>
+
       </div>
     )
   }
@@ -48,6 +49,7 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
           </p>
         </div>
         <p className="mt-4 text-base font-semibold text-white">
+
           {winner ? `${winner.name} won the toss!` : 'Toss winner decided.'}
         </p>
         {isWinner ? (
@@ -57,6 +59,7 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
               <button
                 type="button"
                 onClick={() => onSelectFirst?.(match.id, teamId)}
+
                 className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-sky-500/40 transition hover:bg-sky-400"
               >
                 We&apos;ll take the first question
@@ -64,6 +67,7 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
               <button
                 type="button"
                 onClick={() => onSelectFirst?.(match.id, opponentId)}
+
                 className="rounded-2xl border border-slate-200/40 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
               >
                 Let {opponent?.name} start
@@ -113,6 +117,7 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const isOwnLastResponse = lastResponse?.teamId === teamId
   const isOpponentLastResponse = lastResponse?.teamId === opponentId
 
+
   useEffect(() => {
     setSelectedOption(null)
   }, [match.questionIndex, match.awaitingSteal, match.activeTeamId])
@@ -124,6 +129,7 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
 
     setSelectedOption(option)
     onAnswer(match.id, option)
+
   }
 
   return (
@@ -197,6 +203,7 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
                     </span>
                   ) : isChoiceSelected ? (
                     <span className="text-xs font-semibold uppercase tracking-wide text-sky-300">Submitted</span>
+
                   ) : null}
                 </button>
               )
@@ -233,6 +240,7 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
                 </p>
               )
             ) : match.awaitingSteal ? (
+
               isSteal ? (
                 <p className="font-semibold text-white">
                   Opportunity to steal! Prepare your best answer.
