@@ -97,34 +97,6 @@ function buildQuestionOrder(firstTeamId, teams, questionsPerTeam) {
   return order
 }
 
-function advanceMatchState(match, scores) {
-  const nextIndex = match.questionIndex + 1
-  const base = {
-    ...match,
-    scores,
-    questionIndex: nextIndex,
-    awaitingSteal: false,
-  }
-
-  if (nextIndex >= match.questionQueue.length) {
-    return {
-      completed: true,
-      match: {
-        ...base,
-        status: 'completed',
-      },
-    }
-  }
-
-  return {
-    completed: false,
-    match: {
-      ...base,
-      status: 'in-progress',
-      activeTeamId: match.assignedTeamOrder[nextIndex],
-    },
-  }
-}
 
 function AppLayout({ children }) {
   return (
@@ -151,7 +123,7 @@ function AppLayout({ children }) {
 export default function App() {
   const [teams, setTeams] = useState(buildInitialTeams)
   const [session, setSession] = useState({ type: 'guest' })
-  const [currentMatch, setCurrentMatch] = useState(null)
+  const [matches, setMatches] = useState([])
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
   const [authError, setAuthError] = useState(null)
@@ -189,90 +161,117 @@ export default function App() {
   }
 
   const handleStartMatch = (teamAId, teamBId) => {
-    if (currentMatch) return
+    setMatches((previous) => {
+      const activeTeams = new Set(
+        previous
+          .filter((match) => match.status !== 'completed')
+          .flatMap((match) => match.teams),
+      )
 
-    const questionQueue = drawQuestions(QUESTIONS_PER_TEAM * 2)
+      if (activeTeams.has(teamAId) || activeTeams.has(teamBId)) {
+        return previous
+      }
 
-    setCurrentMatch({
-      id: `match-${Date.now()}`,
-      teams: [teamAId, teamBId],
-      scores: {
-        [teamAId]: 0,
-        [teamBId]: 0,
-      },
-      questionQueue,
-      assignedTeamOrder: [],
-      questionIndex: 0,
-      activeTeamId: null,
-      awaitingSteal: false,
-      status: 'coin-toss',
-      coinToss: {
-        status: 'ready',
-        winnerId: null,
-        decision: null,
-      },
+      const questionQueue = drawQuestions(QUESTIONS_PER_TEAM * 2)
+
+      const matchId = `match-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+
+      return [
+        ...previous,
+        {
+          id: matchId,
+          teams: [teamAId, teamBId],
+          scores: {
+            [teamAId]: 0,
+            [teamBId]: 0,
+          },
+          questionQueue,
+          assignedTeamOrder: [],
+          questionIndex: 0,
+          activeTeamId: null,
+          awaitingSteal: false,
+          status: 'coin-toss',
+          coinToss: {
+            status: 'ready',
+            winnerId: null,
+            decision: null,
+          },
+          lastResponse: null,
+        },
+      ]
     })
   }
 
-  const handleFlipCoin = () => {
+  const handleFlipCoin = (matchId) => {
     let shouldScheduleReveal = false
 
-    setCurrentMatch((previous) => {
-      if (!previous || previous.coinToss.status !== 'ready') return previous
-      shouldScheduleReveal = true
-      return {
-        ...previous,
-        coinToss: {
-          ...previous.coinToss,
-          status: 'flipping',
-          winnerId: null,
-          decision: null,
-        },
-      }
-    })
+    setMatches((previous) =>
+      previous.map((match) => {
+        if (match.id !== matchId) return match
+        if (match.coinToss.status !== 'ready') return match
+        shouldScheduleReveal = true
+        return {
+          ...match,
+          coinToss: {
+            ...match.coinToss,
+            status: 'flipping',
+            winnerId: null,
+            decision: null,
+          },
+        }
+      }),
+    )
 
     if (shouldScheduleReveal) {
       setTimeout(() => {
-        setCurrentMatch((previous) => {
-          if (!previous || previous.coinToss.status !== 'flipping') return previous
-          const winnerId = previous.teams[Math.floor(Math.random() * previous.teams.length)]
-          return {
-            ...previous,
-            coinToss: {
-              ...previous.coinToss,
-              status: 'flipped',
-              winnerId,
-            },
-          }
-        })
+        setMatches((previous) =>
+          previous.map((match) => {
+            if (match.id !== matchId) return match
+            if (match.coinToss.status !== 'flipping') return match
+            const winnerId = match.teams[Math.floor(Math.random() * match.teams.length)]
+            return {
+              ...match,
+              coinToss: {
+                ...match.coinToss,
+                status: 'flipped',
+                winnerId,
+              },
+            }
+          }),
+        )
+
       }, 1800)
     }
   }
 
-  const handleSelectFirst = (deciderId, firstTeamId) => {
-    setCurrentMatch((previous) => {
-      if (!previous || previous.coinToss.status !== 'flipped') return previous
-      if (previous.coinToss.winnerId !== deciderId) return previous
-      if (!previous.teams.includes(firstTeamId)) return previous
+  const handleSelectFirst = (deciderId, matchId, firstTeamId) => {
+    setMatches((previous) =>
+      previous.map((match) => {
+        if (match.id !== matchId) return match
+        if (match.coinToss.status !== 'flipped') return match
+        if (match.coinToss.winnerId !== deciderId) return match
+        if (!match.teams.includes(firstTeamId)) return match
 
-      const order = buildQuestionOrder(firstTeamId, previous.teams, QUESTIONS_PER_TEAM)
+        const order = buildQuestionOrder(firstTeamId, match.teams, QUESTIONS_PER_TEAM)
 
-
-      return {
-        ...previous,
-        assignedTeamOrder: order,
-        activeTeamId: order[0],
-        status: 'in-progress',
-        coinToss: {
-          ...previous.coinToss,
-          status: 'decided',
-          decision: {
-            deciderId,
-            firstTeamId,
+        return {
+          ...match,
+          assignedTeamOrder: order,
+          activeTeamId: order[0],
+          status: 'in-progress',
+          coinToss: {
+            ...match.coinToss,
+            status: 'decided',
+            decision: {
+              deciderId,
+              firstTeamId,
+            },
           },
-        },
-      }
-    })
+          lastResponse: null,
+        }
+      }),
+    )
+
   }
 
   const finalizeMatch = (match) => {
@@ -339,58 +338,123 @@ export default function App() {
       winnerId,
       summary,
     })
-
-    setCurrentMatch(null)
   }
 
-  const handleTeamAnswer = (teamId, selectedOption) => {
-    setCurrentMatch((previous) => {
-      if (!previous || previous.status !== 'in-progress') return previous
-      if (previous.activeTeamId !== teamId) return previous
+  const handleTeamAnswer = (matchId, teamId, selectedOption) => {
+    let completedMatch = null
 
-      const question = previous.questionQueue[previous.questionIndex]
-      const isCorrect = question.answer === selectedOption
+    setMatches((previousMatches) =>
+      previousMatches
+        .map((match) => {
+          if (match.id !== matchId) {
+            return match
+          }
 
-      if (previous.awaitingSteal) {
-        const updatedScores = isCorrect
-          ? {
-              ...previous.scores,
-              [teamId]: previous.scores[teamId] + 1,
+          if (match.status !== 'in-progress' || match.activeTeamId !== teamId) {
+            return match
+          }
+
+          const question = match.questionQueue[match.questionIndex]
+          const isCorrect = question.answer === selectedOption
+
+          if (match.awaitingSteal) {
+            const updatedScores = isCorrect
+              ? {
+                  ...match.scores,
+                  [teamId]: match.scores[teamId] + 1,
+                }
+              : { ...match.scores }
+
+            const baseMatch = {
+              ...match,
+              scores: updatedScores,
+              awaitingSteal: false,
+              lastResponse: {
+                teamId,
+                isCorrect,
+                option: selectedOption,
+                questionId: question.instanceId,
+              },
             }
-          : { ...previous.scores }
 
-        const { completed, match } = advanceMatchState(previous, updatedScores)
+            const nextIndex = match.questionIndex + 1
 
-        if (completed) {
-          finalizeMatch(match)
-          return null
-        }
+            if (nextIndex >= match.questionQueue.length) {
+              completedMatch = {
+                ...baseMatch,
+                questionIndex: nextIndex,
+                status: 'completed',
+              }
+              return null
+            }
 
-        return match
-      }
+            return {
+              ...baseMatch,
+              questionIndex: nextIndex,
+              status: 'in-progress',
+              activeTeamId: match.assignedTeamOrder[nextIndex],
+              lastResponse: null,
+            }
+          }
 
-      if (isCorrect) {
-        const updatedScores = {
-          ...previous.scores,
-          [teamId]: previous.scores[teamId] + 1,
-        }
+          if (isCorrect) {
+            const updatedScores = {
+              ...match.scores,
+              [teamId]: match.scores[teamId] + 1,
+            }
 
-        const { completed, match } = advanceMatchState(previous, updatedScores)
-        if (completed) {
-          finalizeMatch(match)
-          return null
-        }
+            const baseMatch = {
+              ...match,
+              scores: updatedScores,
+              awaitingSteal: false,
+              lastResponse: {
+                teamId,
+                isCorrect: true,
+                option: selectedOption,
+                questionId: question.instanceId,
+              },
+            }
 
-        return match
-      }
+            const nextIndex = match.questionIndex + 1
 
-      const opponentId = previous.teams.find((item) => item !== teamId)
-      return {
-        ...previous,
-        awaitingSteal: true,
-        activeTeamId: opponentId,
-      }
-    })
+            if (nextIndex >= match.questionQueue.length) {
+              completedMatch = {
+                ...baseMatch,
+                questionIndex: nextIndex,
+                status: 'completed',
+              }
+              return null
+            }
+
+            return {
+              ...baseMatch,
+              questionIndex: nextIndex,
+              status: 'in-progress',
+              activeTeamId: match.assignedTeamOrder[nextIndex],
+              lastResponse: null,
+            }
+          }
+
+          const opponentId = match.teams.find((item) => item !== teamId)
+          return {
+            ...match,
+            awaitingSteal: true,
+            activeTeamId: opponentId,
+            lastResponse: {
+              teamId,
+              isCorrect: false,
+              option: selectedOption,
+              questionId: question.instanceId,
+            },
+          }
+        })
+        .filter(Boolean),
+    )
+
+    if (completedMatch) {
+      finalizeMatch(completedMatch)
+      setMatches((previous) => previous.filter((match) => match.id !== completedMatch.id))
+    }
   }
 
   const handleDismissRecent = () => setRecentResult(null)
@@ -409,7 +473,7 @@ export default function App() {
     content = (
       <AdminDashboard
         teams={teams}
-        currentMatch={currentMatch}
+        matches={matches}
         recentResult={recentResult}
         history={matchHistory}
         onStartMatch={handleStartMatch}
@@ -420,14 +484,19 @@ export default function App() {
       />
     )
   } else if (session.type === 'team' && activeTeam) {
+    const activeMatch = matches.find(
+      (match) => match.status !== 'completed' && match.teams.includes(activeTeam.id),
+    )
+
     content = (
       <TeamDashboard
         team={activeTeam}
         teams={teams}
-        match={currentMatch}
+        match={activeMatch ?? null}
         history={matchHistory}
-        onAnswer={(option) => handleTeamAnswer(activeTeam.id, option)}
-        onSelectFirst={(firstTeamId) => handleSelectFirst(activeTeam.id, firstTeamId)}
+        onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
+        onSelectFirst={(matchId, firstTeamId) => handleSelectFirst(activeTeam.id, matchId, firstTeamId)}
+
         onLogout={handleLogout}
       />
     )

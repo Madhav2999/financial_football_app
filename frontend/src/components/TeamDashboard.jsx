@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import ScoreboardTable from './ScoreboardTable'
 import CoinFlipAnimation from './CoinFlipAnimation'
 
-
 function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
   const opponentId = match.teams.find((id) => id !== teamId)
   const opponent = teams.find((team) => team.id === opponentId)
@@ -59,14 +58,16 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => onSelectFirst?.(teamId)}
+                onClick={() => onSelectFirst?.(match.id, teamId)}
+
                 className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-sky-500/40 transition hover:bg-sky-400"
               >
                 We&apos;ll take the first question
               </button>
               <button
                 type="button"
-                onClick={() => onSelectFirst?.(opponentId)}
+                onClick={() => onSelectFirst?.(match.id, opponentId)}
+
                 className="rounded-2xl border border-slate-200/40 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
               >
                 Let {opponent?.name} start
@@ -99,7 +100,6 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
   )
 }
 
-
 function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const opponentId = match.teams.find((id) => id !== teamId)
   const activeTeam = teams.find((team) => team.id === match.activeTeamId)
@@ -110,6 +110,13 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const [selectedOption, setSelectedOption] = useState(null)
   const isActive = match.activeTeamId === teamId
   const isSteal = match.awaitingSteal && isActive
+  const lastResponse =
+    match.lastResponse && match.lastResponse.questionId === question.instanceId
+      ? match.lastResponse
+      : null
+  const isOwnLastResponse = lastResponse?.teamId === teamId
+  const isOpponentLastResponse = lastResponse?.teamId === opponentId
+
 
   useEffect(() => {
     setSelectedOption(null)
@@ -121,7 +128,8 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
     }
 
     setSelectedOption(option)
-    onAnswer(option)
+    onAnswer(match.id, option)
+
   }
 
   return (
@@ -146,7 +154,32 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
             {question.options.map((option, index) => {
               const optionKey = `${question.instanceId}-${index}`
               const isChoiceSelected = selectedOption === option
-              const disabled = !isActive || (selectedOption !== null && !isChoiceSelected)
+              const wasChosenByTeam = isOwnLastResponse && lastResponse.option === option
+              const wasChosenByOpponent = isOpponentLastResponse && lastResponse.option === option
+              const disabled =
+                !isActive ||
+                (selectedOption !== null && !isChoiceSelected) ||
+                wasChosenByTeam
+
+              let visualState = 'border-slate-700 bg-slate-900/70 text-slate-100 hover:border-sky-500 hover:text-white'
+
+              if (!isActive && !wasChosenByTeam && !wasChosenByOpponent && !isChoiceSelected) {
+                visualState = 'border-slate-800 bg-slate-900/40 text-slate-400'
+              }
+
+              if (wasChosenByTeam) {
+                visualState = lastResponse.isCorrect
+                  ? 'border-emerald-500 bg-emerald-500/10 text-emerald-200 shadow-inner shadow-emerald-500/20'
+                  : 'border-rose-500 bg-rose-500/10 text-rose-200 shadow-inner shadow-rose-500/20'
+              } else if (wasChosenByOpponent) {
+                visualState = lastResponse.isCorrect
+                  ? 'border-emerald-500/70 bg-emerald-500/5 text-emerald-100'
+                  : 'border-rose-500/70 bg-rose-500/5 text-rose-100'
+              } else if (isChoiceSelected) {
+                visualState = 'border-sky-500 bg-sky-500/10 text-sky-100'
+              } else if (selectedOption !== null && !isChoiceSelected) {
+                visualState = 'border-slate-800 bg-slate-900/40 text-slate-400'
+              }
 
               return (
                 <button
@@ -154,20 +187,23 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
                   type="button"
                   onClick={() => handleClick(option)}
                   disabled={disabled}
-                  className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                    isChoiceSelected
-                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-200'
-                      : disabled
-                      ? 'border-slate-800 bg-slate-900/40 text-slate-400'
-                      : 'border-slate-700 bg-slate-900/70 text-slate-100 hover:border-sky-500 hover:text-white'
-                  }`}
+                  className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${visualState}`}
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-600 text-xs font-semibold uppercase">
                     {String.fromCharCode(65 + index)}
                   </span>
                   <span className="flex-1">{option}</span>
-                  {isChoiceSelected ? (
-                    <span className="text-xs font-semibold uppercase tracking-wide text-emerald-300">Submitted</span>
+                  {wasChosenByTeam ? (
+                    <span
+                      className={`text-xs font-semibold uppercase tracking-wide ${
+                        lastResponse.isCorrect ? 'text-emerald-300' : 'text-rose-300'
+                      }`}
+                    >
+                      {lastResponse.isCorrect ? 'Correct' : 'Incorrect'}
+                    </span>
+                  ) : isChoiceSelected ? (
+                    <span className="text-xs font-semibold uppercase tracking-wide text-sky-300">Submitted</span>
+
                   ) : null}
                 </button>
               )
@@ -185,7 +221,26 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
             <span className="text-lg font-bold text-amber-400">{match.scores[opponentId]}</span>
           </div>
           <div className="mt-4 rounded-xl bg-slate-800/70 px-4 py-3 text-slate-200">
-            {match.awaitingSteal ? (
+            {lastResponse && isOwnLastResponse ? (
+              lastResponse.isCorrect ? (
+                <p className="font-semibold text-emerald-300">Correct! You banked the point.</p>
+              ) : (
+                <p className="font-semibold text-rose-300">
+                  Not quite. {opponent?.name} now gets a chance to steal.
+                </p>
+              )
+            ) : lastResponse && isOpponentLastResponse ? (
+              lastResponse.isCorrect ? (
+                <p className="font-semibold text-emerald-300">
+                  {opponent?.name} answered correctly and gained a point.
+                </p>
+              ) : (
+                <p className="font-semibold text-rose-300">
+                  {opponent?.name} missed their shot. Get ready for the next question.
+                </p>
+              )
+            ) : match.awaitingSteal ? (
+
               isSteal ? (
                 <p className="font-semibold text-white">
                   Opportunity to steal! Prepare your best answer.
