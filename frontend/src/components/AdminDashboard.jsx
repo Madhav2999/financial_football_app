@@ -147,6 +147,7 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
 }
 
 function LiveMatchPanel({ match, teams }) {
+
   const question = match.questionQueue[match.questionIndex]
   const [teamAId, teamBId] = match.teams
   const activeTeam = teams.find((team) => team.id === match.activeTeamId)
@@ -201,6 +202,7 @@ function LiveMatchPanel({ match, teams }) {
                 ))}
               </ol>
             </div>
+
           </div>
         </div>
       </div>
@@ -303,6 +305,7 @@ function TeamAnalyticsPanel({ teams }) {
     </div>
   )
 }
+
 
 export default function AdminDashboard({
   teams,
