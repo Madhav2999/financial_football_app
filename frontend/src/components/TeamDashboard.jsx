@@ -1,0 +1,368 @@
+import { useEffect, useState } from 'react'
+import ScoreboardTable from './ScoreboardTable'
+import CoinFlipAnimation from './CoinFlipAnimation'
+
+function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
+  const opponentId = match.teams.find((id) => id !== teamId)
+  const opponent = teams.find((team) => team.id === opponentId)
+  const winnerId = match.coinToss.winnerId
+  const winner = teams.find((team) => team.id === winnerId)
+  const decision = match.coinToss.decision
+  const selectedFirstTeam = decision ? teams.find((team) => team.id === decision.firstTeamId) : null
+  const isWinner = winnerId === teamId
+  const [teamAId, teamBId] = match.teams
+  const teamA = teams.find((team) => team.id === teamAId)
+  const teamB = teams.find((team) => team.id === teamBId)
+  const status = match.coinToss.status
+
+  if (status === 'ready') {
+    return (
+      <div className="rounded-3xl border border-amber-500/40 bg-amber-500/10 p-6 text-sm text-amber-100 shadow shadow-amber-500/20">
+        <p className="text-base font-semibold text-white">Coin toss about to begin</p>
+        <p className="mt-2">The moderator will flip the coin shortly to determine who gains the first question.</p>
+      </div>
+    )
+  }
+
+  if (status === 'flipping') {
+    return (
+      <div className="rounded-3xl border border-sky-500/40 bg-sky-500/10 p-6 text-sm text-sky-100 shadow shadow-sky-500/20">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <CoinFlipAnimation status={status} teamA={teamA} teamB={teamB} winner={winner} />
+          <p className="text-xs uppercase tracking-[0.3em] text-sky-200/70">
+            Heads: {teamA?.name ?? 'Team A'} &bull; Tails: {teamB?.name ?? 'Team B'}
+          </p>
+        </div>
+        <p className="mt-4">The coin is flipping now. Watch for the outcome to see who controls the opener.</p>
+      </div>
+    )
+  }
+
+  if (status === 'flipped') {
+    return (
+      <div className="rounded-3xl border border-emerald-500/40 bg-emerald-500/10 p-6 text-sm text-emerald-100 shadow shadow-emerald-500/20">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <CoinFlipAnimation status={status} teamA={teamA} teamB={teamB} winner={winner} />
+          <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/70">
+            Heads: {teamA?.name ?? 'Team A'} &bull; Tails: {teamB?.name ?? 'Team B'}
+          </p>
+        </div>
+        <p className="mt-4 text-base font-semibold text-white">
+          {winner ? `${winner.name} won the toss!` : 'Toss winner decided.'}
+        </p>
+        {isWinner ? (
+          <div className="mt-3 space-y-3">
+            <p>You control the first-question advantage. Choose who should begin the quiz.</p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => onSelectFirst?.(match.id, teamId)}
+                className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-sky-500/40 transition hover:bg-sky-400"
+              >
+                We&apos;ll take the first question
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectFirst?.(match.id, opponentId)}
+                className="rounded-2xl border border-slate-200/40 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+              >
+                Let {opponent?.name} start
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-2">
+            {winner ? `${winner.name}` : 'The toss winner'} has the choice of who begins. Await their decision.
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 text-sm text-slate-200 shadow shadow-slate-900/40">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <CoinFlipAnimation status={status} teamA={teamA} teamB={teamB} winner={winner} />
+        <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+          Heads: {teamA?.name ?? 'Team A'} &bull; Tails: {teamB?.name ?? 'Team B'}
+        </p>
+      </div>
+      <p className="mt-4 text-base font-semibold text-white">Coin toss locked in</p>
+      <p className="mt-2">
+        {winner ? `${winner.name}` : 'The toss winner'} chose {selectedFirstTeam?.name ?? 'a team'} to open the quiz. Get
+        ready for your question when it&apos;s your turn.
+      </p>
+    </div>
+  )
+}
+
+function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
+  const opponentId = match.teams.find((id) => id !== teamId)
+  const activeTeam = teams.find((team) => team.id === match.activeTeamId)
+  const opponent = teams.find((team) => team.id === opponentId)
+  const thisTeam = teams.find((team) => team.id === teamId)
+  const question = match.questionQueue[match.questionIndex]
+
+  const [selectedOption, setSelectedOption] = useState(null)
+  const isActive = match.activeTeamId === teamId
+  const isSteal = match.awaitingSteal && isActive
+  const lastResponse =
+    match.lastResponse && match.lastResponse.questionId === question.instanceId
+      ? match.lastResponse
+      : null
+  const isOwnLastResponse = lastResponse?.teamId === teamId
+  const isOpponentLastResponse = lastResponse?.teamId === opponentId
+
+  useEffect(() => {
+    setSelectedOption(null)
+  }, [match.questionIndex, match.awaitingSteal, match.activeTeamId])
+
+  const handleClick = (option) => {
+    if (!isActive || selectedOption !== null) {
+      return
+    }
+
+    setSelectedOption(option)
+    onAnswer(match.id, option)
+  }
+
+  return (
+    <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-lg shadow-slate-900/40">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-sky-400">Live Match</p>
+          <h2 className="text-2xl font-semibold text-white">{thisTeam.name} vs {opponent?.name}</h2>
+        </div>
+        <div className="flex items-center gap-3 rounded-full bg-slate-800/80 px-4 py-2 text-sm text-slate-200">
+          <span className="font-semibold text-white">Question {match.questionIndex + 1}</span>
+          <span className="text-slate-400">/ {match.questionQueue.length}</span>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr,0.8fr]">
+        <div className="space-y-4">
+          <p className="text-xs uppercase tracking-wider text-slate-400">Category</p>
+          <p className="text-lg font-semibold text-sky-300">{question.category}</p>
+          <p className="text-sm leading-relaxed text-slate-200">{question.prompt}</p>
+          <div className="mt-4 space-y-3">
+            {question.options.map((option, index) => {
+              const optionKey = `${question.instanceId}-${index}`
+              const isChoiceSelected = selectedOption === option
+              const wasChosenByTeam = isOwnLastResponse && lastResponse.option === option
+              const wasChosenByOpponent = isOpponentLastResponse && lastResponse.option === option
+              const disabled =
+                !isActive ||
+                (selectedOption !== null && !isChoiceSelected) ||
+                wasChosenByTeam
+
+              let visualState = 'border-slate-700 bg-slate-900/70 text-slate-100 hover:border-sky-500 hover:text-white'
+
+              if (!isActive && !wasChosenByTeam && !wasChosenByOpponent && !isChoiceSelected) {
+                visualState = 'border-slate-800 bg-slate-900/40 text-slate-400'
+              }
+
+              if (wasChosenByTeam) {
+                visualState = lastResponse.isCorrect
+                  ? 'border-emerald-500 bg-emerald-500/10 text-emerald-200 shadow-inner shadow-emerald-500/20'
+                  : 'border-rose-500 bg-rose-500/10 text-rose-200 shadow-inner shadow-rose-500/20'
+              } else if (wasChosenByOpponent) {
+                visualState = lastResponse.isCorrect
+                  ? 'border-emerald-500/70 bg-emerald-500/5 text-emerald-100'
+                  : 'border-rose-500/70 bg-rose-500/5 text-rose-100'
+              } else if (isChoiceSelected) {
+                visualState = 'border-sky-500 bg-sky-500/10 text-sky-100'
+              } else if (selectedOption !== null && !isChoiceSelected) {
+                visualState = 'border-slate-800 bg-slate-900/40 text-slate-400'
+              }
+
+              return (
+                <button
+                  key={optionKey}
+                  type="button"
+                  onClick={() => handleClick(option)}
+                  disabled={disabled}
+                  className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${visualState}`}
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-600 text-xs font-semibold uppercase">
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                  <span className="flex-1">{option}</span>
+                  {wasChosenByTeam ? (
+                    <span
+                      className={`text-xs font-semibold uppercase tracking-wide ${
+                        lastResponse.isCorrect ? 'text-emerald-300' : 'text-rose-300'
+                      }`}
+                    >
+                      {lastResponse.isCorrect ? 'Correct' : 'Incorrect'}
+                    </span>
+                  ) : isChoiceSelected ? (
+                    <span className="text-xs font-semibold uppercase tracking-wide text-sky-300">Submitted</span>
+                  ) : null}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-300">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-white">Your team</span>
+            <span className="text-lg font-bold text-sky-400">{match.scores[teamId]}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-white">{opponent?.name}</span>
+            <span className="text-lg font-bold text-amber-400">{match.scores[opponentId]}</span>
+          </div>
+          <div className="mt-4 rounded-xl bg-slate-800/70 px-4 py-3 text-slate-200">
+            {lastResponse && isOwnLastResponse ? (
+              lastResponse.isCorrect ? (
+                <p className="font-semibold text-emerald-300">Correct! You banked the point.</p>
+              ) : (
+                <p className="font-semibold text-rose-300">
+                  Not quite. {opponent?.name} now gets a chance to steal.
+                </p>
+              )
+            ) : lastResponse && isOpponentLastResponse ? (
+              lastResponse.isCorrect ? (
+                <p className="font-semibold text-emerald-300">
+                  {opponent?.name} answered correctly and gained a point.
+                </p>
+              ) : (
+                <p className="font-semibold text-rose-300">
+                  {opponent?.name} missed their shot. Get ready for the next question.
+                </p>
+              )
+            ) : match.awaitingSteal ? (
+              isSteal ? (
+                <p className="font-semibold text-white">
+                  Opportunity to steal! Prepare your best answer.
+                </p>
+              ) : (
+                <p>Waiting for the opposing team to attempt the steal.</p>
+              )
+            ) : activeTeam?.id === teamId ? (
+              <p className="font-semibold text-white">It&apos;s your turn to answer first.</p>
+            ) : (
+              <p>Hold tight while the opposing team answers.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RecentResults({ history, teamId, teams }) {
+  const entries = history.filter((match) => match.teams.includes(teamId)).slice(0, 5)
+
+  if (!entries.length) {
+    return (
+      <div className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6 text-sm text-slate-300 shadow-lg shadow-slate-900/40">
+        Your match history will appear here once you complete your first showdown.
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {entries.map((entry) => {
+        const opponentId = entry.teams.find((id) => id !== teamId)
+        const opponent = teams.find((team) => team.id === opponentId)
+        const didWin = entry.winnerId === teamId
+        const isTie = entry.winnerId === null
+
+        return (
+          <div
+            key={entry.id}
+            className="rounded-3xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200 shadow shadow-slate-900/30"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold text-white">
+                vs {opponent?.name}
+              </p>
+              <span
+                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                  isTie
+                    ? 'bg-slate-700 text-slate-200'
+                    : didWin
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : 'bg-rose-500/20 text-rose-300'
+                }`}
+              >
+                {isTie ? 'Tie' : didWin ? 'Win' : 'Loss'}
+              </span>
+            </div>
+            <p className="mt-2 text-xs uppercase tracking-widest text-slate-400">Final Score</p>
+            <p className="text-base font-semibold text-white">
+              {teams.find((team) => team.id === teamId)?.name} {entry.scores[teamId]} - {opponent?.name}{' '}
+              {entry.scores[opponentId]}
+            </p>
+            <p className="mt-3 text-xs text-slate-400">
+              {new Date(entry.completedAt).toLocaleString()}
+            </p>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export default function TeamDashboard({ team, teams, match, history, onAnswer, onSelectFirst, onLogout }) {
+  return (
+    <div className="flex min-h-screen flex-col text-slate-100">
+      <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Team Arena</p>
+            <h1 className="text-3xl font-semibold text-white">Welcome, {team.name}</h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm">
+              <div className="flex items-center gap-3 text-slate-300">
+                <span className="font-semibold text-white">Wins:</span>
+                <span>{team.wins}</span>
+                <span className="font-semibold text-white">Losses:</span>
+                <span>{team.losses}</span>
+              </div>
+            </div>
+            <button
+              onClick={onLogout}
+              className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+            >
+              Log out
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-8">
+        {match && match.teams.includes(team.id) ? (
+          match.status === 'coin-toss' ? (
+            <CoinTossStatusCard match={match} teamId={team.id} teams={teams} onSelectFirst={onSelectFirst} />
+          ) : (
+            <CurrentMatchCard match={match} teamId={team.id} teams={teams} onAnswer={onAnswer} />
+          )
+        ) : (
+          <div className="rounded-3xl border border-dashed border-slate-800 bg-slate-900/30 p-8 text-center text-slate-300 shadow-inner shadow-slate-900/30">
+            <p className="text-lg font-semibold text-slate-200">No live match right now.</p>
+            <p className="mt-2 text-sm text-slate-400">
+              Your next opponent and schedule will appear here once the moderator pairs your team.
+            </p>
+          </div>
+        )}
+
+        <section className="grid gap-8 lg:grid-cols-[1.2fr,1fr]">
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-white">Tournament Standings</h2>
+            <ScoreboardTable teams={teams} highlightTeamId={team.id} />
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-white">Recent Matches</h2>
+            <RecentResults history={history} teamId={team.id} teams={teams} />
+          </div>
+        </section>
+      </main>
+    </div>
+  )
+}
