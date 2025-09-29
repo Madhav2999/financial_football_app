@@ -7,6 +7,7 @@ import { questionBank } from './data/questions'
 
 const QUESTIONS_PER_TEAM = 10
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
+const BACKGROUND_VIDEO_SRC = '/media/quiz-background.mp4'
 
 function buildInitialTeams() {
   return initialTeams.map((team) => ({
@@ -125,6 +126,29 @@ function advanceMatchState(match, scores) {
   }
 }
 
+function AppLayout({ children }) {
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
+      <video
+        className="pointer-events-none fixed inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        aria-hidden="true"
+      >
+        <source src={BACKGROUND_VIDEO_SRC} type="video/mp4" />
+      </video>
+      <div className="pointer-events-none fixed inset-0 bg-slate-950/70 mix-blend-multiply" aria-hidden="true" />
+      <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-slate-900/20 via-slate-950/40 to-slate-950/80" aria-hidden="true" />
+      <div className="relative z-10 flex min-h-screen flex-col">
+        <main className="flex-1">{children}</main>
+      </div>
+    </div>
+  )
+}
+
+
 export default function App() {
   const [teams, setTeams] = useState(buildInitialTeams)
   const [session, setSession] = useState({ type: 'guest' })
@@ -192,20 +216,39 @@ export default function App() {
   }
 
   const handleFlipCoin = () => {
+    let shouldScheduleReveal = false
+
     setCurrentMatch((previous) => {
       if (!previous || previous.coinToss.status !== 'ready') return previous
-      const winnerId = previous.teams[Math.floor(Math.random() * previous.teams.length)]
+      shouldScheduleReveal = true
       return {
         ...previous,
         coinToss: {
           ...previous.coinToss,
-          status: 'flipped',
-          winnerId,
+          status: 'flipping',
+          winnerId: null,
+          decision: null,
         },
       }
     })
-  }
 
+    if (shouldScheduleReveal) {
+      setTimeout(() => {
+        setCurrentMatch((previous) => {
+          if (!previous || previous.coinToss.status !== 'flipping') return previous
+          const winnerId = previous.teams[Math.floor(Math.random() * previous.teams.length)]
+          return {
+            ...previous,
+            coinToss: {
+              ...previous.coinToss,
+              status: 'flipped',
+              winnerId,
+            },
+          }
+        })
+      }, 1800)
+    }
+  }
 
   const handleSelectFirst = (deciderId, firstTeamId) => {
     setCurrentMatch((previous) => {
@@ -353,18 +396,19 @@ export default function App() {
 
   const handleDismissRecent = () => setRecentResult(null)
 
+  let content = null
+
   if (session.type === 'guest') {
-    return (
+    content = (
+
       <AuthenticationGateway
         onTeamLogin={handleTeamLogin}
         onAdminLogin={handleAdminLogin}
         error={authError}
       />
     )
-  }
-
-  if (session.type === 'admin') {
-    return (
+  } else if (session.type === 'admin') {
+    content = (
       <AdminDashboard
         teams={teams}
         currentMatch={currentMatch}
@@ -377,10 +421,8 @@ export default function App() {
         onLogout={handleLogout}
       />
     )
-  }
-
-  if (session.type === 'team' && activeTeam) {
-    return (
+  } else if (session.type === 'team' && activeTeam) {
+    content = (
       <TeamDashboard
         team={activeTeam}
         teams={teams}
@@ -393,5 +435,5 @@ export default function App() {
     )
   }
 
-  return null
+  return <AppLayout>{content}</AppLayout>
 }

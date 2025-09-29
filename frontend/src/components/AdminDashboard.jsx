@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import ScoreboardTable from './ScoreboardTable'
+import CoinFlipAnimation from './CoinFlipAnimation'
 
 function MatchSetupForm({ teams, onStart, disabled }) {
   const eligibleTeams = useMemo(
@@ -93,6 +94,54 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
   const opponentId = match.coinToss.winnerId === teamAId ? teamBId : teamAId
   const decision = match.coinToss.decision
   const firstTeam = decision ? teams.find((team) => team.id === decision.firstTeamId) : null
+  const status = match.coinToss.status
+  const isFlipping = status === 'flipping'
+
+  let statusMessage = null
+
+  if (status === 'ready') {
+    statusMessage = (
+      <p className="text-slate-300">
+        Flip the coin to determine who gains the opening question advantage.
+      </p>
+    )
+  } else if (status === 'flipping') {
+    statusMessage = (
+      <p className="text-slate-300">
+        The coin is in the air&mdash;once it lands the winning team will choose who starts.
+      </p>
+    )
+  } else if (status === 'flipped') {
+    statusMessage = (
+      <div className="space-y-3">
+        <p className="text-base font-semibold text-white">
+          {winner ? `${winner.name} won the toss!` : 'Toss result received.'}
+        </p>
+        <p className="text-slate-300">Decide who should answer first.</p>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => onSelectFirst(match.coinToss.winnerId, match.coinToss.winnerId)}
+            className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-sky-500/40 transition hover:bg-sky-400"
+          >
+            {winner?.name} will answer first
+          </button>
+          <button
+            onClick={() => onSelectFirst(match.coinToss.winnerId, opponentId)}
+            className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+          >
+            Defer to {teams.find((team) => team.id === opponentId)?.name}
+          </button>
+        </div>
+      </div>
+    )
+  } else if (status === 'decided') {
+    statusMessage = (
+      <p className="text-slate-300">
+        Coin toss decision locked in. {winner?.name} chose {firstTeam?.name} to begin the quiz.
+      </p>
+    )
+  }
+
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl shadow-slate-900/40">
@@ -105,47 +154,28 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
         </div>
         <button
           onClick={onFlip}
-          disabled={match.coinToss.status !== 'ready'}
+          disabled={status !== 'ready'}
           className={`rounded-2xl px-5 py-2 text-sm font-semibold transition ${
-            match.coinToss.status === 'ready'
+            status === 'ready'
+
               ? 'bg-sky-500 text-white shadow shadow-sky-500/40 hover:bg-sky-400'
               : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-400'
           }`}
         >
-          Flip coin
+          {isFlipping ? 'Flipping…' : 'Flip coin'}
         </button>
       </div>
 
-      {match.coinToss.status !== 'ready' ? (
-        <div className="mt-6 space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200">
-          <p className="text-base font-semibold text-white">
-            Winner: {winner?.name}
+      <div className="mt-6 space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <CoinFlipAnimation status={status} teamA={teamA} teamB={teamB} winner={winner} />
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+            Heads: {teamA?.name ?? 'Team A'} &bull; Tails: {teamB?.name ?? 'Team B'}
           </p>
-          {match.coinToss.status === 'flipped' ? (
-            <div className="space-y-3">
-              <p className="text-slate-300">Decide who answers first.</p>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => onSelectFirst(match.coinToss.winnerId, match.coinToss.winnerId)}
-                  className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-sky-500/40 transition hover:bg-sky-400"
-                >
-                  {winner?.name} will answer first
-                </button>
-                <button
-                  onClick={() => onSelectFirst(match.coinToss.winnerId, opponentId)}
-                  className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                >
-                  Defer to {teams.find((team) => team.id === opponentId)?.name}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-slate-300">
-              Coin toss decision locked in. {winner?.name} chose {firstTeam?.name} to begin the quiz.
-            </p>
-          )}
         </div>
-      ) : null}
+        {statusMessage}
+      </div>
+
     </div>
   )
 }
@@ -320,7 +350,8 @@ export default function AdminDashboard({
   onLogout,
 }) {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="flex min-h-screen flex-col text-slate-100">
+
       <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import ScoreboardTable from './ScoreboardTable'
+import CoinFlipAnimation from './CoinFlipAnimation'
+
 
 function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
   const opponentId = match.teams.find((id) => id !== teamId)
@@ -9,23 +11,46 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
   const decision = match.coinToss.decision
   const selectedFirstTeam = decision ? teams.find((team) => team.id === decision.firstTeamId) : null
   const isWinner = winnerId === teamId
+  const [teamAId, teamBId] = match.teams
+  const teamA = teams.find((team) => team.id === teamAId)
+  const teamB = teams.find((team) => team.id === teamBId)
+  const status = match.coinToss.status
 
-  if (match.coinToss.status === 'ready') {
+  if (status === 'ready') {
     return (
       <div className="rounded-3xl border border-amber-500/40 bg-amber-500/10 p-6 text-sm text-amber-100 shadow shadow-amber-500/20">
-        <p className="text-base font-semibold text-white">Coin toss in progress</p>
-        <p className="mt-2">
-          The moderator is flipping the coin to determine who answers first. Stay sharp and watch for your opening
-          question.
-        </p>
+        <p className="text-base font-semibold text-white">Coin toss about to begin</p>
+        <p className="mt-2">The moderator will flip the coin shortly to determine who gains the first question.</p>
       </div>
     )
   }
 
-  if (match.coinToss.status === 'flipped') {
+  if (status === 'flipping') {
+    return (
+      <div className="rounded-3xl border border-sky-500/40 bg-sky-500/10 p-6 text-sm text-sky-100 shadow shadow-sky-500/20">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <CoinFlipAnimation status={status} teamA={teamA} teamB={teamB} winner={winner} />
+          <p className="text-xs uppercase tracking-[0.3em] text-sky-200/70">
+            Heads: {teamA?.name ?? 'Team A'} &bull; Tails: {teamB?.name ?? 'Team B'}
+          </p>
+        </div>
+        <p className="mt-4">The coin is flipping now. Watch for the outcome to see who controls the opener.</p>
+
+      </div>
+    )
+  }
+
+  if (status === 'flipped') {
     return (
       <div className="rounded-3xl border border-emerald-500/40 bg-emerald-500/10 p-6 text-sm text-emerald-100 shadow shadow-emerald-500/20">
-        <p className="text-base font-semibold text-white">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <CoinFlipAnimation status={status} teamA={teamA} teamB={teamB} winner={winner} />
+          <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/70">
+            Heads: {teamA?.name ?? 'Team A'} &bull; Tails: {teamB?.name ?? 'Team B'}
+          </p>
+        </div>
+        <p className="mt-4 text-base font-semibold text-white">
+
           {winner ? `${winner.name} won the toss!` : 'Toss winner decided.'}
         </p>
         {isWinner ? (
@@ -59,7 +84,13 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 text-sm text-slate-200 shadow shadow-slate-900/40">
-      <p className="text-base font-semibold text-white">Coin toss locked in</p>
+      <div className="flex flex-col items-center gap-4 text-center">
+        <CoinFlipAnimation status={status} teamA={teamA} teamB={teamB} winner={winner} />
+        <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+          Heads: {teamA?.name ?? 'Team A'} &bull; Tails: {teamB?.name ?? 'Team B'}
+        </p>
+      </div>
+      <p className="mt-4 text-base font-semibold text-white">Coin toss locked in</p>
       <p className="mt-2">
         {winner ? `${winner.name}` : 'The toss winner'} chose {selectedFirstTeam?.name ?? 'a team'} to open the quiz. Get
         ready for your question when it&apos;s your turn.
@@ -231,7 +262,7 @@ function RecentResults({ history, teamId, teams }) {
 
 export default function TeamDashboard({ team, teams, match, history, onAnswer, onSelectFirst, onLogout }) {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="flex min-h-screen flex-col text-slate-100">
       <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>
