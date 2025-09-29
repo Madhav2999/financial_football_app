@@ -68,6 +68,7 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
   )
 }
 
+
 function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const opponentId = match.teams.find((id) => id !== teamId)
   const activeTeam = teams.find((team) => team.id === match.activeTeamId)

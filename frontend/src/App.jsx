@@ -206,6 +206,7 @@ export default function App() {
     })
   }
 
+
   const handleSelectFirst = (deciderId, firstTeamId) => {
     setCurrentMatch((previous) => {
       if (!previous || previous.coinToss.status !== 'flipped') return previous
@@ -213,6 +214,7 @@ export default function App() {
       if (!previous.teams.includes(firstTeamId)) return previous
 
       const order = buildQuestionOrder(firstTeamId, previous.teams, QUESTIONS_PER_TEAM)
+
 
       return {
         ...previous,
