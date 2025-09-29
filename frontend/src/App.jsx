@@ -148,7 +148,6 @@ function AppLayout({ children }) {
   )
 }
 
-
 export default function App() {
   const [teams, setTeams] = useState(buildInitialTeams)
   const [session, setSession] = useState({ type: 'guest' })
@@ -400,7 +399,6 @@ export default function App() {
 
   if (session.type === 'guest') {
     content = (
-
       <AuthenticationGateway
         onTeamLogin={handleTeamLogin}
         onAdminLogin={handleAdminLogin}

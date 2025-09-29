@@ -88,7 +88,9 @@ body {
 }
 
 .coin-flip-coin--spinning {
-  animation: coin-flip-spin 0.9s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  animation: coin-flip-spin 0.9s cubic-bezier(0.37, 0, 0.63, 1);
+  animation-iteration-count: 2;
+  animation-fill-mode: forwards;
 }
 
 @keyframes coin-flip-spin {
