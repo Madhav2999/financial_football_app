@@ -1,6 +1,74 @@
 import { useEffect, useState } from 'react'
 import ScoreboardTable from './ScoreboardTable'
 
+function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
+  const opponentId = match.teams.find((id) => id !== teamId)
+  const opponent = teams.find((team) => team.id === opponentId)
+  const winnerId = match.coinToss.winnerId
+  const winner = teams.find((team) => team.id === winnerId)
+  const decision = match.coinToss.decision
+  const selectedFirstTeam = decision ? teams.find((team) => team.id === decision.firstTeamId) : null
+  const isWinner = winnerId === teamId
+
+  if (match.coinToss.status === 'ready') {
+    return (
+      <div className="rounded-3xl border border-amber-500/40 bg-amber-500/10 p-6 text-sm text-amber-100 shadow shadow-amber-500/20">
+        <p className="text-base font-semibold text-white">Coin toss in progress</p>
+        <p className="mt-2">
+          The moderator is flipping the coin to determine who answers first. Stay sharp and watch for your opening
+          question.
+        </p>
+      </div>
+    )
+  }
+
+  if (match.coinToss.status === 'flipped') {
+    return (
+      <div className="rounded-3xl border border-emerald-500/40 bg-emerald-500/10 p-6 text-sm text-emerald-100 shadow shadow-emerald-500/20">
+        <p className="text-base font-semibold text-white">
+          {winner ? `${winner.name} won the toss!` : 'Toss winner decided.'}
+        </p>
+        {isWinner ? (
+          <div className="mt-3 space-y-3">
+            <p>You control the first-question advantage. Choose who should begin the quiz.</p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => onSelectFirst?.(teamId)}
+                className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-sky-500/40 transition hover:bg-sky-400"
+              >
+                We&apos;ll take the first question
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectFirst?.(opponentId)}
+                className="rounded-2xl border border-slate-200/40 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+              >
+                Let {opponent?.name} start
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-2">
+            {winner ? `${winner.name}` : 'The toss winner'} has the choice of who begins. Await their decision.
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 text-sm text-slate-200 shadow shadow-slate-900/40">
+      <p className="text-base font-semibold text-white">Coin toss locked in</p>
+      <p className="mt-2">
+        {winner ? `${winner.name}` : 'The toss winner'} chose {selectedFirstTeam?.name ?? 'a team'} to open the quiz. Get
+        ready for your question when it&apos;s your turn.
+      </p>
+    </div>
+  )
+}
+
+
 function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const opponentId = match.teams.find((id) => id !== teamId)
   const activeTeam = teams.find((team) => team.id === match.activeTeamId)
@@ -161,7 +229,7 @@ function RecentResults({ history, teamId, teams }) {
   )
 }
 
-export default function TeamDashboard({ team, teams, match, history, onAnswer, onLogout }) {
+export default function TeamDashboard({ team, teams, match, history, onAnswer, onSelectFirst, onLogout }) {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
@@ -192,13 +260,7 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
       <main className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-8">
         {match && match.teams.includes(team.id) ? (
           match.status === 'coin-toss' ? (
-            <div className="rounded-3xl border border-amber-500/40 bg-amber-500/10 p-6 text-sm text-amber-100 shadow shadow-amber-500/20">
-              <p className="text-base font-semibold text-white">Coin toss in progress</p>
-              <p className="mt-2">
-                The moderator is flipping the coin to determine who answers first. Stay sharp and watch for your
-                opening question.
-              </p>
-            </div>
+            <CoinTossStatusCard match={match} teamId={team.id} teams={teams} onSelectFirst={onSelectFirst} />
           ) : (
             <CurrentMatchCard match={match} teamId={team.id} teams={teams} onAnswer={onAnswer} />
           )

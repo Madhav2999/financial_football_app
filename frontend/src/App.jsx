@@ -206,11 +206,15 @@ export default function App() {
     })
   }
 
-  const handleSelectFirst = (teamId) => {
+
+  const handleSelectFirst = (deciderId, firstTeamId) => {
     setCurrentMatch((previous) => {
       if (!previous || previous.coinToss.status !== 'flipped') return previous
+      if (previous.coinToss.winnerId !== deciderId) return previous
+      if (!previous.teams.includes(firstTeamId)) return previous
 
-      const order = buildQuestionOrder(teamId, previous.teams, QUESTIONS_PER_TEAM)
+      const order = buildQuestionOrder(firstTeamId, previous.teams, QUESTIONS_PER_TEAM)
+
 
       return {
         ...previous,
@@ -220,7 +224,10 @@ export default function App() {
         coinToss: {
           ...previous.coinToss,
           status: 'decided',
-          decision: teamId,
+          decision: {
+            deciderId,
+            firstTeamId,
+          },
         },
       }
     })
@@ -380,6 +387,7 @@ export default function App() {
         match={currentMatch}
         history={matchHistory}
         onAnswer={(option) => handleTeamAnswer(activeTeam.id, option)}
+        onSelectFirst={(firstTeamId) => handleSelectFirst(activeTeam.id, firstTeamId)}
         onLogout={handleLogout}
       />
     )

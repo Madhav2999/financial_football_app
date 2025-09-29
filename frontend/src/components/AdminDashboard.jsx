@@ -91,6 +91,8 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
   const teamB = teams.find((team) => team.id === teamBId)
   const winner = teams.find((team) => team.id === match.coinToss.winnerId)
   const opponentId = match.coinToss.winnerId === teamAId ? teamBId : teamAId
+  const decision = match.coinToss.decision
+  const firstTeam = decision ? teams.find((team) => team.id === decision.firstTeamId) : null
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl shadow-slate-900/40">
@@ -124,13 +126,13 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
               <p className="text-slate-300">Decide who answers first.</p>
               <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={() => onSelectFirst(match.coinToss.winnerId)}
+                  onClick={() => onSelectFirst(match.coinToss.winnerId, match.coinToss.winnerId)}
                   className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-sky-500/40 transition hover:bg-sky-400"
                 >
                   {winner?.name} will answer first
                 </button>
                 <button
-                  onClick={() => onSelectFirst(opponentId)}
+                  onClick={() => onSelectFirst(match.coinToss.winnerId, opponentId)}
                   className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                 >
                   Defer to {teams.find((team) => team.id === opponentId)?.name}
@@ -138,7 +140,9 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
               </div>
             </div>
           ) : (
-            <p className="text-slate-300">Coin toss decision locked in. Let the quiz begin!</p>
+            <p className="text-slate-300">
+              Coin toss decision locked in. {winner?.name} chose {firstTeam?.name} to begin the quiz.
+            </p>
           )}
         </div>
       ) : null}
@@ -147,7 +151,6 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
 }
 
 function LiveMatchPanel({ match, teams }) {
-
   const question = match.questionQueue[match.questionIndex]
   const [teamAId, teamBId] = match.teams
   const activeTeam = teams.find((team) => team.id === match.activeTeamId)
@@ -202,7 +205,6 @@ function LiveMatchPanel({ match, teams }) {
                 ))}
               </ol>
             </div>
-
           </div>
         </div>
       </div>
@@ -305,7 +307,6 @@ function TeamAnalyticsPanel({ teams }) {
     </div>
   )
 }
-
 
 export default function AdminDashboard({
   teams,
