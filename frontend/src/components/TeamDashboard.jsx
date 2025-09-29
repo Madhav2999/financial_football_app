@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import ScoreboardTable from './ScoreboardTable'
 import CoinFlipAnimation from './CoinFlipAnimation'
 
+
 function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
   const opponentId = match.teams.find((id) => id !== teamId)
   const opponent = teams.find((team) => team.id === opponentId)
@@ -34,6 +35,7 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
           </p>
         </div>
         <p className="mt-4">The coin is flipping now. Watch for the outcome to see who controls the opener.</p>
+
       </div>
     )
   }
@@ -48,6 +50,7 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
           </p>
         </div>
         <p className="mt-4 text-base font-semibold text-white">
+
           {winner ? `${winner.name} won the toss!` : 'Toss winner decided.'}
         </p>
         {isWinner ? (
@@ -95,6 +98,7 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
     </div>
   )
 }
+
 
 function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const opponentId = match.teams.find((id) => id !== teamId)

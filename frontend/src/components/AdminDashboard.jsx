@@ -142,6 +142,7 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
     )
   }
 
+
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl shadow-slate-900/40">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -156,6 +157,7 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
           disabled={status !== 'ready'}
           className={`rounded-2xl px-5 py-2 text-sm font-semibold transition ${
             status === 'ready'
+
               ? 'bg-sky-500 text-white shadow shadow-sky-500/40 hover:bg-sky-400'
               : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-400'
           }`}
@@ -173,6 +175,7 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
         </div>
         {statusMessage}
       </div>
+
     </div>
   )
 }
@@ -348,6 +351,7 @@ export default function AdminDashboard({
 }) {
   return (
     <div className="flex min-h-screen flex-col text-slate-100">
+
       <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>

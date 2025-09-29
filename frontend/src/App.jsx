@@ -257,6 +257,7 @@ export default function App() {
 
       const order = buildQuestionOrder(firstTeamId, previous.teams, QUESTIONS_PER_TEAM)
 
+
       return {
         ...previous,
         assignedTeamOrder: order,
