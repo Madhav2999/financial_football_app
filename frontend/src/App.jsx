@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
 import TeamDashboard from './components/TeamDashboard'
@@ -127,6 +127,7 @@ export default function App() {
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
   const [authError, setAuthError] = useState(null)
+  const revealTimersRef = useRef(new Map())
 
   const activeTeam = useMemo(() => {
     if (session.type !== 'team') return null
@@ -223,11 +224,17 @@ export default function App() {
     )
 
     if (shouldScheduleReveal) {
-      setTimeout(() => {
+      const timers = revealTimersRef.current
+      const existingTimer = timers.get(matchId)
+      if (existingTimer) {
+        clearTimeout(existingTimer)
+      }
+      const timerId = setTimeout(() => {
+        revealTimersRef.current.delete(matchId)
         setMatches((previous) =>
           previous.map((match) => {
             if (match.id !== matchId) return match
-            if (match.coinToss.status !== 'flipping') return match
+            if (match.status !== 'coin-toss') return match
             const winnerId = match.teams[Math.floor(Math.random() * match.teams.length)]
             return {
               ...match,
@@ -241,6 +248,7 @@ export default function App() {
         )
 
       }, 1800)
+      timers.set(matchId, timerId)
     }
   }
 
@@ -275,6 +283,13 @@ export default function App() {
   }
 
   const finalizeMatch = (match) => {
+    const timers = revealTimersRef.current
+    const existingTimer = timers.get(match.id)
+    if (existingTimer) {
+      clearTimeout(existingTimer)
+      timers.delete(match.id)
+    }
+
     const [teamAId, teamBId] = match.teams
     const teamAScore = match.scores[teamAId]
     const teamBScore = match.scores[teamBId]
