@@ -224,6 +224,7 @@ export default function App() {
         revealTimersRef.current.delete(matchId)
         setMatches((current) =>
           current.map((match) => {
+
             if (match.id !== matchId) return match
             if (match.status !== 'coin-toss') return match
             const winnerId = match.teams[Math.floor(Math.random() * match.teams.length)]
@@ -254,6 +255,7 @@ export default function App() {
         }
       })
     })
+
   }
 
   const handleSelectFirst = (deciderId, matchId, firstTeamId) => {
