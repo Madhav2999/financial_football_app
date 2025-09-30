@@ -204,35 +204,27 @@ export default function App() {
   }
 
   const handleFlipCoin = (matchId) => {
-    let shouldScheduleReveal = false
+    setMatches((previous) => {
+      const matchToFlip = previous.find((match) => match.id === matchId)
+      if (!matchToFlip || matchToFlip.status !== 'coin-toss') {
+        return previous
+      }
 
-    setMatches((previous) =>
-      previous.map((match) => {
-        if (match.id !== matchId) return match
-        if (match.coinToss.status !== 'ready') return match
-        shouldScheduleReveal = true
-        return {
-          ...match,
-          coinToss: {
-            ...match.coinToss,
-            status: 'flipping',
-            winnerId: null,
-            decision: null,
-          },
-        }
-      }),
-    )
+      if (matchToFlip.coinToss.status !== 'ready') {
+        return previous
+      }
 
-    if (shouldScheduleReveal) {
       const timers = revealTimersRef.current
       const existingTimer = timers.get(matchId)
       if (existingTimer) {
         clearTimeout(existingTimer)
       }
+
       const timerId = setTimeout(() => {
         revealTimersRef.current.delete(matchId)
-        setMatches((previous) =>
-          previous.map((match) => {
+        setMatches((current) =>
+          current.map((match) => {
+
             if (match.id !== matchId) return match
             if (match.status !== 'coin-toss') return match
             const winnerId = match.teams[Math.floor(Math.random() * match.teams.length)]
@@ -246,10 +238,24 @@ export default function App() {
             }
           }),
         )
-
       }, 1800)
+
       timers.set(matchId, timerId)
-    }
+
+      return previous.map((match) => {
+        if (match.id !== matchId) return match
+        return {
+          ...match,
+          coinToss: {
+            ...match.coinToss,
+            status: 'flipping',
+            winnerId: null,
+            decision: null,
+          },
+        }
+      })
+    })
+
   }
 
   const handleSelectFirst = (deciderId, matchId, firstTeamId) => {
