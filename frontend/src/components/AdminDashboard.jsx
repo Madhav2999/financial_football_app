@@ -2,26 +2,30 @@ import { useMemo, useState } from 'react'
 import ScoreboardTable from './ScoreboardTable'
 
 
-function MatchSetupForm({ teams, onStart, disabled }) {
-  const eligibleTeams = useMemo(
-    () => teams.filter((team) => !team.eliminated),
-    [teams],
-  )
+function MatchSetupForm({ teams, activeMatches, onStart }) {
+  const eligibleTeams = useMemo(() => {
+    const engaged = new Set()
+    activeMatches.forEach((match) => {
+      if (match.status === 'completed') return
+      match.teams.forEach((teamId) => engaged.add(teamId))
+    })
+    return teams.filter((team) => !team.eliminated && !engaged.has(team.id))
+  }, [teams, activeMatches])
   const [selection, setSelection] = useState({ teamA: '', teamB: '' })
 
   const canStart =
     selection.teamA &&
     selection.teamB &&
-    selection.teamA !== selection.teamB &&
-
-    !disabled
+    selection.teamA !== selection.teamB
+  const isSubmitDisabled = !canStart || eligibleTeams.length < 2
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    if (canStart) {
-      onStart(selection.teamA, selection.teamB)
-      setSelection({ teamA: '', teamB: '' })
+    if (isSubmitDisabled) {
+      return
     }
+    onStart(selection.teamA, selection.teamB)
+    setSelection({ teamA: '', teamB: '' })
   }
 
   return (
@@ -34,14 +38,14 @@ function MatchSetupForm({ teams, onStart, disabled }) {
           <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Create Match</p>
           <h2 className="text-2xl font-semibold text-white">Select competitors</h2>
           <p className="mt-2 text-sm text-slate-400">
-            Only active teams are displayed. Eliminated teams are automatically hidden.
+            Only eligible teams are displayed. Eliminated or currently competing teams are hidden automatically.
           </p>
         </div>
         <button
           type="submit"
-          disabled={!canStart}
+          disabled={isSubmitDisabled}
           className={`rounded-2xl px-5 py-2 text-sm font-semibold transition ${
-            canStart
+            !isSubmitDisabled
               ? 'bg-sky-500 text-white shadow shadow-sky-500/40 hover:bg-sky-400'
               : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-500'
           }`}
@@ -83,18 +87,111 @@ function MatchSetupForm({ teams, onStart, disabled }) {
           </select>
         </label>
       </div>
+      {eligibleTeams.length < 2 ? (
+        <p className="mt-4 rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 p-4 text-xs text-slate-400">
+          Not enough eligible teams are available to launch a new match right now.
+        </p>
+      ) : null}
     </form>
   )
 }
+
+function CoinFlipAnimation({ status, teamAName, teamBName, resultFace }) {
+  const classes = ['coin-flip']
+
+  if (status === 'flipping') {
+    classes.push('coin-flip--spinning')
+  } else if (resultFace) {
+    classes.push(`coin-flip--${resultFace}`)
+  }
+
+  return (
+    <div className="coin-flip__scene">
+      <div className={classes.join(' ')}>
+        <div className="coin-flip__face coin-flip__face--heads">
+          <span className="coin-flip__label">Heads</span>
+          <span className="coin-flip__team">{teamAName}</span>
+        </div>
+        <div className="coin-flip__face coin-flip__face--tails">
+          <span className="coin-flip__label">Tails</span>
+          <span className="coin-flip__team">{teamBName}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
 
 function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
   const [teamAId, teamBId] = match.teams
   const teamA = teams.find((team) => team.id === teamAId)
   const teamB = teams.find((team) => team.id === teamBId)
-  const winner = teams.find((team) => team.id === match.coinToss.winnerId)
-  const opponentId = match.coinToss.winnerId === teamAId ? teamBId : teamAId
+  const status = match.coinToss.status
+  const resultFace = match.coinToss.resultFace
+  const winnerId = match.coinToss.winnerId
+  const winner = teams.find((team) => team.id === winnerId) ?? null
+  const opponentId =
+    winnerId === teamAId ? teamBId : winnerId === teamBId ? teamAId : null
+  const opponent = opponentId ? teams.find((team) => team.id === opponentId) : null
   const decision = match.coinToss.decision
   const firstTeam = decision ? teams.find((team) => team.id === decision.firstTeamId) : null
+  const resultFaceLabel = resultFace === 'heads' ? 'Heads' : resultFace === 'tails' ? 'Tails' : null
+
+  let statusContent = null
+
+  if (status === 'ready') {
+    statusContent = (
+      <p className="text-slate-300">Flip the coin to decide who takes the opening question.</p>
+    )
+  } else if (status === 'flipping') {
+    statusContent = (
+      <p className="text-slate-300">Coin in motion... we will reveal the toss winner momentarily.</p>
+    )
+  } else if (status === 'flipped') {
+    statusContent = (
+      <div className="space-y-3">
+        <p className="text-base font-semibold text-white">
+          {resultFaceLabel ? `${resultFaceLabel} - ` : ''}
+          {winner ? `${winner.name} won the toss.` : 'Toss winner decided.'}
+        </p>
+        <p className="text-slate-300">Choose which team starts the match.</p>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => onSelectFirst(match.id, winnerId, winnerId)}
+            disabled={!winnerId}
+            className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+              winnerId
+                ? 'bg-sky-500 text-white shadow shadow-sky-500/40 hover:bg-sky-400'
+                : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-400'
+            }`}
+          >
+            {winner ? `${winner.name} begins` : 'Winner begins'}
+          </button>
+          <button
+            onClick={() => onSelectFirst(match.id, winnerId, opponentId)}
+            disabled={!winnerId || !opponentId}
+            className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition ${
+              winnerId && opponentId
+                ? 'border-slate-600 bg-slate-900 text-slate-200 hover:border-slate-500 hover:text-white'
+                : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-500'
+            }`}
+          >
+            Defer to {opponent?.name ?? 'opponent'}
+          </button>
+        </div>
+      </div>
+    )
+  } else if (status === 'decided') {
+    statusContent = (
+      <div className="space-y-2">
+        <p className="text-base font-semibold text-white">
+          {winner ? `${winner.name}` : 'Toss winner'} selected {firstTeam?.name ?? 'a team'} to open the quiz.
+        </p>
+        <p className="text-slate-300">Monitor the live match below as the first question is underway.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl shadow-slate-900/40">
@@ -106,55 +203,48 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
           </h2>
         </div>
         <button
-          onClick={onFlip}
-          disabled={match.coinToss.status !== 'ready'}
+          onClick={() => onFlip(match.id)}
+          disabled={status !== 'ready'}
           className={`rounded-2xl px-5 py-2 text-sm font-semibold transition ${
-            match.coinToss.status === 'ready'
+            status === 'ready'
               ? 'bg-sky-500 text-white shadow shadow-sky-500/40 hover:bg-sky-400'
               : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-400'
           }`}
         >
-          Flip coin
+          {status === 'flipping' ? 'Flipping...' : 'Flip coin'}
         </button>
       </div>
 
-      {match.coinToss.status !== 'ready' ? (
-        <div className="mt-6 space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200">
-          <p className="text-base font-semibold text-white">
-            Winner: {winner?.name}
+      <div className="mt-6 grid gap-5 lg:grid-cols-[0.9fr,1.1fr]">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/60 p-6 text-center">
+          <CoinFlipAnimation
+            status={status}
+            teamAName={teamA?.name ?? 'Team A'}
+            teamBName={teamB?.name ?? 'Team B'}
+            resultFace={resultFace}
+          />
+          <p className="mt-4 text-xs uppercase tracking-widest text-slate-400">
+            Heads - {teamA?.name ?? 'Team A'} | Tails - {teamB?.name ?? 'Team B'}
           </p>
-          {match.coinToss.status === 'flipped' ? (
-            <div className="space-y-3">
-              <p className="text-slate-300">Decide who answers first.</p>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => onSelectFirst(match.coinToss.winnerId, match.coinToss.winnerId)}
-                  className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-sky-500/40 transition hover:bg-sky-400"
-                >
-                  {winner?.name} will answer first
-                </button>
-                <button
-                  onClick={() => onSelectFirst(match.coinToss.winnerId, opponentId)}
-                  className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                >
-                  Defer to {teams.find((team) => team.id === opponentId)?.name}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-slate-300">
-              Coin toss decision locked in. {winner?.name} chose {firstTeam?.name} to begin the quiz.
-            </p>
-          )}
+          {resultFaceLabel && status !== 'flipping' ? (
+            <p className="mt-2 text-sm font-semibold text-white">Result: {resultFaceLabel}</p>
+          ) : null}
         </div>
-      ) : null}
+
+        <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200">
+          {statusContent}
+        </div>
+      </div>
     </div>
   )
 }
 
+
 function LiveMatchPanel({ match, teams }) {
   const question = match.questionQueue[match.questionIndex]
   const [teamAId, teamBId] = match.teams
+  const teamA = teams.find((team) => team.id === teamAId) ?? null
+  const teamB = teams.find((team) => team.id === teamBId) ?? null
   const activeTeam = teams.find((team) => team.id === match.activeTeamId)
   const opponentId = match.activeTeamId === teamAId ? teamBId : teamAId
   const opponent = teams.find((team) => team.id === opponentId)
@@ -166,6 +256,7 @@ function LiveMatchPanel({ match, teams }) {
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Live Question</p>
           <h2 className="text-2xl font-semibold text-white">Question {match.questionIndex + 1}</h2>
+          <p className="text-sm text-slate-300">{teamA?.name} vs {teamB?.name}</p>
         </div>
         <div className="flex items-center gap-3 rounded-full bg-slate-800/80 px-4 py-2 text-sm text-slate-200">
           <span className="font-semibold text-white">{match.questionIndex + 1}</span>
@@ -182,11 +273,11 @@ function LiveMatchPanel({ match, teams }) {
 
         <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-white">{teams.find((team) => team.id === teamAId)?.name}</span>
+            <span className="font-semibold text-white">{teamA?.name}</span>
             <span className="text-lg font-bold text-sky-400">{match.scores[teamAId]}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-white">{teams.find((team) => team.id === teamBId)?.name}</span>
+            <span className="font-semibold text-white">{teamB?.name}</span>
             <span className="text-lg font-bold text-amber-400">{match.scores[teamBId]}</span>
           </div>
           <div className="mt-4 space-y-3">
@@ -314,7 +405,7 @@ function TeamAnalyticsPanel({ teams }) {
 
 export default function AdminDashboard({
   teams,
-  currentMatch,
+  activeMatches,
   recentResult,
   history,
   onStartMatch,
@@ -323,6 +414,17 @@ export default function AdminDashboard({
   onDismissRecent,
   onLogout,
 }) {
+  const orderedMatches = useMemo(
+    () =>
+      activeMatches
+        .filter((match) => match.status !== 'completed')
+        .sort((a, b) => {
+          const priority = { 'coin-toss': 0, 'in-progress': 1 }
+          return (priority[a.status] ?? 2) - (priority[b.status] ?? 2)
+        }),
+    [activeMatches],
+  )
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
@@ -360,17 +462,35 @@ export default function AdminDashboard({
           </div>
         ) : null}
 
+
+
         <section className="grid gap-8 lg:grid-cols-[1.1fr,0.9fr]">
           <div className="space-y-6">
-            {currentMatch ? (
-              currentMatch.status === 'coin-toss' ? (
-                <CoinTossPanel match={currentMatch} teams={teams} onFlip={onFlipCoin} onSelectFirst={onSelectFirst} />
+            <MatchSetupForm teams={teams} activeMatches={activeMatches} onStart={onStartMatch} />
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-white">Active Matches</h2>
+              {orderedMatches.length ? (
+                <div className="space-y-4">
+                  {orderedMatches.map((match) =>
+                    match.status === 'coin-toss' ? (
+                      <CoinTossPanel
+                        key={match.id}
+                        match={match}
+                        teams={teams}
+                        onFlip={onFlipCoin}
+                        onSelectFirst={onSelectFirst}
+                      />
+                    ) : (
+                      <LiveMatchPanel key={match.id} match={match} teams={teams} />
+                    )
+                  )}
+                </div>
               ) : (
-                <LiveMatchPanel match={currentMatch} teams={teams} />
-              )
-            ) : (
-              <MatchSetupForm teams={teams} onStart={onStartMatch} disabled={Boolean(currentMatch)} />
-            )}
+                <div className="rounded-3xl border border-dashed border-slate-800 bg-slate-900/40 p-6 text-sm text-slate-300 shadow-inner shadow-slate-900/30">
+                  No matches are running right now. Launch a new showdown above.
+                </div>
+              )}
+            </div>
 
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-white">Tournament Standings</h2>
@@ -390,6 +510,8 @@ export default function AdminDashboard({
             </div>
           </div>
         </section>
+
+
       </main>
     </div>
   )
