@@ -15,9 +15,18 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
       <div className="rounded-3xl border border-amber-500/40 bg-amber-500/10 p-6 text-sm text-amber-100 shadow shadow-amber-500/20">
         <p className="text-base font-semibold text-white">Coin toss in progress</p>
         <p className="mt-2">
-          The moderator is flipping the coin to determine who answers first. Stay sharp and watch for your opening
+          The moderator will flip the coin to determine who answers first. Stay sharp and watch for your opening
           question.
         </p>
+      </div>
+    )
+  }
+
+  if (match.coinToss.status === 'flipping') {
+    return (
+      <div className="rounded-3xl border border-sky-500/40 bg-sky-500/10 p-6 text-sm text-sky-100 shadow shadow-sky-500/20">
+        <p className="text-base font-semibold text-white">Coin is in the air...</p>
+        <p className="mt-2">Hang tight while the coin settles. We will announce the winner in a moment.</p>
       </div>
     )
   }
@@ -34,14 +43,14 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => onSelectFirst?.(teamId)}
+                onClick={() => onSelectFirst?.(match.id, teamId)}
                 className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-sky-500/40 transition hover:bg-sky-400"
               >
                 We&apos;ll take the first question
               </button>
               <button
                 type="button"
-                onClick={() => onSelectFirst?.(opponentId)}
+                onClick={() => onSelectFirst?.(match.id, opponentId)}
                 className="rounded-2xl border border-slate-200/40 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
               >
                 Let {opponent?.name} start
@@ -89,7 +98,7 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
     }
 
     setSelectedOption(option)
-    onAnswer(option)
+    onAnswer(match.id, option)
   }
 
   return (
