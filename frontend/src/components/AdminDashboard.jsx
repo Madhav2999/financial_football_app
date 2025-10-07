@@ -240,65 +240,120 @@ function CoinTossPanel({ match, teams, onFlip, onSelectFirst }) {
 }
 
 
+
 function LiveMatchPanel({ match, teams }) {
   const question = match.questionQueue[match.questionIndex]
   const [teamAId, teamBId] = match.teams
   const teamA = teams.find((team) => team.id === teamAId) ?? null
   const teamB = teams.find((team) => team.id === teamBId) ?? null
-  const activeTeam = teams.find((team) => team.id === match.activeTeamId)
-  const opponentId = match.activeTeamId === teamAId ? teamBId : teamAId
-  const opponent = teams.find((team) => team.id === opponentId)
+  const activeTeam = teams.find((team) => team.id === match.activeTeamId) ?? null
   const awaitingSteal = match.awaitingSteal
+  const progress = Math.round(((match.questionIndex + 1) / match.questionQueue.length) * 100)
+  const timeline = match.assignedTeamOrder.length ? match.assignedTeamOrder : []
+
+  const statusMessage = awaitingSteal
+    ? `${teamAId === match.activeTeamId ? teamB?.name ?? 'Opponent' : teamA?.name ?? 'Opponent'} attempting a steal`
+    : `${activeTeam?.name ?? 'Team'} answering now`
 
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl shadow-slate-900/40">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Live Question</p>
-          <h2 className="text-2xl font-semibold text-white">Question {match.questionIndex + 1}</h2>
-          <p className="text-sm text-slate-300">{teamA?.name} vs {teamB?.name}</p>
-        </div>
-        <div className="flex items-center gap-3 rounded-full bg-slate-800/80 px-4 py-2 text-sm text-slate-200">
-          <span className="font-semibold text-white">{match.questionIndex + 1}</span>
-          <span className="text-slate-400">/ {match.questionQueue.length}</span>
-        </div>
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
-        <div className="space-y-4">
-          <p className="text-xs uppercase tracking-widest text-slate-400">Category</p>
-          <p className="text-lg font-semibold text-sky-300">{question.category}</p>
-          <p className="text-sm leading-relaxed text-slate-200">{question.prompt}</p>
-        </div>
-
-        <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-white">{teamA?.name}</span>
-            <span className="text-lg font-bold text-sky-400">{match.scores[teamAId]}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-white">{teamB?.name}</span>
-            <span className="text-lg font-bold text-amber-400">{match.scores[teamBId]}</span>
-          </div>
-          <div className="mt-4 space-y-3">
-
-            <p className="font-semibold text-white">{awaitingSteal ? `${opponent?.name} is attempting a steal.` : `${activeTeam?.name} is responding.`}</p>
-            <p className="text-xs text-slate-400">
-              The moderator now observes progress only. Teams submit answers directly from their dashboards.
-            </p>
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-300">
-              <p className="font-semibold text-slate-200">Multiple-choice options</p>
-              <ol className="mt-3 space-y-2">
-                {question.options.map((option, index) => (
-                  <li key={option} className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 text-[11px] uppercase text-slate-400">
-                      {String.fromCharCode(65 + index)}
-                    </span>
-                    <span>{option}</span>
-                  </li>
-                ))}
-              </ol>
+    <div
+      className="relative overflow-hidden rounded-[32px] border border-white/10 text-white shadow-[0_40px_120px_rgba(8,47,73,0.45)]"
+      style={{
+        backgroundImage: 'linear-gradient(130deg, rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.6)), url(/assets/moderator-bg.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-transparent" aria-hidden />
+      <div className="relative z-10 grid gap-10 px-8 py-10 lg:grid-cols-[1.4fr,0.8fr]">
+        <div className="flex flex-col gap-8">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.45em] text-emerald-300">Quiz Moderator</p>
+              <h2 className="mt-2 text-3xl font-semibold leading-tight">{teamA?.name} vs {teamB?.name}</h2>
             </div>
+            <div className="rounded-full border border-white/20 bg-white/10 px-5 py-2 text-xs uppercase tracking-[0.4em] text-slate-200">
+              Question {match.questionIndex + 1} / {match.questionQueue.length}
+            </div>
+          </div>
+
+          <div className="space-y-6 rounded-[28px] border border-white/10 bg-black/40 p-8 backdrop-blur">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-400 text-lg font-semibold text-slate-900">
+                  Q{match.questionIndex + 1}
+                </span>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.4em] text-slate-300">Category</p>
+                  <p className="text-lg font-semibold text-white">{question.category}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                <span className="rounded-full border border-emerald-400/60 bg-emerald-400/10 px-4 py-2 text-emerald-200">
+                  {statusMessage}
+                </span>
+                <span className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-slate-200">{progress}% complete</span>
+              </div>
+            </div>
+            <p className="text-base leading-relaxed text-slate-100">{question.prompt}</p>
+            <div className="grid gap-3 md:grid-cols-2">
+              {question.options.map((option, index) => {
+                const letter = String.fromCharCode(65 + index)
+                return (
+                  <div
+                    key={option}
+                    className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm transition hover:border-emerald-300/70 hover:bg-emerald-300/10"
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-400 text-sm font-semibold text-slate-900">
+                      {letter}
+                    </span>
+                    <span className="text-slate-100">{option}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <div className="rounded-[28px] border border-white/10 bg-black/50 p-8 backdrop-blur">
+            <p className="text-xs uppercase tracking-[0.4em] text-slate-300">Scoreboard</p>
+            <div className="mt-6 space-y-4 text-sm">
+              {[{ team: teamA, id: teamAId }, { team: teamB, id: teamBId }].map(({ team, id }) => (
+                <div
+                  key={id}
+                  className={`rounded-2xl border px-4 py-4 transition ${
+                    match.activeTeamId === id ? 'border-emerald-400/70 bg-emerald-400/15' : 'border-white/10 bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-base font-semibold text-white">{team?.name ?? 'Team'}</p>
+                    <span className="text-2xl font-bold text-emerald-300">{match.scores[id]}</span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {Array.from({ length: match.questionQueue.length }).map((_, index) => {
+                      const base = 'h-2 w-6 rounded-full transition'
+                      const isCompleted = index < match.questionIndex
+                      const isCurrent = index === match.questionIndex
+                      if (isCurrent) return <span key={index} className={`${base} bg-emerald-300 animate-pulse`} />
+                      if (isCompleted) {
+                        const owner = timeline[index]
+                        const ownedByTeam = owner === id
+                        return <span key={index} className={`${base} ${ownedByTeam ? 'bg-emerald-400/70' : 'bg-white/25'}`} />
+                      }
+                      return <span key={index} className={`${base} bg-white/10`} />
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border border-white/10 bg-black/40 p-6 backdrop-blur">
+            <p className="text-xs uppercase tracking-[0.35em] text-slate-300">Moderator Notes</p>
+            <p className="mt-3 text-sm text-slate-200">
+              Keep teams muted on stage, announce the active side before revealing options, and note any disputed calls here for review.
+            </p>
           </div>
         </div>
       </div>
@@ -426,8 +481,15 @@ export default function AdminDashboard({
   )
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
+    <div
+      className="min-h-screen text-slate-100"
+      style={{
+        backgroundImage: 'linear-gradient(180deg, rgba(2, 6, 23, 0.95), rgba(2, 6, 23, 0.85)), url(/assets/moderator-bg.jpg)',
+        backgroundSize: 'cover',
+        backgroundAttachment: 'fixed',
+      }}
+    >
+      <header className="border-b border-white/10 bg-slate-900/60 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Admin Control Booth</p>

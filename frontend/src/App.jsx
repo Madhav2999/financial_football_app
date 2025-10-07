@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
 import TeamDashboard from './components/TeamDashboard'
+import LandingPage from './components/LandingPage'
 import { initialTeams } from './data/teams'
 import { questionBank } from './data/questions'
 
@@ -128,6 +129,7 @@ function advanceMatchState(match, scores) {
 export default function App() {
   const [teams, setTeams] = useState(buildInitialTeams)
   const [session, setSession] = useState({ type: 'guest' })
+  const [guestView, setGuestView] = useState('landing')
   const [activeMatches, setActiveMatches] = useState([])
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
@@ -168,6 +170,7 @@ export default function App() {
   const handleLogout = () => {
     setSession({ type: 'guest' })
     setAuthError(null)
+    setGuestView('landing')
   }
 
   const handleStartMatch = (teamAId, teamBId) => {
@@ -434,11 +437,33 @@ export default function App() {
   const handleDismissRecent = () => setRecentResult(null)
 
   if (session.type === 'guest') {
+    if (guestView === 'landing') {
+      return (
+        <LandingPage
+          teams={teams}
+          history={matchHistory}
+          onEnter={() => {
+            setGuestView('login-team')
+            setAuthError(null)
+          }}
+          onAdminEnter={() => {
+            setGuestView('login-admin')
+            setAuthError(null)
+          }}
+        />
+      )
+    }
+
     return (
       <AuthenticationGateway
+        initialMode={guestView === 'login-admin' ? 'admin' : 'team'}
         onTeamLogin={handleTeamLogin}
         onAdminLogin={handleAdminLogin}
         error={authError}
+        onBack={() => {
+          setGuestView('landing')
+          setAuthError(null)
+        }}
       />
     )
   }
