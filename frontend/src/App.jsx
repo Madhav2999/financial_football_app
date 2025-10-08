@@ -3,6 +3,7 @@ import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
 import TeamDashboard from './components/TeamDashboard'
 import LandingPage from './components/LandingPage'
+import TournamentOverview from './components/TournamentOverview'
 import { initialTeams } from './data/teams'
 import { questionBank } from './data/questions'
 
@@ -130,6 +131,7 @@ export default function App() {
   const [teams, setTeams] = useState(buildInitialTeams)
   const [session, setSession] = useState({ type: 'guest' })
   const [guestView, setGuestView] = useState('landing')
+  const [hashView, setHashView] = useState(null)
   const [activeMatches, setActiveMatches] = useState([])
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
@@ -212,6 +214,29 @@ export default function App() {
     })
   }
 
+  const handleModeratorStart = (matchId) => {
+    setActiveMatches((previousMatches) =>
+      previousMatches.map((match) => {
+        if (match.id !== matchId) {
+          return match
+        }
+
+        if (match.status !== 'pending-start' || match.coinToss.status !== 'pending') {
+          return match
+        }
+
+        return {
+          ...match,
+          status: 'coin-toss',
+          coinToss: {
+            ...match.coinToss,
+            status: 'ready',
+          },
+        }
+      }),
+    )
+  }
+
   const handleFlipCoin = (matchId) => {
     setActiveMatches((previousMatches) => {
       const targetMatch = previousMatches.find((match) => match.id === matchId)
@@ -274,6 +299,7 @@ export default function App() {
           return match
         }
 
+        if (match.status !== 'coin-toss') return match
         if (match.coinToss.status !== 'flipped') return match
         if (match.coinToss.winnerId !== deciderId) return match
         if (!match.teams.includes(firstTeamId)) return match
@@ -435,6 +461,22 @@ export default function App() {
   }
 
   const handleDismissRecent = () => setRecentResult(null)
+
+  if (hashView === 'tournament' && session.type !== 'guest') {
+    return (
+      <TournamentOverview
+        teams={teams}
+        moderators={moderators}
+        tournament={tournament}
+        activeMatches={activeMatches}
+        history={matchHistory}
+        onBack={() => {
+          window.location.hash = ''
+          setHashView(null)
+        }}
+      />
+    )
+  }
 
   if (session.type === 'guest') {
     if (guestView === 'landing') {
