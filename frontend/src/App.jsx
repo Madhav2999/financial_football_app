@@ -3,8 +3,11 @@ import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
 import TeamDashboard from './components/TeamDashboard'
 <<<<<<< HEAD
+<<<<<<< HEAD
 import LandingPage from './components/LandingPage'
 import TournamentOverview from './components/TournamentOverview'
+=======
+>>>>>>> parent of 26fe2c3 (finishing the landing page)
 =======
 >>>>>>> parent of 26fe2c3 (finishing the landing page)
 import { initialTeams } from './data/teams'
@@ -134,8 +137,11 @@ export default function App() {
   const [teams, setTeams] = useState(buildInitialTeams)
   const [session, setSession] = useState({ type: 'guest' })
 <<<<<<< HEAD
+<<<<<<< HEAD
   const [guestView, setGuestView] = useState('landing')
   const [hashView, setHashView] = useState(null)
+=======
+>>>>>>> parent of 26fe2c3 (finishing the landing page)
 =======
 >>>>>>> parent of 26fe2c3 (finishing the landing page)
   const [activeMatches, setActiveMatches] = useState([])
@@ -467,6 +473,7 @@ export default function App() {
 
   const handleDismissRecent = () => setRecentResult(null)
 
+<<<<<<< HEAD
   if (hashView === 'tournament' && session.type !== 'guest') {
     return (
       <TournamentOverview
@@ -483,6 +490,8 @@ export default function App() {
     )
   }
 
+=======
+>>>>>>> parent of 26fe2c3 (finishing the landing page)
   if (session.type === 'guest') {
     return (
       <AuthenticationGateway
