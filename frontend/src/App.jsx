@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
+import LandingPage from './components/LandingPage'
 import { initialTeams } from './data/teams'
 import { questionBank } from './data/questions'
 
@@ -128,7 +129,6 @@ export default function App() {
   const [teams, setTeams] = useState(buildInitialTeams)
   const [session, setSession] = useState({ type: 'guest' })
   const [guestView, setGuestView] = useState('landing')
-  const [hashView, setHashView] = useState(null)
   const [activeMatches, setActiveMatches] = useState([])
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
