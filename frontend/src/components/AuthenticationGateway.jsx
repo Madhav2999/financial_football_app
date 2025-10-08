@@ -1,13 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const MODES = [
   { id: 'team', label: 'Team Login' },
   { id: 'admin', label: 'Admin Login' },
 ]
 
-export default function AuthenticationGateway({ onTeamLogin, onAdminLogin, error }) {
-  const [mode, setMode] = useState('team')
+export default function AuthenticationGateway({ initialMode = 'team', onTeamLogin, onAdminLogin, error, onBack }) {
+  const [mode, setMode] = useState(initialMode)
   const [form, setForm] = useState({ loginId: '', password: '' })
+
+  useEffect(() => {
+    setMode(initialMode)
+    setForm({ loginId: '', password: '' })
+  }, [initialMode])
 
   const handleSubmit = (event) => {
     event.preventDefault()
@@ -52,6 +57,15 @@ export default function AuthenticationGateway({ onTeamLogin, onAdminLogin, error
         </section>
 
         <section className="rounded-3xl bg-slate-900/40 border border-slate-800 p-8 shadow-xl shadow-sky-500/5">
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="mb-6 text-xs font-semibold uppercase tracking-[0.3em] text-slate-400 transition hover:text-white"
+            >
+              Back to landing
+            </button>
+          ) : null}
           <div className="flex rounded-full bg-slate-800/70 p-1 text-sm font-medium text-slate-300 mb-8">
             {MODES.map((item) => (
               <button

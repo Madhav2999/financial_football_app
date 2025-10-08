@@ -63,7 +63,7 @@ const recentHighlights = [
     title: "Weekly Recap",
     timestamp: "2d ago",
     summary: "Top plays and key moments",
-    thumb: "/assets/how-to-play-bg.jpg",
+    thumb: "/assets/stay-updated.jpg",
   },
 ];
 

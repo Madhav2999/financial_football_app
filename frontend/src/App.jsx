@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
 import LandingPage from './components/LandingPage'
+import ProtectedRoute from './components/ProtectedRoute'
 import { initialTeams } from './data/teams'
 import { questionBank } from './data/questions'
 import TeamDashboard from './components/TeamDashboard'
@@ -127,12 +129,22 @@ function advanceMatchState(match, scores) {
 }
 
 export default function App() {
+  return (
+    <BrowserRouter>
+      <AppShell />
+    </BrowserRouter>
+  )
+}
+
+function AppShell() {
   const [teams, setTeams] = useState(buildInitialTeams)
   const [session, setSession] = useState({ type: 'guest' })
   const [activeMatches, setActiveMatches] = useState([])
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
   const [authError, setAuthError] = useState(null)
+
+  const navigate = useNavigate()
 
   const activeTeam = useMemo(() => {
     if (session.type !== 'team') return null
@@ -144,7 +156,7 @@ export default function App() {
     return activeMatches.find((match) => match.teams.includes(session.teamId)) ?? null
   }, [activeMatches, session])
 
-  const handleTeamLogin = (loginId, password) => {
+  const handleTeamLogin = (loginId, password, options = {}) => {
     const team = teams.find((item) => item.loginId === loginId)
 
     if (!team || team.password !== password) {
@@ -154,9 +166,10 @@ export default function App() {
 
     setSession({ type: 'team', teamId: team.id })
     setAuthError(null)
+    navigate(options.redirectTo ?? '/team', { replace: true })
   }
 
-  const handleAdminLogin = (loginId, password) => {
+  const handleAdminLogin = (loginId, password, options = {}) => {
     if (loginId !== ADMIN_CREDENTIALS.loginId || password !== ADMIN_CREDENTIALS.password) {
       setAuthError('Incorrect admin login details.')
       return
@@ -164,11 +177,13 @@ export default function App() {
 
     setSession({ type: 'admin' })
     setAuthError(null)
+    navigate(options.redirectTo ?? '/admin', { replace: true })
   }
 
   const handleLogout = () => {
     setSession({ type: 'guest' })
     setAuthError(null)
+    navigate('/', { replace: true })
   }
 
   const handleStartMatch = (teamAId, teamBId) => {
@@ -360,7 +375,6 @@ export default function App() {
       winnerId,
       summary,
     })
-
   }
 
   const handleTeamAnswer = (matchId, teamId, selectedOption) => {
@@ -434,46 +448,112 @@ export default function App() {
 
   const handleDismissRecent = () => setRecentResult(null)
 
-
-  if (session.type === 'guest') {
-    return (
-      <AuthenticationGateway
-        onTeamLogin={handleTeamLogin}
-        onAdminLogin={handleAdminLogin}
-        error={authError}
-      />
-    )
+  const navigateToLogin = (mode) => {
+    setAuthError(null)
+    navigate(mode === 'admin' ? '/login?mode=admin' : '/login')
   }
+
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <LandingPage
+            teams={teams}
+            onEnter={() => navigateToLogin('team')}
+            onAdminEnter={() => navigateToLogin('admin')}
+          />
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          <LoginPage
+            authError={authError}
+            onTeamLogin={handleTeamLogin}
+            onAdminLogin={handleAdminLogin}
+            onBack={() => {
+              setAuthError(null)
+              navigate('/')
+            }}
+            session={session}
+          />
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute isAllowed={session.type === 'admin'} redirectTo="/login?mode=admin">
+            <AdminDashboard
+              teams={teams}
+              activeMatches={activeMatches}
+              recentResult={recentResult}
+              history={matchHistory}
+              onStartMatch={handleStartMatch}
+              onFlipCoin={handleFlipCoin}
+              onSelectFirst={handleSelectFirst}
+              onDismissRecent={handleDismissRecent}
+              onLogout={handleLogout}
+            />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/team"
+        element={
+          <ProtectedRoute
+            isAllowed={session.type === 'team' && Boolean(activeTeam)}
+            redirectTo="/login"
+          >
+            <TeamDashboard
+              team={activeTeam}
+              teams={teams}
+              match={activeTeamMatch}
+              history={matchHistory}
+              onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
+              onSelectFirst={(matchId, firstTeamId) =>
+                handleSelectFirst(matchId, activeTeam.id, firstTeamId)
+              }
+              onLogout={handleLogout}
+            />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
+
+function LoginPage({ authError, onTeamLogin, onAdminLogin, onBack, session }) {
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
+
+  const requestedMode = searchParams.get('mode') === 'admin' ? 'admin' : 'team'
+  const fromLocation = location.state?.from
+  const inferredMode = fromLocation?.pathname === '/admin' ? 'admin' : requestedMode
+  const redirectTarget = fromLocation
+    ? `${fromLocation.pathname}${fromLocation.search ?? ''}${fromLocation.hash ?? ''}`
+    : null
 
   if (session.type === 'admin') {
-    return (
-      <AdminDashboard
-        teams={teams}
-        activeMatches={activeMatches}
-        recentResult={recentResult}
-        history={matchHistory}
-        onStartMatch={handleStartMatch}
-        onFlipCoin={handleFlipCoin}
-        onSelectFirst={handleSelectFirst}
-        onDismissRecent={handleDismissRecent}
-        onLogout={handleLogout}
-      />
-    )
+    return <Navigate to="/admin" replace />
   }
 
-  if (session.type === 'team' && activeTeam) {
-    return (
-      <TeamDashboard
-        team={activeTeam}
-        teams={teams}
-        match={activeTeamMatch}
-        history={matchHistory}
-        onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
-        onSelectFirst={(matchId, firstTeamId) => handleSelectFirst(matchId, activeTeam.id, firstTeamId)}
-        onLogout={handleLogout}
-      />
-    )
+  if (session.type === 'team') {
+    return <Navigate to="/team" replace />
   }
 
-  return null
+  return (
+    <AuthenticationGateway
+      initialMode={inferredMode}
+      onTeamLogin={(loginId, password) =>
+        onTeamLogin(loginId, password, { redirectTo: redirectTarget ?? '/team' })
+      }
+      onAdminLogin={(loginId, password) =>
+        onAdminLogin(loginId, password, { redirectTo: redirectTarget ?? '/admin' })
+      }
+      onBack={onBack}
+      error={authError}
+    />
+  )
 }
