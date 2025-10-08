@@ -118,14 +118,14 @@ export default function LandingPage({ teams, onEnter, onAdminEnter }) {
               <button
                 type="button"
                 onClick={onAdminEnter}
-                className="rounded-full border border-white/50 px-4 py-2 text-xs uppercase tracking-widest transition hover:border-emerald-300 hover:text-emerald-300"
+                className="rounded-full border border-white/50 px-4 py-2 text-xs uppercase tracking-widest transition hover:border-emerald-300 hover:text-emerald-300 cursor-pointer"
               >
                 Moderator Login
               </button>
               <button
                 type="button"
                 onClick={onEnter}
-                className="rounded-full bg-emerald-400 px-5 py-2 text-xs uppercase tracking-[0.3em] text-slate-900 transition hover:bg-emerald-300"
+                className="rounded-full bg-emerald-400 px-5 py-2 text-xs uppercase tracking-[0.3em] text-slate-900 transition hover:bg-emerald-300 cursor-pointer"
               >
                 Enter Tournament
               </button>
@@ -143,13 +143,13 @@ export default function LandingPage({ teams, onEnter, onAdminEnter }) {
                 <button
                   type="button"
                   onClick={onEnter}
-                  className="rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 px-6 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 transition hover:from-emerald-300 hover:to-sky-300"
+                  className="cursor-pointer rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 px-6 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 transition hover:from-emerald-300 hover:to-sky-300"
                 >
                   Enter Tournament
                 </button>
                 <a
                   href="#how-to-play"
-                  className="rounded-full border border-white/40 px-6 py-3 text-sm font-semibold text-white transition hover:border-emerald-300 hover:text-emerald-300"
+                  className="cursor-pointer rounded-full border border-white/40 px-6 py-3 text-sm font-semibold text-white transition hover:border-emerald-300 hover:text-emerald-300"
                 >
                   Learn how to play
                 </a>
