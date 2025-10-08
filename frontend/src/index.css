@@ -97,16 +97,3 @@ body {
     transform: rotateY(720deg) rotateX(0deg);
   }
 }
-@keyframes scroll-up {
-  0%   { transform: translateY(0); }
-  100% { transform: translateY(-50%); } /* because we double the list */
-}
-@keyframes popIn {
-  0%   { opacity: 0; transform: scale(0.95) translateY(20px); }
-  60%  { opacity: 1; transform: scale(1.02) translateY(0); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
-}
-@keyframes fadeOut {
-  0% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(0.95); }
-}
