@@ -1,15 +1,6 @@
 import { useMemo, useState } from 'react'
 import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
-import TeamDashboard from './components/TeamDashboard'
-<<<<<<< HEAD
-<<<<<<< HEAD
-import LandingPage from './components/LandingPage'
-import TournamentOverview from './components/TournamentOverview'
-=======
->>>>>>> parent of 26fe2c3 (finishing the landing page)
-=======
->>>>>>> parent of 26fe2c3 (finishing the landing page)
 import { initialTeams } from './data/teams'
 import { questionBank } from './data/questions'
 
@@ -136,14 +127,8 @@ function advanceMatchState(match, scores) {
 export default function App() {
   const [teams, setTeams] = useState(buildInitialTeams)
   const [session, setSession] = useState({ type: 'guest' })
-<<<<<<< HEAD
-<<<<<<< HEAD
   const [guestView, setGuestView] = useState('landing')
   const [hashView, setHashView] = useState(null)
-=======
->>>>>>> parent of 26fe2c3 (finishing the landing page)
-=======
->>>>>>> parent of 26fe2c3 (finishing the landing page)
   const [activeMatches, setActiveMatches] = useState([])
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
@@ -473,25 +458,7 @@ export default function App() {
 
   const handleDismissRecent = () => setRecentResult(null)
 
-<<<<<<< HEAD
-  if (hashView === 'tournament' && session.type !== 'guest') {
-    return (
-      <TournamentOverview
-        teams={teams}
-        moderators={moderators}
-        tournament={tournament}
-        activeMatches={activeMatches}
-        history={matchHistory}
-        onBack={() => {
-          window.location.hash = ''
-          setHashView(null)
-        }}
-      />
-    )
-  }
 
-=======
->>>>>>> parent of 26fe2c3 (finishing the landing page)
   if (session.type === 'guest') {
     return (
       <AuthenticationGateway
