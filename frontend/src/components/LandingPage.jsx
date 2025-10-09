@@ -196,7 +196,7 @@ export default function LandingPage({ teams, onEnter, onAdminEnter }) {
           </div>
         </section>
 
-        <section className="bg-amber-50 py-12">
+        <section className="bg-amber-50 py-12 relative">
           <div className="max-w-8xl">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
 
