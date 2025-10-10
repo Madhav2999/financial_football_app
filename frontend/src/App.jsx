@@ -3,13 +3,19 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSe
 import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
 import LandingPage from './components/LandingPage'
+import ModeratorDashboard from './components/ModeratorDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
+import SuperAdminDashboard from './components/SuperAdminDashboard'
 import { initialTeams } from './data/teams'
 import { questionBank } from './data/questions'
+import { moderatorAccounts } from './data/moderators'
 import TeamDashboard from './components/TeamDashboard'
+import { initializeTournament, recordMatchResult, findMatchForTeams, attachLiveMatch, detachLiveMatch } from './tournament/engine'
 
-const QUESTIONS_PER_TEAM = 10
+const QUESTIONS_PER_TEAM = 1
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
+const SUPER_ADMIN_CREDENTIALS = { loginId: 'super', password: 'supreme' }
+const MODERATOR_ACCOUNTS = moderatorAccounts
 
 function buildInitialTeams() {
   return initialTeams.map((team) => ({
@@ -143,6 +149,7 @@ function AppShell() {
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
   const [authError, setAuthError] = useState(null)
+  const [tournament, setTournament] = useState(() => initializeTournament(teams, MODERATOR_ACCOUNTS))
 
   const navigate = useNavigate()
 
@@ -155,6 +162,11 @@ function AppShell() {
     if (session.type !== 'team') return null
     return activeMatches.find((match) => match.teams.includes(session.teamId)) ?? null
   }, [activeMatches, session])
+
+  const activeModerator = useMemo(() => {
+    if (session.type !== 'moderator') return null
+    return MODERATOR_ACCOUNTS.find((account) => account.id === session.moderatorId) ?? null
+  }, [session])
 
   const handleTeamLogin = (loginId, password, options = {}) => {
     const team = teams.find((item) => item.loginId === loginId)
@@ -180,6 +192,30 @@ function AppShell() {
     navigate(options.redirectTo ?? '/admin', { replace: true })
   }
 
+  const handleModeratorLogin = (loginId, password, options = {}) => {
+    const moderator = MODERATOR_ACCOUNTS.find((item) => item.loginId === loginId)
+
+    if (!moderator || moderator.password !== password) {
+      setAuthError('Invalid moderator credentials. Please try again.')
+      return
+    }
+
+    setSession({ type: 'moderator', moderatorId: moderator.id })
+    setAuthError(null)
+    navigate(options.redirectTo ?? '/moderator', { replace: true })
+  }
+
+  const handleSuperAdminLogin = (loginId, password, options = {}) => {
+    if (loginId !== SUPER_ADMIN_CREDENTIALS.loginId || password !== SUPER_ADMIN_CREDENTIALS.password) {
+      setAuthError('Incorrect super admin login details.')
+      return
+    }
+
+    setSession({ type: 'super-admin' })
+    setAuthError(null)
+    navigate(options.redirectTo ?? '/super', { replace: true })
+  }
+
   const handleLogout = () => {
     setSession({ type: 'guest' })
     setAuthError(null)
@@ -187,6 +223,11 @@ function AppShell() {
   }
 
   const handleStartMatch = (teamAId, teamBId) => {
+    let matchAdded = false
+    const liveMatchId = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const bracketMatch = tournament ? findMatchForTeams(tournament, teamAId, teamBId) : null
+    const tournamentMatchId = bracketMatch ? bracketMatch.id : null
+
     setActiveMatches((previousMatches) => {
       const isTeamBusy = previousMatches.some(
         (match) =>
@@ -201,7 +242,7 @@ function AppShell() {
       const questionQueue = drawQuestions(QUESTIONS_PER_TEAM * 2)
 
       const match = {
-        id: `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: liveMatchId,
         teams: [teamAId, teamBId],
         scores: {
           [teamAId]: 0,
@@ -219,10 +260,16 @@ function AppShell() {
           decision: null,
           resultFace: null,
         },
+        tournamentMatchId,
       }
 
+      matchAdded = true
       return [...previousMatches, match]
     })
+
+    if (matchAdded && bracketMatch) {
+      setTournament((previous) => (previous ? attachLiveMatch(previous, bracketMatch.id, liveMatchId) : previous))
+    }
   }
 
   const handleFlipCoin = (matchId) => {
@@ -361,6 +408,21 @@ function AppShell() {
 
     setMatchHistory((previous) => [record, ...previous])
 
+    if (match.tournamentMatchId) {
+      setTournament((previous) => {
+        if (!previous) return previous
+        let nextState = previous
+        if (winnerId && loserId) {
+          nextState = recordMatchResult(nextState, match.tournamentMatchId, {
+            winnerId,
+            loserId,
+            scores: match.scores,
+          })
+        }
+        return detachLiveMatch(nextState, match.tournamentMatchId)
+      })
+    }
+
     const teamAName = teams.find((team) => team.id === teamAId)?.name ?? 'Team A'
     const teamBName = teams.find((team) => team.id === teamBId)?.name ?? 'Team B'
 
@@ -448,9 +510,10 @@ function AppShell() {
 
   const handleDismissRecent = () => setRecentResult(null)
 
-  const navigateToLogin = (mode) => {
+  const navigateToLogin = (mode = 'team') => {
     setAuthError(null)
-    navigate(mode === 'admin' ? '/login?mode=admin' : '/login')
+    const modeParam = mode && mode !== 'team' ? `?mode=${mode}` : ''
+    navigate(`/login${modeParam}`)
   }
 
   return (
@@ -472,6 +535,8 @@ function AppShell() {
             authError={authError}
             onTeamLogin={handleTeamLogin}
             onAdminLogin={handleAdminLogin}
+            onModeratorLogin={handleModeratorLogin}
+            onSuperAdminLogin={handleSuperAdminLogin}
             onBack={() => {
               setAuthError(null)
               navigate('/')
@@ -489,10 +554,40 @@ function AppShell() {
               activeMatches={activeMatches}
               recentResult={recentResult}
               history={matchHistory}
+              tournament={tournament}
               onStartMatch={handleStartMatch}
               onFlipCoin={handleFlipCoin}
               onSelectFirst={handleSelectFirst}
               onDismissRecent={handleDismissRecent}
+              onLogout={handleLogout}
+            />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super"
+        element={
+          <ProtectedRoute isAllowed={session.type === 'super-admin'} redirectTo="/login?mode=super">
+            <SuperAdminDashboard
+              teams={teams}
+              activeMatches={activeMatches}
+              matchHistory={matchHistory}
+              moderators={MODERATOR_ACCOUNTS}
+              tournament={tournament}
+              onLogout={handleLogout}
+            />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/moderator"
+        element={
+          <ProtectedRoute isAllowed={session.type === 'moderator'} redirectTo="/login?mode=moderator">
+            <ModeratorDashboard
+              moderator={activeModerator}
+              matches={activeMatches}
+              teams={teams}
+              tournament={tournament}
               onLogout={handleLogout}
             />
           </ProtectedRoute>
@@ -524,13 +619,38 @@ function AppShell() {
   )
 }
 
-function LoginPage({ authError, onTeamLogin, onAdminLogin, onBack, session }) {
+function LoginPage({
+  authError,
+  onTeamLogin,
+  onAdminLogin,
+  onModeratorLogin,
+  onSuperAdminLogin,
+  onBack,
+  session,
+}) {
   const location = useLocation()
   const [searchParams] = useSearchParams()
 
-  const requestedMode = searchParams.get('mode') === 'admin' ? 'admin' : 'team'
+  const allowedModes = new Set(['team', 'admin', 'moderator', 'super'])
+  const requestedModeParam = searchParams.get('mode') ?? 'team'
+  const requestedMode = allowedModes.has(requestedModeParam) ? requestedModeParam : 'team'
+
   const fromLocation = location.state?.from
-  const inferredMode = fromLocation?.pathname === '/admin' ? 'admin' : requestedMode
+  const pathToMode = [
+    ['/admin', 'admin'],
+    ['/team', 'team'],
+    ['/moderator', 'moderator'],
+    ['/super', 'super'],
+  ]
+
+  let inferredMode = requestedMode
+  if (fromLocation?.pathname) {
+    const match = pathToMode.find(([prefix]) => fromLocation.pathname.startsWith(prefix))
+    if (match) {
+      inferredMode = match[1]
+    }
+  }
+
   const redirectTarget = fromLocation
     ? `${fromLocation.pathname}${fromLocation.search ?? ''}${fromLocation.hash ?? ''}`
     : null
@@ -543,6 +663,14 @@ function LoginPage({ authError, onTeamLogin, onAdminLogin, onBack, session }) {
     return <Navigate to="/team" replace />
   }
 
+  if (session.type === 'moderator') {
+    return <Navigate to="/moderator" replace />
+  }
+
+  if (session.type === 'super-admin') {
+    return <Navigate to="/super" replace />
+  }
+
   return (
     <AuthenticationGateway
       initialMode={inferredMode}
@@ -551,6 +679,12 @@ function LoginPage({ authError, onTeamLogin, onAdminLogin, onBack, session }) {
       }
       onAdminLogin={(loginId, password) =>
         onAdminLogin(loginId, password, { redirectTo: redirectTarget ?? '/admin' })
+      }
+      onModeratorLogin={(loginId, password) =>
+        onModeratorLogin(loginId, password, { redirectTo: redirectTarget ?? '/moderator' })
+      }
+      onSuperAdminLogin={(loginId, password) =>
+        onSuperAdminLogin(loginId, password, { redirectTo: redirectTarget ?? '/super' })
       }
       onBack={onBack}
       error={authError}

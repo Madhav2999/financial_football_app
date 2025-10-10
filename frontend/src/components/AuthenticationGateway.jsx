@@ -3,9 +3,19 @@ import { useEffect, useState } from 'react'
 const MODES = [
   { id: 'team', label: 'Team Login' },
   { id: 'admin', label: 'Admin Login' },
+  { id: 'moderator', label: 'Moderator Login' },
+  { id: 'super', label: 'Super Admin Login' },
 ]
 
-export default function AuthenticationGateway({ initialMode = 'team', onTeamLogin, onAdminLogin, error, onBack }) {
+export default function AuthenticationGateway({
+  initialMode = 'team',
+  onTeamLogin,
+  onAdminLogin,
+  onModeratorLogin,
+  onSuperAdminLogin,
+  error,
+  onBack,
+}) {
   const [mode, setMode] = useState(initialMode)
   const [form, setForm] = useState({ loginId: '', password: '' })
 
@@ -20,10 +30,17 @@ export default function AuthenticationGateway({ initialMode = 'team', onTeamLogi
       return
     }
 
+    const loginId = form.loginId.trim()
+    const password = form.password.trim()
+
     if (mode === 'team') {
-      onTeamLogin(form.loginId.trim(), form.password.trim())
-    } else {
-      onAdminLogin(form.loginId.trim(), form.password.trim())
+      onTeamLogin(loginId, password)
+    } else if (mode === 'admin') {
+      onAdminLogin(loginId, password)
+    } else if (mode === 'moderator') {
+      onModeratorLogin?.(loginId, password)
+    } else if (mode === 'super') {
+      onSuperAdminLogin?.(loginId, password)
     }
   }
 
@@ -31,6 +48,27 @@ export default function AuthenticationGateway({ initialMode = 'team', onTeamLogi
     setMode(nextMode)
     setForm({ loginId: '', password: '' })
   }
+
+  const loginPlaceholder = (() => {
+    if (mode === 'team') return 'e.g. alpha'
+    if (mode === 'admin') return 'admin'
+    if (mode === 'moderator') return 'mod1'
+    return 'super'
+  })()
+
+  const loginLabel = (() => {
+    if (mode === 'team') return 'Team Login ID'
+    if (mode === 'admin') return 'Admin Login ID'
+    if (mode === 'moderator') return 'Moderator Login ID'
+    return 'Super Admin Login ID'
+  })()
+
+  const submitLabel = (() => {
+    if (mode === 'team') return 'Enter Team Lobby'
+    if (mode === 'admin') return 'Sign in as Admin'
+    if (mode === 'moderator') return 'Sign in as Moderator'
+    return 'Enter Super Admin Console'
+  })()
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
@@ -84,14 +122,14 @@ export default function AuthenticationGateway({ initialMode = 'team', onTeamLogi
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-                {mode === 'team' ? 'Team Login ID' : 'Admin Login ID'}
+                {loginLabel}
               </label>
               <input
                 required
                 value={form.loginId}
                 onChange={(event) => setForm((prev) => ({ ...prev, loginId: event.target.value }))}
                 className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-base text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-                placeholder={mode === 'team' ? 'e.g. alpha' : 'admin'}
+                placeholder={loginPlaceholder}
               />
             </div>
 
@@ -103,7 +141,7 @@ export default function AuthenticationGateway({ initialMode = 'team', onTeamLogi
                 value={form.password}
                 onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
                 className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-base text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-                placeholder="••••••••"
+                placeholder="********"
               />
             </div>
 
@@ -113,7 +151,7 @@ export default function AuthenticationGateway({ initialMode = 'team', onTeamLogi
               type="submit"
               className="w-full rounded-2xl bg-gradient-to-r from-sky-500 to-blue-500 px-4 py-3 text-base font-semibold text-white shadow-lg shadow-sky-500/40 transition hover:from-sky-400 hover:to-blue-400"
             >
-              {mode === 'team' ? 'Enter Team Lobby' : 'Sign in as Moderator'}
+              {submitLabel}
             </button>
           </form>
         </section>

@@ -1,8 +1,83 @@
 import { useMemo, useState } from 'react'
+import { listMatchesForStage, listStages } from '../tournament/engine'
 import ScoreboardTable from './ScoreboardTable'
 
 
+function TournamentMatchQueue({ tournament, teams, activeMatches, onLaunch }) {
+  if (!tournament) {
+    return null
+  }
+
+  const queue = listStages(tournament)
+    .filter((stage) => stage?.matchIds?.length)
+    .flatMap((stage) => {
+      const matches = listMatchesForStage(tournament, stage.id)
+      return matches
+        .filter((match) => match.status !== 'completed')
+        .map((match) => ({ stage, match }))
+    })
+
+  if (!queue.length) {
+    return null
+  }
+
+  return (
+    <div className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6 shadow-lg shadow-slate-900/30">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Bracket Queue</p>
+          <h2 className="text-2xl font-semibold text-white">Upcoming Matches</h2>
+          <p className="mt-2 text-sm text-slate-400">Automatically seeded by the tournament engine.</p>
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-3">
+        {queue.map(({ stage, match }) => {
+          const [teamAId, teamBId] = match.teams
+          const teamA = teams.find((team) => team.id === teamAId) ?? null
+          const teamB = teams.find((team) => team.id === teamBId) ?? null
+          const isActive = activeMatches.some((liveMatch) => liveMatch.tournamentMatchId === match.id)
+          const isReady = Boolean(teamA && teamB)
+          const baseButtonClasses = "rounded-2xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] transition "
+          const stateClasses = isReady && !isActive
+            ? "bg-sky-500 text-white shadow shadow-sky-500/30 hover:bg-sky-400"
+            : "cursor-not-allowed border border-slate-700 bg-slate-900 text-slate-500"
+
+          return (
+            <div key={match.id} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm text-slate-200">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{stage.label}</p>
+                  <p className="mt-1 text-base text-white">{match.label}</p>
+                  <p className="mt-1 text-sm text-slate-300">
+                    {teamA?.name ?? 'TBD'} vs {teamB?.name ?? 'TBD'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border border-slate-700 px-3 py-1 text-[11px] uppercase tracking-[0.3em] text-slate-300">
+                    {match.status}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={!isReady || isActive}
+                    onClick={() => onLaunch(match)}
+                    className={baseButtonClasses + stateClasses}
+                  >
+                    {isActive ? 'In Progress' : 'Launch'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+
 function MatchSetupForm({ teams, activeMatches, onStart }) {
+
   const eligibleTeams = useMemo(() => {
     const engaged = new Set()
     activeMatches.forEach((match) => {
@@ -408,6 +483,7 @@ export default function AdminDashboard({
   activeMatches,
   recentResult,
   history,
+  tournament,
   onStartMatch,
   onFlipCoin,
   onSelectFirst,
@@ -466,6 +542,12 @@ export default function AdminDashboard({
 
         <section className="grid gap-8 lg:grid-cols-[1.1fr,0.9fr]">
           <div className="space-y-6">
+            <TournamentMatchQueue
+              tournament={tournament}
+              teams={teams}
+              activeMatches={activeMatches}
+              onLaunch={(match) => onStartMatch(match.teams[0], match.teams[1])}
+            />
             <MatchSetupForm teams={teams} activeMatches={activeMatches} onStart={onStartMatch} />
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-white">Active Matches</h2>
