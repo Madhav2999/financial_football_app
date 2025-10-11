@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
@@ -150,6 +150,7 @@ function AppShell() {
   const [recentResult, setRecentResult] = useState(null)
   const [authError, setAuthError] = useState(null)
   const [tournament, setTournament] = useState(() => initializeTournament(teams, MODERATOR_ACCOUNTS))
+  const [pendingFinalizations, setPendingFinalizations] = useState([])
 
   const navigate = useNavigate()
 
@@ -362,9 +363,11 @@ function AppShell() {
     const [teamAId, teamBId] = match.teams
     const teamAScore = match.scores[teamAId]
     const teamBScore = match.scores[teamBId]
-    const winnerId = teamAScore === teamBScore ? null : teamAScore > teamBScore ? teamAId : teamBId
-    const loserId = winnerId ? (winnerId === teamAId ? teamBId : teamAId) : null
 
+    const explicitWinner = teamAScore !== teamBScore ? (teamAScore > teamBScore ? teamAId : teamBId) : null
+    const fallbackWinner = match.coinToss?.winnerId ?? teamAId
+    const effectiveWinnerId = explicitWinner ?? fallbackWinner
+    const effectiveLoserId = effectiveWinnerId === teamAId ? teamBId : teamAId
     setTeams((previous) =>
       previous.map((team) => {
         if (!match.teams.includes(team.id)) {
@@ -373,7 +376,7 @@ function AppShell() {
 
         const updatedScore = team.totalScore + match.scores[team.id]
 
-        if (team.id === winnerId) {
+        if (team.id === effectiveWinnerId) {
           return {
             ...team,
             wins: team.wins + 1,
@@ -381,7 +384,7 @@ function AppShell() {
           }
         }
 
-        if (team.id === loserId) {
+        if (team.id === effectiveLoserId) {
           const losses = team.losses + 1
           return {
             ...team,
@@ -402,7 +405,7 @@ function AppShell() {
       id: match.id,
       teams: match.teams,
       scores: match.scores,
-      winnerId,
+      winnerId: effectiveWinnerId,
       completedAt: new Date().toISOString(),
     }
 
@@ -411,36 +414,32 @@ function AppShell() {
     if (match.tournamentMatchId) {
       setTournament((previous) => {
         if (!previous) return previous
-        let nextState = previous
-        if (winnerId && loserId) {
-          nextState = recordMatchResult(nextState, match.tournamentMatchId, {
-            winnerId,
-            loserId,
-            scores: match.scores,
-          })
-        }
+        const nextState = recordMatchResult(previous, match.tournamentMatchId, {
+          winnerId: effectiveWinnerId,
+          loserId: effectiveLoserId,
+          scores: match.scores,
+        })
         return detachLiveMatch(nextState, match.tournamentMatchId)
       })
     }
 
-    const teamAName = teams.find((team) => team.id === teamAId)?.name ?? 'Team A'
-    const teamBName = teams.find((team) => team.id === teamBId)?.name ?? 'Team B'
+    
+    const winnerName = teams.find((team) => team.id === effectiveWinnerId)?.name ?? 'Winner'
+    const loserName = teams.find((team) => team.id === effectiveLoserId)?.name ?? 'Opponent'
 
-    const summary = winnerId
-      ? `${teams.find((team) => team.id === winnerId)?.name} defeated ${
-          teams.find((team) => team.id === (winnerId === teamAId ? teamBId : teamAId))?.name
-        } ${teamAScore}-${teamBScore}`
-      : `Match tied ${teamAName} ${teamAScore} - ${teamBName} ${teamBScore}`
+    const summary = explicitWinner
+      ? `${winnerName} defeated ${loserName} ${teamAScore}-${teamBScore}`
+      : `${winnerName} advanced over ${loserName} after a tie ${teamAScore}-${teamBScore}`
 
     setRecentResult({
       matchId: match.id,
-      winnerId,
+      winnerId: effectiveWinnerId,
       summary,
     })
   }
 
   const handleTeamAnswer = (matchId, teamId, selectedOption) => {
-    let completedMatch = null
+    const completions = []
 
     setActiveMatches((previousMatches) =>
       previousMatches.reduce((updated, match) => {
@@ -468,7 +467,7 @@ function AppShell() {
           const { completed, match: nextMatch } = advanceMatchState(match, updatedScores)
 
           if (completed) {
-            completedMatch = nextMatch
+            completions.push(nextMatch)
             return updated
           }
 
@@ -485,7 +484,7 @@ function AppShell() {
           const { completed, match: nextMatch } = advanceMatchState(match, updatedScores)
 
           if (completed) {
-            completedMatch = nextMatch
+            completions.push(nextMatch)
             return updated
           }
 
@@ -503,12 +502,37 @@ function AppShell() {
       }, []),
     )
 
-    if (completedMatch) {
-      finalizeMatch(completedMatch)
+    if (completions.length) {
+      setPendingFinalizations((previous) => [...previous, ...completions])
     }
   }
 
   const handleDismissRecent = () => setRecentResult(null)
+
+  useEffect(() => {
+    if (!pendingFinalizations.length) {
+      return
+    }
+
+    const uniqueMatches = []
+    const seen = new Set()
+
+    pendingFinalizations.forEach((match) => {
+      if (!match) {
+        return
+      }
+
+      if (!seen.has(match.id)) {
+        seen.add(match.id)
+        uniqueMatches.push(match)
+      }
+    })
+
+    uniqueMatches.forEach((match) => finalizeMatch(match))
+    if (pendingFinalizations.length) {
+      setPendingFinalizations([])
+    }
+  }, [pendingFinalizations])
 
   const navigateToLogin = (mode = 'team') => {
     setAuthError(null)
