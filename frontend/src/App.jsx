@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
@@ -150,6 +150,7 @@ function AppShell() {
   const [recentResult, setRecentResult] = useState(null)
   const [authError, setAuthError] = useState(null)
   const [tournament, setTournament] = useState(() => initializeTournament(teams, MODERATOR_ACCOUNTS))
+  const finalizedMatchesRef = useRef(new Set())
 
   const navigate = useNavigate()
 
@@ -359,6 +360,12 @@ function AppShell() {
   }
 
   const finalizeMatch = (match) => {
+    if (finalizedMatchesRef.current.has(match.id)) {
+      return
+    }
+
+    finalizedMatchesRef.current.add(match.id)
+
     const [teamAId, teamBId] = match.teams
     const teamAScore = match.scores[teamAId]
     const teamBScore = match.scores[teamBId]
@@ -406,7 +413,13 @@ function AppShell() {
       completedAt: new Date().toISOString(),
     }
 
-    setMatchHistory((previous) => [record, ...previous])
+    setMatchHistory((previous) => {
+      if (previous.some((item) => item.id === match.id)) {
+        return previous
+      }
+
+      return [record, ...previous]
+    })
 
     if (match.tournamentMatchId) {
       setTournament((previous) => {
@@ -439,11 +452,23 @@ function AppShell() {
     })
   }
 
-  const handleTeamAnswer = (matchId, teamId, selectedOption) => {
-    let completedMatch = null
+  const scheduleFinalization = (match) => {
+    if (!match) return
 
-    setActiveMatches((previousMatches) =>
-      previousMatches.reduce((updated, match) => {
+    const runFinalization = () => finalizeMatch(match)
+
+    if (typeof queueMicrotask === 'function') {
+      queueMicrotask(runFinalization)
+    } else {
+      Promise.resolve().then(runFinalization)
+    }
+  }
+
+  const handleTeamAnswer = (matchId, teamId, selectedOption) => {
+    setActiveMatches((previousMatches) => {
+      let completedMatch = null
+
+      const nextMatches = previousMatches.reduce((updated, match) => {
         if (match.id !== matchId) {
           updated.push(match)
           return updated
@@ -500,12 +525,15 @@ function AppShell() {
           activeTeamId: opponentId,
         })
         return updated
-      }, []),
-    )
+      }, [])
 
-    if (completedMatch) {
-      finalizeMatch(completedMatch)
-    }
+      if (completedMatch) {
+        const matchToFinalize = completedMatch
+        scheduleFinalization(matchToFinalize)
+      }
+
+      return nextMatches
+    })
   }
 
   const handleDismissRecent = () => setRecentResult(null)
