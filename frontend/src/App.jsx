@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
@@ -150,6 +150,7 @@ function AppShell() {
   const [recentResult, setRecentResult] = useState(null)
   const [authError, setAuthError] = useState(null)
   const [tournament, setTournament] = useState(() => initializeTournament(teams, MODERATOR_ACCOUNTS))
+  const finalizedMatchesRef = useRef(new Set())
 
   const navigate = useNavigate()
 
@@ -359,11 +360,11 @@ function AppShell() {
   }
 
   const finalizeMatch = (match) => {
-    const alreadyRecorded = matchHistory.some((item) => item.id === match.id)
-
-    if (alreadyRecorded) {
+    if (finalizedMatchesRef.current.has(match.id)) {
       return
     }
+
+    finalizedMatchesRef.current.add(match.id)
 
     const [teamAId, teamBId] = match.teams
     const teamAScore = match.scores[teamAId]
