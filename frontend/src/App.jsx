@@ -240,6 +240,38 @@ function AppShell() {
         return previousMatches
       }
 
+      const assignedModeratorId = (() => {
+        if (bracketMatch?.moderatorId) {
+          return bracketMatch.moderatorId
+        }
+
+        const roster = (tournament?.moderatorRoster?.length
+          ? tournament.moderatorRoster
+          : MODERATOR_ACCOUNTS
+        ).map((entry, index) => ({ id: entry.id, order: index }))
+
+        if (!roster.length) {
+          return null
+        }
+
+        const loads = roster
+          .map((entry) => ({
+            id: entry.id,
+            order: entry.order,
+            active: previousMatches.filter(
+              (match) => match.status !== 'completed' && match.moderatorId === entry.id,
+            ).length,
+          }))
+          .sort((left, right) => {
+            if (left.active === right.active) {
+              return left.order - right.order
+            }
+            return left.active - right.active
+          })
+
+        return loads[0]?.id ?? null
+      })()
+
       const questionQueue = drawQuestions(QUESTIONS_PER_TEAM * 2)
 
       const match = {
@@ -262,6 +294,7 @@ function AppShell() {
           resultFace: null,
         },
         tournamentMatchId,
+        moderatorId: assignedModeratorId,
       }
 
       matchAdded = true
@@ -273,11 +306,16 @@ function AppShell() {
     }
   }
 
-  const handleFlipCoin = (matchId) => {
+  const handleFlipCoin = (matchId, options = {}) => {
+    const { moderatorId } = options
     setActiveMatches((previousMatches) => {
       const targetMatch = previousMatches.find((match) => match.id === matchId)
 
       if (!targetMatch || targetMatch.coinToss.status !== 'ready') {
+        return previousMatches
+      }
+
+      if (targetMatch.moderatorId && targetMatch.moderatorId !== moderatorId) {
         return previousMatches
       }
 
@@ -328,7 +366,8 @@ function AppShell() {
     })
   }
 
-  const handleSelectFirst = (matchId, deciderId, firstTeamId) => {
+  const handleSelectFirst = (matchId, deciderId, firstTeamId, options = {}) => {
+    const { moderatorId } = options
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
         if (match.id !== matchId) {
@@ -336,7 +375,10 @@ function AppShell() {
         }
 
         if (match.coinToss.status !== 'flipped') return match
-        if (match.coinToss.winnerId !== deciderId) return match
+        const tossWinnerId = match.coinToss.winnerId
+        const moderatorAuthorized =
+          Boolean(moderatorId) && (!match.moderatorId || match.moderatorId === moderatorId)
+        if (!moderatorAuthorized && tossWinnerId !== deciderId) return match
         if (!match.teams.includes(firstTeamId)) return match
 
         const order = buildQuestionOrder(firstTeamId, match.teams, QUESTIONS_PER_TEAM)
@@ -353,6 +395,77 @@ function AppShell() {
               deciderId,
               firstTeamId,
             },
+          },
+        }
+      }),
+    )
+  }
+
+  const handlePauseMatch = (matchId, moderatorId) => {
+    setActiveMatches((previousMatches) =>
+      previousMatches.map((match) => {
+        if (match.id !== matchId) {
+          return match
+        }
+
+        if (match.status !== 'in-progress') return match
+        if (match.moderatorId && match.moderatorId !== moderatorId) return match
+
+        return {
+          ...match,
+          status: 'paused',
+        }
+      }),
+    )
+  }
+
+  const handleResumeMatch = (matchId, moderatorId) => {
+    setActiveMatches((previousMatches) =>
+      previousMatches.map((match) => {
+        if (match.id !== matchId) {
+          return match
+        }
+
+        if (match.status !== 'paused') return match
+        if (match.moderatorId && match.moderatorId !== moderatorId) return match
+
+        return {
+          ...match,
+          status: 'in-progress',
+        }
+      }),
+    )
+  }
+
+  const handleResetMatch = (matchId, moderatorId) => {
+    finalizedMatchesRef.current.delete(matchId)
+    setActiveMatches((previousMatches) =>
+      previousMatches.map((match) => {
+        if (match.id !== matchId) {
+          return match
+        }
+
+        if (match.status === 'completed') return match
+        if (match.moderatorId && match.moderatorId !== moderatorId) return match
+
+        const [teamAId, teamBId] = match.teams
+
+        return {
+          ...match,
+          scores: {
+            [teamAId]: 0,
+            [teamBId]: 0,
+          },
+          questionIndex: 0,
+          assignedTeamOrder: [],
+          activeTeamId: null,
+          awaitingSteal: false,
+          status: 'coin-toss',
+          coinToss: {
+            status: 'ready',
+            winnerId: null,
+            decision: null,
+            resultFace: null,
           },
         }
       }),
@@ -583,9 +696,8 @@ function AppShell() {
               recentResult={recentResult}
               history={matchHistory}
               tournament={tournament}
+              moderators={MODERATOR_ACCOUNTS}
               onStartMatch={handleStartMatch}
-              onFlipCoin={handleFlipCoin}
-              onSelectFirst={handleSelectFirst}
               onDismissRecent={handleDismissRecent}
               onLogout={handleLogout}
             />
@@ -616,6 +728,18 @@ function AppShell() {
               matches={activeMatches}
               teams={teams}
               tournament={tournament}
+              moderators={MODERATOR_ACCOUNTS}
+              onFlipCoin={(matchId) =>
+                handleFlipCoin(matchId, { moderatorId: activeModerator?.id })
+              }
+              onSelectFirst={(matchId, deciderId, firstTeamId) =>
+                handleSelectFirst(matchId, deciderId, firstTeamId, {
+                  moderatorId: activeModerator?.id,
+                })
+              }
+              onPauseMatch={(matchId) => handlePauseMatch(matchId, activeModerator?.id)}
+              onResumeMatch={(matchId) => handleResumeMatch(matchId, activeModerator?.id)}
+              onResetMatch={(matchId) => handleResetMatch(matchId, activeModerator?.id)}
               onLogout={handleLogout}
             />
           </ProtectedRoute>
