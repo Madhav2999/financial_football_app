@@ -85,7 +85,8 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const question = match.questionQueue[match.questionIndex]
 
   const [selectedOption, setSelectedOption] = useState(null)
-  const isActive = match.activeTeamId === teamId
+  const isPaused = match.status === 'paused'
+  const isActive = match.status === 'in-progress' && match.activeTeamId === teamId
   const isSteal = match.awaitingSteal && isActive
 
   useEffect(() => {
@@ -162,7 +163,9 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
             <span className="text-lg font-bold text-amber-400">{match.scores[opponentId]}</span>
           </div>
           <div className="mt-4 rounded-xl bg-slate-800/70 px-4 py-3 text-slate-200">
-            {match.awaitingSteal ? (
+            {isPaused ? (
+              <p className="font-semibold text-white">The match is currently paused. Await instructions from the moderator.</p>
+            ) : match.awaitingSteal ? (
               isSteal ? (
                 <p className="font-semibold text-white">
                   Opportunity to steal! Prepare your best answer.
