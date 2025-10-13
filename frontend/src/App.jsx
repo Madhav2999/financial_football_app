@@ -5,7 +5,6 @@ import AdminDashboard from './components/AdminDashboard'
 import LandingPage from './components/LandingPage'
 import ModeratorDashboard from './components/ModeratorDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
-import SuperAdminDashboard from './components/SuperAdminDashboard'
 import { initialTeams } from './data/teams'
 import { questionBank } from './data/questions'
 import { moderatorAccounts } from './data/moderators'
@@ -14,7 +13,11 @@ import { initializeTournament, recordMatchResult, findMatchForTeams, attachLiveM
 
 const QUESTIONS_PER_TEAM = 1
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
-const SUPER_ADMIN_CREDENTIALS = { loginId: 'super', password: 'supreme' }
+const SUPER_ADMIN_PROFILE = {
+  name: 'Jordan Maxwell',
+  email: 'super@financialfootball.com',
+  phone: '+1 (555) 013-3700',
+}
 const MODERATOR_ACCOUNTS = moderatorAccounts
 
 function buildInitialTeams() {
@@ -204,17 +207,6 @@ function AppShell() {
     setSession({ type: 'moderator', moderatorId: moderator.id })
     setAuthError(null)
     navigate(options.redirectTo ?? '/moderator', { replace: true })
-  }
-
-  const handleSuperAdminLogin = (loginId, password, options = {}) => {
-    if (loginId !== SUPER_ADMIN_CREDENTIALS.loginId || password !== SUPER_ADMIN_CREDENTIALS.password) {
-      setAuthError('Incorrect super admin login details.')
-      return
-    }
-
-    setSession({ type: 'super-admin' })
-    setAuthError(null)
-    navigate(options.redirectTo ?? '/super', { replace: true })
   }
 
   const handleLogout = () => {
@@ -677,7 +669,6 @@ function AppShell() {
             onTeamLogin={handleTeamLogin}
             onAdminLogin={handleAdminLogin}
             onModeratorLogin={handleModeratorLogin}
-            onSuperAdminLogin={handleSuperAdminLogin}
             onBack={() => {
               setAuthError(null)
               navigate('/')
@@ -697,23 +688,9 @@ function AppShell() {
               history={matchHistory}
               tournament={tournament}
               moderators={MODERATOR_ACCOUNTS}
+              superAdmin={SUPER_ADMIN_PROFILE}
               onStartMatch={handleStartMatch}
               onDismissRecent={handleDismissRecent}
-              onLogout={handleLogout}
-            />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/super"
-        element={
-          <ProtectedRoute isAllowed={session.type === 'super-admin'} redirectTo="/login?mode=super">
-            <SuperAdminDashboard
-              teams={teams}
-              activeMatches={activeMatches}
-              matchHistory={matchHistory}
-              moderators={MODERATOR_ACCOUNTS}
-              tournament={tournament}
               onLogout={handleLogout}
             />
           </ProtectedRoute>
@@ -776,14 +753,13 @@ function LoginPage({
   onTeamLogin,
   onAdminLogin,
   onModeratorLogin,
-  onSuperAdminLogin,
   onBack,
   session,
 }) {
   const location = useLocation()
   const [searchParams] = useSearchParams()
 
-  const allowedModes = new Set(['team', 'admin', 'moderator', 'super'])
+  const allowedModes = new Set(['team', 'admin', 'moderator'])
   const requestedModeParam = searchParams.get('mode') ?? 'team'
   const requestedMode = allowedModes.has(requestedModeParam) ? requestedModeParam : 'team'
 
@@ -792,7 +768,6 @@ function LoginPage({
     ['/admin', 'admin'],
     ['/team', 'team'],
     ['/moderator', 'moderator'],
-    ['/super', 'super'],
   ]
 
   let inferredMode = requestedMode
@@ -819,10 +794,6 @@ function LoginPage({
     return <Navigate to="/moderator" replace />
   }
 
-  if (session.type === 'super-admin') {
-    return <Navigate to="/super" replace />
-  }
-
   return (
     <AuthenticationGateway
       initialMode={inferredMode}
@@ -834,9 +805,6 @@ function LoginPage({
       }
       onModeratorLogin={(loginId, password) =>
         onModeratorLogin(loginId, password, { redirectTo: redirectTarget ?? '/moderator' })
-      }
-      onSuperAdminLogin={(loginId, password) =>
-        onSuperAdminLogin(loginId, password, { redirectTo: redirectTarget ?? '/super' })
       }
       onBack={onBack}
       error={authError}

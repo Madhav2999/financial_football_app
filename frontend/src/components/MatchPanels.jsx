@@ -1,4 +1,5 @@
-function InlineCoinFlipAnimation({ status, teamAName, teamBName, resultFace }) {
+export function InlineCoinFlipAnimation({ status, teamAName, teamBName, resultFace }) {
+
   const classes = ['coin-flip__scene']
   const coinClasses = ['coin-flip']
 

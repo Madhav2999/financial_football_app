@@ -272,6 +272,51 @@ function TeamAnalyticsPanel({ teams }) {
   )
 }
 
+function SuperAdminOverview({ superAdmin, teams, moderators, activeMatches, history, tournament }) {
+  const liveMatchCount = activeMatches.filter((match) => match.status !== 'completed').length
+  const totalBracketMatches = tournament ? Object.keys(tournament.matches).length : 0
+  const stageCount = tournament ? Object.keys(tournament.stages).length : 0
+  const contactDetails = [superAdmin?.email, superAdmin?.phone].filter(Boolean).join(' • ')
+
+  const stats = [
+    { label: 'Registered Teams', value: teams.length },
+    { label: 'Moderators', value: moderators.length },
+    { label: 'Live Matches', value: liveMatchCount },
+    { label: 'Completed Matches', value: history.length },
+    { label: 'Bracket Matches Seeded', value: totalBracketMatches },
+    { label: 'Bracket Stages', value: stageCount },
+  ]
+
+  return (
+    <section className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 text-sm text-slate-200 shadow-lg shadow-slate-900/40">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.35em] text-emerald-300">Super Admin</p>
+          <h2 className="text-2xl font-semibold text-white">{superAdmin?.name ?? 'Super Admin'}</h2>
+          <p className="mt-2 text-sm text-slate-300">
+            Contact {contactDetails || 'Not available'}
+          </p>
+        </div>
+        <div className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200">
+          Tournament oversight
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {stats.map((item) => (
+          <div
+            key={item.label}
+            className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-center shadow-inner shadow-slate-900/20"
+          >
+            <p className="text-[10px] uppercase tracking-[0.35em] text-slate-400">{item.label}</p>
+            <p className="mt-3 text-2xl font-semibold text-white">{item.value}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export default function AdminDashboard({
   teams,
   activeMatches,
@@ -279,6 +324,7 @@ export default function AdminDashboard({
   history,
   tournament,
   moderators,
+  superAdmin,
   onStartMatch,
   onDismissRecent,
   onLogout,
@@ -312,6 +358,14 @@ export default function AdminDashboard({
       </header>
 
       <main className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-8">
+        <SuperAdminOverview
+          superAdmin={superAdmin}
+          teams={teams}
+          moderators={moderators}
+          activeMatches={activeMatches}
+          history={history}
+          tournament={tournament}
+        />
         {recentResult ? (
           <div className="rounded-3xl border border-emerald-600/40 bg-emerald-500/10 p-5 text-sm text-emerald-200 shadow shadow-emerald-500/20">
             <div className="flex flex-wrap items-center justify-between gap-4">
