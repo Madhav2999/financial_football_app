@@ -395,6 +395,7 @@ function AppShell() {
 
   const handlePauseMatch = (matchId, actor = {}) => {
     const { moderatorId = null, isAdmin = false } = actor
+
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
         if (match.id !== matchId) {
