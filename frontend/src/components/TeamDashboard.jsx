@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useMatchTimer, formatSeconds } from '../hooks/useMatchTimer'
 import { InlineCoinFlipAnimation } from './MatchPanels'
 import ScoreboardTable from './ScoreboardTable'
 
@@ -120,6 +121,15 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const thisTeam = teams.find((team) => team.id === teamId)
   const question = match.questionQueue[match.questionIndex]
 
+  const { remainingSeconds, timerType, timerStatus } = useMatchTimer(match.timer)
+  const formattedRemaining = formatSeconds(remainingSeconds)
+  const isTimerVisible = Boolean(match.timer)
+  const timerBadgeClass =
+    timerType === 'steal'
+      ? 'border border-amber-400/40 bg-amber-500/15 text-amber-200'
+      : 'border border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
+  const timerLabel = timerType === 'steal' ? 'Steal window' : 'Answer window'
+
   const [selectedOption, setSelectedOption] = useState(null)
   const isPaused = match.status === 'paused'
   const isActive = match.status === 'in-progress' && match.activeTeamId === teamId
@@ -145,9 +155,22 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
           <p className="text-xs uppercase tracking-[0.2em] text-sky-400">Live Match</p>
           <h2 className="text-2xl font-semibold text-white">{thisTeam.name} vs {opponent?.name}</h2>
         </div>
-        <div className="flex items-center gap-3 rounded-full bg-slate-800/80 px-4 py-2 text-sm text-slate-200">
-          <span className="font-semibold text-white">Question {match.questionIndex + 1}</span>
-          <span className="text-slate-400">/ {match.questionQueue.length}</span>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex items-center gap-3 rounded-full bg-slate-800/80 px-4 py-2 text-sm text-slate-200">
+            <span className="font-semibold text-white">Question {match.questionIndex + 1}</span>
+            <span className="text-slate-400">/ {match.questionQueue.length}</span>
+          </div>
+          {isTimerVisible ? (
+            <div
+              className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${timerBadgeClass}`}
+            >
+              <span>{timerLabel}</span>
+              <span>{formattedRemaining}</span>
+              {timerStatus === 'paused' ? (
+                <span className="text-xs uppercase tracking-wider text-slate-200/70">Paused</span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -204,15 +227,27 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
             ) : match.awaitingSteal ? (
               isSteal ? (
                 <p className="font-semibold text-white">
-                  Opportunity to steal! Prepare your best answer.
+                  Opportunity to steal! {remainingSeconds ? `You have ${remainingSeconds} seconds` : 'Act fast'} to snag a
+                  1-point bonus.
                 </p>
               ) : (
-                <p>Waiting for the opposing team to attempt the steal.</p>
+                <p>
+                  Waiting for {opponent?.name ?? 'the opposing team'} to attempt the steal{remainingSeconds
+                    ? ` (${remainingSeconds} seconds remaining).`
+                    : '.'}
+                </p>
               )
             ) : activeTeam?.id === teamId ? (
-              <p className="font-semibold text-white">It&apos;s your turn to answer first.</p>
+              <p className="font-semibold text-white">
+                It&apos;s your turn to answer. {remainingSeconds ? `You have ${remainingSeconds} seconds` : 'Move quickly'} to
+                secure 3 points.
+              </p>
             ) : (
-              <p>Hold tight while the opposing team answers.</p>
+              <p>
+                Hold tight while {opponent?.name ?? 'the opposing team'} answers{remainingSeconds
+                  ? ` (${remainingSeconds} seconds remaining).`
+                  : '.'}
+              </p>
             )}
           </div>
         </div>

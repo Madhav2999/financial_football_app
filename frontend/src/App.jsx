@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
@@ -10,6 +10,13 @@ import { questionBank } from './data/questions'
 import { moderatorAccounts } from './data/moderators'
 import TeamDashboard from './components/TeamDashboard'
 import { initializeTournament, recordMatchResult, attachLiveMatch, detachLiveMatch } from './tournament/engine'
+import {
+  PRIMARY_QUESTION_DURATION_MS,
+  PRIMARY_QUESTION_POINTS,
+  STEAL_QUESTION_DURATION_MS,
+  STEAL_QUESTION_POINTS,
+} from './constants/matchSettings'
+
 
 const QUESTIONS_PER_TEAM = 1
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
@@ -37,6 +44,59 @@ function shuffleArray(array) {
     ;[items[index], items[swapIndex]] = [items[swapIndex], items[index]]
   }
   return items
+}
+
+const TIMER_DURATIONS = {
+  primary: PRIMARY_QUESTION_DURATION_MS,
+  steal: STEAL_QUESTION_DURATION_MS,
+}
+
+function createRunningTimer(type = 'primary', remainingOverride = null) {
+  const duration = TIMER_DURATIONS[type] ?? TIMER_DURATIONS.primary
+  const remainingMs = remainingOverride ?? duration
+  const now = Date.now()
+
+  return {
+    type,
+    status: 'running',
+    durationMs: duration,
+    remainingMs,
+    startedAt: now,
+    deadline: now + remainingMs,
+  }
+}
+
+function pauseTimer(timer) {
+  if (!timer || timer.status !== 'running') {
+    return timer ?? null
+  }
+
+  const now = Date.now()
+  const remainingMs = Math.max(0, (timer.deadline ?? now) - now)
+
+  return {
+    ...timer,
+    status: 'paused',
+    remainingMs,
+    deadline: null,
+  }
+}
+
+function resumeTimer(timer) {
+  if (!timer || timer.status !== 'paused') {
+    return timer ?? null
+  }
+
+  const remainingMs = Math.max(0, timer.remainingMs ?? timer.durationMs ?? 0)
+  const now = Date.now()
+
+  return {
+    ...timer,
+    status: 'running',
+    startedAt: now,
+    deadline: now + remainingMs,
+    remainingMs,
+  }
 }
 
 function buildOptions(question) {
@@ -115,6 +175,7 @@ function advanceMatchState(match, scores) {
     scores,
     questionIndex: nextIndex,
     awaitingSteal: false,
+    timer: null,
   }
 
   if (nextIndex >= match.questionQueue.length) {
@@ -123,6 +184,7 @@ function advanceMatchState(match, scores) {
       match: {
         ...base,
         status: 'completed',
+        activeTeamId: null,
       },
     }
   }
@@ -133,7 +195,97 @@ function advanceMatchState(match, scores) {
       ...base,
       status: 'in-progress',
       activeTeamId: match.assignedTeamOrder[nextIndex],
+      timer: createRunningTimer('primary'),
     },
+  }
+}
+
+function applyAnswerResult(match, teamId, isCorrect) {
+  const isStealAttempt = match.awaitingSteal
+
+  if (isStealAttempt) {
+    const updatedScores = isCorrect
+      ? {
+          ...match.scores,
+          [teamId]: match.scores[teamId] + STEAL_QUESTION_POINTS,
+        }
+      : { ...match.scores }
+
+    const sanitizedMatch = {
+      ...match,
+      timer: null,
+    }
+
+    return advanceMatchState(sanitizedMatch, updatedScores)
+  }
+
+  if (isCorrect) {
+    const updatedScores = {
+      ...match.scores,
+      [teamId]: match.scores[teamId] + PRIMARY_QUESTION_POINTS,
+    }
+
+    const sanitizedMatch = {
+      ...match,
+      timer: null,
+    }
+
+    return advanceMatchState(sanitizedMatch, updatedScores)
+  }
+
+  const opponentId = match.teams.find((id) => id && id !== teamId) ?? null
+
+  if (!opponentId) {
+    const sanitizedMatch = {
+      ...match,
+      timer: null,
+    }
+
+    return advanceMatchState(sanitizedMatch, { ...match.scores })
+  }
+
+  return {
+    completed: false,
+    match: {
+      ...match,
+      awaitingSteal: true,
+      activeTeamId: opponentId,
+      timer: createRunningTimer('steal'),
+    },
+  }
+}
+
+function createLiveMatch(teamAId, teamBId, options = {}) {
+  const {
+    id = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    moderatorId = null,
+    tournamentMatchId = null,
+  } = options
+
+  const questionQueue = drawQuestions(QUESTIONS_PER_TEAM * 2)
+
+  return {
+    id,
+    teams: [teamAId, teamBId],
+    scores: {
+      [teamAId]: 0,
+      [teamBId]: 0,
+    },
+    questionQueue,
+    assignedTeamOrder: [],
+    questionIndex: 0,
+    activeTeamId: null,
+    awaitingSteal: false,
+    status: 'coin-toss',
+    timer: null,
+    coinToss: {
+      status: 'ready',
+      winnerId: null,
+      decision: null,
+      resultFace: null,
+    },
+    tournamentMatchId,
+    moderatorId,
   }
 }
 
@@ -272,6 +424,7 @@ function AppShell() {
       return
     }
 
+
     const creations = matchesToLaunch.map((bracketMatch) => {
       const liveMatchId = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       return {
@@ -380,6 +533,7 @@ function AppShell() {
           assignedTeamOrder: order,
           activeTeamId: order[0],
           status: 'in-progress',
+          timer: createRunningTimer('primary'),
           coinToss: {
             ...match.coinToss,
             status: 'decided',
@@ -402,12 +556,14 @@ function AppShell() {
           return match
         }
 
+
         if (match.status !== 'in-progress') return match
         if (!isAdmin && match.moderatorId && match.moderatorId !== moderatorId) return match
 
         return {
           ...match,
           status: 'paused',
+          timer: pauseTimer(match.timer),
         }
       }),
     )
@@ -427,6 +583,7 @@ function AppShell() {
         return {
           ...match,
           status: 'in-progress',
+          timer: resumeTimer(match.timer),
         }
       }),
     )
@@ -457,6 +614,7 @@ function AppShell() {
           activeTeamId: null,
           awaitingSteal: false,
           status: 'coin-toss',
+          timer: null,
           coinToss: {
             status: 'ready',
             winnerId: null,
@@ -468,110 +626,177 @@ function AppShell() {
     )
   }
 
-  const finalizeMatch = (match) => {
-    if (finalizedMatchesRef.current.has(match.id)) {
-      return
-    }
-
-    finalizedMatchesRef.current.add(match.id)
-
-    const [teamAId, teamBId] = match.teams
-    const teamAScore = match.scores[teamAId]
-    const teamBScore = match.scores[teamBId]
-    const winnerId = teamAScore === teamBScore ? null : teamAScore > teamBScore ? teamAId : teamBId
-    const loserId = winnerId ? (winnerId === teamAId ? teamBId : teamAId) : null
-
-    setTeams((previous) =>
-      previous.map((team) => {
-        if (!match.teams.includes(team.id)) {
-          return team
-        }
-
-        const updatedScore = team.totalScore + match.scores[team.id]
-
-        if (team.id === winnerId) {
-          return {
-            ...team,
-            wins: team.wins + 1,
-            totalScore: updatedScore,
-          }
-        }
-
-        if (team.id === loserId) {
-          const losses = team.losses + 1
-          return {
-            ...team,
-            losses,
-            totalScore: updatedScore,
-            eliminated: losses >= 2,
-          }
-        }
-
-        return {
-          ...team,
-          totalScore: updatedScore,
-        }
-      }),
-    )
-
-    const record = {
-      id: match.id,
-      teams: match.teams,
-      scores: match.scores,
-      winnerId,
-      completedAt: new Date().toISOString(),
-    }
-
-    setMatchHistory((previous) => {
-      if (previous.some((item) => item.id === match.id)) {
-        return previous
+  const finalizeMatch = useCallback(
+    (match) => {
+      if (finalizedMatchesRef.current.has(match.id)) {
+        return
       }
 
-      return [record, ...previous]
-    })
+      finalizedMatchesRef.current.add(match.id)
 
-    if (match.tournamentMatchId) {
-      setTournament((previous) => {
-        if (!previous) return previous
-        let nextState = previous
-        if (winnerId && loserId) {
-          nextState = recordMatchResult(nextState, match.tournamentMatchId, {
-            winnerId,
-            loserId,
-            scores: match.scores,
-          })
+      const [teamAId, teamBId] = match.teams
+      const teamAScore = match.scores[teamAId]
+      const teamBScore = match.scores[teamBId]
+      const winnerId = teamAScore === teamBScore ? null : teamAScore > teamBScore ? teamAId : teamBId
+      const loserId = winnerId ? (winnerId === teamAId ? teamBId : teamAId) : null
+
+      setTeams((previous) =>
+        previous.map((team) => {
+          if (!match.teams.includes(team.id)) {
+            return team
+          }
+
+          const updatedScore = team.totalScore + match.scores[team.id]
+
+          if (team.id === winnerId) {
+            return {
+              ...team,
+              wins: team.wins + 1,
+              totalScore: updatedScore,
+            }
+          }
+
+          if (team.id === loserId) {
+            const losses = team.losses + 1
+            return {
+              ...team,
+              losses,
+              totalScore: updatedScore,
+              eliminated: losses >= 2,
+            }
+          }
+
+          return {
+            ...team,
+            totalScore: updatedScore,
+          }
+        }),
+      )
+
+      const record = {
+        id: match.id,
+        teams: match.teams,
+        scores: match.scores,
+        winnerId,
+        completedAt: new Date().toISOString(),
+      }
+
+      setMatchHistory((previous) => {
+        if (previous.some((item) => item.id === match.id)) {
+          return previous
         }
-        return detachLiveMatch(nextState, match.tournamentMatchId)
+
+        return [record, ...previous]
       })
-    }
 
-    const teamAName = teams.find((team) => team.id === teamAId)?.name ?? 'Team A'
-    const teamBName = teams.find((team) => team.id === teamBId)?.name ?? 'Team B'
+      if (match.tournamentMatchId) {
+        setTournament((previous) => {
+          if (!previous) return previous
+          let nextState = previous
+          if (winnerId && loserId) {
+            nextState = recordMatchResult(nextState, match.tournamentMatchId, {
+              winnerId,
+              loserId,
+              scores: match.scores,
+            })
+          }
+          return detachLiveMatch(nextState, match.tournamentMatchId)
+        })
+      }
 
-    const summary = winnerId
-      ? `${teams.find((team) => team.id === winnerId)?.name} defeated ${
-          teams.find((team) => team.id === (winnerId === teamAId ? teamBId : teamAId))?.name
-        } ${teamAScore}-${teamBScore}`
-      : `Match tied ${teamAName} ${teamAScore} - ${teamBName} ${teamBScore}`
+      const teamAName = teams.find((team) => team.id === teamAId)?.name ?? 'Team A'
+      const teamBName = teams.find((team) => team.id === teamBId)?.name ?? 'Team B'
 
-    setRecentResult({
-      matchId: match.id,
-      winnerId,
-      summary,
-    })
-  }
+      const summary = winnerId
+        ? `${teams.find((team) => team.id === winnerId)?.name} defeated ${
+            teams.find((team) => team.id === (winnerId === teamAId ? teamBId : teamAId))?.name
+          } ${teamAScore}-${teamBScore}`
+        : `Match tied ${teamAName} ${teamAScore} - ${teamBName} ${teamBScore}`
 
-  const scheduleFinalization = (match) => {
-    if (!match) return
+      setRecentResult({
+        matchId: match.id,
+        winnerId,
+        summary,
+      })
+    },
+    [setMatchHistory, setRecentResult, setTeams, setTournament, teams],
+  )
 
-    const runFinalization = () => finalizeMatch(match)
+  const scheduleFinalization = useCallback(
+    (match) => {
+      if (!match) return
 
-    if (typeof queueMicrotask === 'function') {
-      queueMicrotask(runFinalization)
-    } else {
-      Promise.resolve().then(runFinalization)
-    }
-  }
+      const runFinalization = () => finalizeMatch(match)
+
+      if (typeof queueMicrotask === 'function') {
+        queueMicrotask(runFinalization)
+      } else {
+        Promise.resolve().then(runFinalization)
+      }
+    },
+    [finalizeMatch],
+  )
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now()
+
+      setActiveMatches((previousMatches) => {
+        let mutated = false
+        const finalizations = []
+
+        const nextMatches = previousMatches.reduce((updated, match) => {
+          if (match.status !== 'in-progress') {
+            updated.push(match)
+            return updated
+          }
+
+          const timer = match.timer
+
+          if (!timer || timer.status !== 'running' || !timer.deadline) {
+            updated.push(match)
+            return updated
+          }
+
+          if (timer.deadline > now) {
+            updated.push(match)
+            return updated
+          }
+
+          mutated = true
+
+          const actingTeamId = match.activeTeamId
+
+          if (!actingTeamId) {
+            updated.push({
+              ...match,
+              timer: null,
+            })
+            return updated
+          }
+
+          const outcome = applyAnswerResult(match, actingTeamId, false)
+
+          if (outcome.completed) {
+            finalizations.push(outcome.match)
+            return updated
+          }
+
+          updated.push(outcome.match)
+          return updated
+        }, [])
+
+        if (!mutated) {
+          return previousMatches
+        }
+
+        finalizations.forEach((item) => scheduleFinalization(item))
+        return nextMatches
+      })
+    }, 250)
+
+    return () => clearInterval(interval)
+  }, [scheduleFinalization])
 
   const handleTeamAnswer = (matchId, teamId, selectedOption) => {
     setActiveMatches((previousMatches) => {
@@ -591,48 +816,14 @@ function AppShell() {
         const question = match.questionQueue[match.questionIndex]
         const isCorrect = question.answer === selectedOption
 
-        if (match.awaitingSteal) {
-          const updatedScores = isCorrect
-            ? {
-                ...match.scores,
-                [teamId]: match.scores[teamId] + 1,
-              }
-            : { ...match.scores }
+        const outcome = applyAnswerResult(match, teamId, isCorrect)
 
-          const { completed, match: nextMatch } = advanceMatchState(match, updatedScores)
-
-          if (completed) {
-            completedMatch = nextMatch
-            return updated
-          }
-
-          updated.push(nextMatch)
+        if (outcome.completed) {
+          completedMatch = outcome.match
           return updated
         }
 
-        if (isCorrect) {
-          const updatedScores = {
-            ...match.scores,
-            [teamId]: match.scores[teamId] + 1,
-          }
-
-          const { completed, match: nextMatch } = advanceMatchState(match, updatedScores)
-
-          if (completed) {
-            completedMatch = nextMatch
-            return updated
-          }
-
-          updated.push(nextMatch)
-          return updated
-        }
-
-        const opponentId = match.teams.find((id) => id !== teamId)
-        updated.push({
-          ...match,
-          awaitingSteal: true,
-          activeTeamId: opponentId,
-        })
+        updated.push(outcome.match)
         return updated
       }, [])
 

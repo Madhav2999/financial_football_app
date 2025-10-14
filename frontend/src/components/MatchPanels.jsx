@@ -1,3 +1,4 @@
+import { useMatchTimer, formatSeconds } from '../hooks/useMatchTimer'
 export function InlineCoinFlipAnimation({ status, teamAName, teamBName, resultFace }) {
   const classes = ['coin-flip__scene']
   const coinClasses = ['coin-flip']
@@ -231,6 +232,14 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
   const awaitingSteal = match.awaitingSteal
   const moderatorName = resolveModeratorName(moderators, match.moderatorId)
   const isPaused = match.status === 'paused'
+  const { remainingSeconds, timerType, timerStatus } = useMatchTimer(match.timer)
+  const formattedRemaining = formatSeconds(remainingSeconds)
+  const isTimerVisible = Boolean(match.timer)
+  const timerBadgeClass =
+    timerType === 'steal'
+      ? 'border border-amber-400/40 bg-amber-500/15 text-amber-200'
+      : 'border border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
+  const timerLabel = timerType === 'steal' ? 'Steal window' : 'Answer window'
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl shadow-slate-900/40">
@@ -250,6 +259,17 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
             <span className="font-semibold text-white">{match.questionIndex + 1}</span>
             <span className="text-slate-400">/ {match.questionQueue.length}</span>
           </div>
+          {isTimerVisible ? (
+            <div
+              className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${timerBadgeClass}`}
+            >
+              <span>{timerLabel}</span>
+              <span>{formattedRemaining}</span>
+              {timerStatus === 'paused' ? (
+                <span className="text-xs uppercase tracking-wider text-slate-200/70">Paused</span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -275,8 +295,13 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
             ) : (
               <p className="font-semibold text-white">
                 {awaitingSteal
-                  ? `${opponent?.name ?? 'Opponent'} is attempting a steal.`
-                  : `${activeTeam?.name ?? 'Team'} is responding.`}
+                  ? `${opponent?.name ?? 'Opponent'} is attempting a steal${
+                      remainingSeconds ? ` (${remainingSeconds}s left)` : ''
+                    }.`
+                  : `${activeTeam?.name ?? 'Team'} is responding${
+                      remainingSeconds ? ` (${remainingSeconds}s left)` : ''
+                    }.`}
+
               </p>
             )}
             <p className="text-xs text-slate-400">
