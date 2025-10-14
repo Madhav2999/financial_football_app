@@ -1,5 +1,4 @@
 import { useMatchTimer, formatSeconds } from '../hooks/useMatchTimer'
-
 export function InlineCoinFlipAnimation({ status, teamAName, teamBName, resultFace }) {
   const classes = ['coin-flip__scene']
   const coinClasses = ['coin-flip']
@@ -302,6 +301,7 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
                   : `${activeTeam?.name ?? 'Team'} is responding${
                       remainingSeconds ? ` (${remainingSeconds}s left)` : ''
                     }.`}
+
               </p>
             )}
             <p className="text-xs text-slate-400">

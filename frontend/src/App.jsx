@@ -17,6 +17,7 @@ import {
   STEAL_QUESTION_POINTS,
 } from './constants/matchSettings'
 
+
 const QUESTIONS_PER_TEAM = 1
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
 const SUPER_ADMIN_PROFILE = {
@@ -288,6 +289,39 @@ function createLiveMatch(teamAId, teamBId, options = {}) {
   }
 }
 
+function createLiveMatch(teamAId, teamBId, options = {}) {
+  const {
+    id = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    moderatorId = null,
+    tournamentMatchId = null,
+  } = options
+
+  const questionQueue = drawQuestions(QUESTIONS_PER_TEAM * 2)
+
+  return {
+    id,
+    teams: [teamAId, teamBId],
+    scores: {
+      [teamAId]: 0,
+      [teamBId]: 0,
+    },
+    questionQueue,
+    assignedTeamOrder: [],
+    questionIndex: 0,
+    activeTeamId: null,
+    awaitingSteal: false,
+    status: 'coin-toss',
+    coinToss: {
+      status: 'ready',
+      winnerId: null,
+      decision: null,
+      resultFace: null,
+    },
+    tournamentMatchId,
+    moderatorId,
+  }
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -389,6 +423,7 @@ function AppShell() {
     if (!matchesToLaunch.length) {
       return
     }
+
 
     const creations = matchesToLaunch.map((bracketMatch) => {
       const liveMatchId = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -514,11 +549,13 @@ function AppShell() {
 
   const handlePauseMatch = (matchId, actor = {}) => {
     const { moderatorId = null, isAdmin = false } = actor
+
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
         if (match.id !== matchId) {
           return match
         }
+
 
         if (match.status !== 'in-progress') return match
         if (!isAdmin && match.moderatorId && match.moderatorId !== moderatorId) return match
