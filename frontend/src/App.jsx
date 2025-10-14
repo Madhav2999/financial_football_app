@@ -395,6 +395,7 @@ function AppShell() {
 
   const handlePauseMatch = (matchId, actor = {}) => {
     const { moderatorId = null, isAdmin = false } = actor
+
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
         if (match.id !== matchId) {
@@ -403,6 +404,7 @@ function AppShell() {
 
         if (match.status !== 'in-progress') return match
         if (!isAdmin && match.moderatorId && match.moderatorId !== moderatorId) return match
+
 
         return {
           ...match,
@@ -414,6 +416,7 @@ function AppShell() {
 
   const handleResumeMatch = (matchId, actor = {}) => {
     const { moderatorId = null, isAdmin = false } = actor
+
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
         if (match.id !== matchId) {
@@ -422,6 +425,7 @@ function AppShell() {
 
         if (match.status !== 'paused') return match
         if (!isAdmin && match.moderatorId && match.moderatorId !== moderatorId) return match
+
 
         return {
           ...match,
@@ -433,6 +437,7 @@ function AppShell() {
 
   const handleResetMatch = (matchId, actor = {}) => {
     const { moderatorId = null, isAdmin = false } = actor
+
     finalizedMatchesRef.current.delete(matchId)
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
@@ -442,6 +447,7 @@ function AppShell() {
 
         if (match.status === 'completed') return match
         if (!isAdmin && match.moderatorId && match.moderatorId !== moderatorId) return match
+
 
         const [teamAId, teamBId] = match.teams
 
@@ -724,6 +730,7 @@ function AppShell() {
               onPauseMatch={(matchId) => handlePauseMatch(matchId, { moderatorId: activeModerator?.id })}
               onResumeMatch={(matchId) => handleResumeMatch(matchId, { moderatorId: activeModerator?.id })}
               onResetMatch={(matchId) => handleResetMatch(matchId, { moderatorId: activeModerator?.id })}
+
               onLogout={handleLogout}
             />
           </ProtectedRoute>
