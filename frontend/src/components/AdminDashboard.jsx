@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { listMatchesForStage, listStages } from '../tournament/engine'
 import ScoreboardTable from './ScoreboardTable'
-import { CoinTossPanel, LiveMatchPanel } from './MatchPanels'
+import { CoinTossPanel, LiveMatchPanel, MatchControlButtons } from './MatchPanels'
 
 
-function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, onLaunch }) {
+function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, autoLaunchActive }) {
+
   if (!tournament) {
     return null
   }
@@ -39,11 +40,43 @@ function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, on
           const teamB = teams.find((team) => team.id === teamBId) ?? null
           const isActive = activeMatches.some((liveMatch) => liveMatch.tournamentMatchId === match.id)
           const isReady = Boolean(teamA && teamB)
-          const baseButtonClasses = "rounded-2xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] transition "
-          const stateClasses = isReady && !isActive
-            ? "bg-sky-500 text-white shadow shadow-sky-500/30 hover:bg-sky-400"
-            : "cursor-not-allowed border border-slate-700 bg-slate-900 text-slate-500"
+          const isLinked = Boolean(match.matchRefId)
           const moderatorName = moderators?.find((mod) => mod.id === match.moderatorId)?.name ?? 'Unassigned'
+          const queueState = (() => {
+            if (isActive) {
+              return {
+                label: 'Live match',
+                classes: 'border-emerald-500/60 bg-emerald-500/10 text-emerald-200',
+              }
+            }
+
+            if (!isReady) {
+              return {
+                label: 'Awaiting teams',
+                classes: 'border-slate-700 bg-slate-900 text-slate-400',
+              }
+            }
+
+            if (isLinked) {
+              return {
+                label: 'Awaiting toss',
+                classes: 'border-sky-500/60 bg-sky-500/10 text-sky-200',
+              }
+            }
+
+            if (autoLaunchActive) {
+              return {
+                label: 'Auto-launch queued',
+                classes: 'border-sky-500/60 bg-sky-500/10 text-sky-200',
+              }
+            }
+
+            return {
+              label: 'Pending launch',
+              classes: 'border-slate-700 bg-slate-900 text-slate-400',
+            }
+          })()
+
 
           return (
             <div key={match.id} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm text-slate-200">
@@ -62,14 +95,11 @@ function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, on
                   <span className="rounded-full border border-slate-700 px-3 py-1 text-[11px] uppercase tracking-[0.3em] text-slate-300">
                     {match.status}
                   </span>
-                  <button
-                    type="button"
-                    disabled={!isReady || isActive}
-                    onClick={() => onLaunch(match)}
-                    className={baseButtonClasses + stateClasses}
+                  <span
+                    className={`rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.3em] transition ${queueState.classes}`}
                   >
-                    {isActive ? 'In Progress' : 'Launch'}
-                  </button>
+                    {queueState.label}
+                  </span>
                 </div>
               </div>
             </div>
@@ -81,100 +111,55 @@ function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, on
 }
 
 
-function MatchSetupForm({ teams, activeMatches, onStart }) {
+function TournamentLaunchPanel({ tournament, launched, onLaunch }) {
+  const readyCount = useMemo(() => {
+    if (!tournament) return 0
+    return Object.values(tournament.matches).filter((match) => {
+      if (match.status === 'completed') return false
+      if (!match.teams?.every((teamId) => Boolean(teamId))) return false
+      if (match.matchRefId) return false
+      return true
+    }).length
+  }, [tournament])
 
-  const eligibleTeams = useMemo(() => {
-    const engaged = new Set()
-    activeMatches.forEach((match) => {
-      if (match.status === 'completed') return
-      match.teams.forEach((teamId) => engaged.add(teamId))
-    })
-    return teams.filter((team) => !team.eliminated && !engaged.has(team.id))
-  }, [teams, activeMatches])
-  const [selection, setSelection] = useState({ teamA: '', teamB: '' })
-
-  const canStart =
-    selection.teamA &&
-    selection.teamB &&
-    selection.teamA !== selection.teamB
-  const isSubmitDisabled = !canStart || eligibleTeams.length < 2
-
-  const handleSubmit = (event) => {
-    event.preventDefault()
-    if (isSubmitDisabled) {
-      return
-    }
-    onStart(selection.teamA, selection.teamB)
-    setSelection({ teamA: '', teamB: '' })
-  }
+  const buttonDisabled = launched || readyCount === 0
+  const buttonLabel = launched ? 'Tournament live' : 'Launch tournament'
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6 shadow-lg shadow-slate-900/40"
-    >
+    <section className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-lg shadow-slate-900/30">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Create Match</p>
-          <h2 className="text-2xl font-semibold text-white">Select competitors</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Only eligible teams are displayed. Eliminated or currently competing teams are hidden automatically.
+          <p className="text-xs uppercase tracking-[0.35em] text-sky-400">Bracket kickoff</p>
+          <h2 className="text-2xl font-semibold text-white">One-click tournament launch</h2>
+          <p className="mt-2 text-sm text-slate-300">
+            {launched
+              ? 'Automated pairing is active. New bracket rounds will open for moderators as soon as teams advance.'
+              : 'Queue every opening-round match and hand control to the assigned moderators with a single action.'}
           </p>
+          {!launched ? (
+            <p className="mt-3 text-xs uppercase tracking-[0.3em] text-slate-400">
+              {readyCount} match{readyCount === 1 ? '' : 'es'} ready to open
+            </p>
+          ) : null}
         </div>
         <button
-          type="submit"
-          disabled={isSubmitDisabled}
-          className={`rounded-2xl px-5 py-2 text-sm font-semibold transition ${
-            !isSubmitDisabled
+          type="button"
+          onClick={() => onLaunch?.()}
+          disabled={buttonDisabled}
+          className={`rounded-2xl px-5 py-2 text-sm font-semibold uppercase tracking-[0.3em] transition ${
+            !buttonDisabled
               ? 'bg-sky-500 text-white shadow shadow-sky-500/40 hover:bg-sky-400'
               : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-500'
           }`}
         >
-          Launch match
+          {buttonLabel}
         </button>
       </div>
-
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <label className="text-sm font-medium text-slate-200">
-          Team A
-          <select
-            value={selection.teamA}
-            onChange={(event) => setSelection((prev) => ({ ...prev, teamA: event.target.value }))}
-            className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-base text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-          >
-            <option value="">Select team</option>
-            {eligibleTeams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="text-sm font-medium text-slate-200">
-          Team B
-          <select
-            value={selection.teamB}
-            onChange={(event) => setSelection((prev) => ({ ...prev, teamB: event.target.value }))}
-            className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-base text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-          >
-            <option value="">Select team</option>
-            {eligibleTeams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      {eligibleTeams.length < 2 ? (
-        <p className="mt-4 rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 p-4 text-xs text-slate-400">
-          Not enough eligible teams are available to launch a new match right now.
-        </p>
-      ) : null}
-    </form>
+    </section>
   )
 }
+
+
 
 function MatchHistoryList({ history, teams }) {
   if (!history.length) {
@@ -325,7 +310,11 @@ export default function AdminDashboard({
   tournament,
   moderators,
   superAdmin,
-  onStartMatch,
+  tournamentLaunched,
+  onLaunchTournament,
+  onPauseMatch,
+  onResumeMatch,
+  onResetMatch,
   onDismissRecent,
   onLogout,
 }) {
@@ -334,10 +323,19 @@ export default function AdminDashboard({
       activeMatches
         .filter((match) => match.status !== 'completed')
         .sort((a, b) => {
-          const priority = { 'coin-toss': 0, 'in-progress': 1 }
+          const priority = { 'coin-toss': 0, paused: 1, 'in-progress': 2 }
           return (priority[a.status] ?? 2) - (priority[b.status] ?? 2)
         }),
     [activeMatches],
+  )
+
+  const renderMatchControls = (match) => (
+    <MatchControlButtons
+      match={match}
+      onPause={() => onPauseMatch?.(match.id)}
+      onResume={() => onResumeMatch?.(match.id)}
+      onReset={() => onResetMatch?.(match.id)}
+    />
   )
 
   return (
@@ -366,6 +364,12 @@ export default function AdminDashboard({
           history={history}
           tournament={tournament}
         />
+        <TournamentLaunchPanel
+          tournament={tournament}
+          launched={tournamentLaunched}
+          onLaunch={onLaunchTournament}
+        />
+
         {recentResult ? (
           <div className="rounded-3xl border border-emerald-600/40 bg-emerald-500/10 p-5 text-sm text-emerald-200 shadow shadow-emerald-500/20">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -394,9 +398,9 @@ export default function AdminDashboard({
               teams={teams}
               activeMatches={activeMatches}
               moderators={moderators}
-              onLaunch={(match) => onStartMatch(match.teams[0], match.teams[1])}
+              autoLaunchActive={tournamentLaunched}
+
             />
-            <MatchSetupForm teams={teams} activeMatches={activeMatches} onStart={onStartMatch} />
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-white">Active Matches</h2>
               {orderedMatches.length ? (
@@ -419,14 +423,15 @@ export default function AdminDashboard({
                         match={match}
                         teams={teams}
                         moderators={moderators}
-                        description="Track progress in real time while moderators manage pacing and scoring."
+                        actions={renderMatchControls(match)}
+                        description="Track progress in real time or step in to pause or reset a quiz if needed."
                       />
                     )
                   )}
                 </div>
               ) : (
                 <div className="rounded-3xl border border-dashed border-slate-800 bg-slate-900/40 p-6 text-sm text-slate-300 shadow-inner shadow-slate-900/30">
-                  No matches are running right now. Launch a new showdown above.
+                  No matches are running right now. Launch the tournament to activate the opening round.
                 </div>
               )}
             </div>

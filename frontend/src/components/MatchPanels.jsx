@@ -31,6 +31,57 @@ function resolveModeratorName(moderators, moderatorId) {
   return match ? match.name : 'Unassigned'
 }
 
+export function MatchControlButtons({ match, onPause, onResume, onReset }) {
+  const isInProgress = match.status === 'in-progress'
+  const isPaused = match.status === 'paused'
+  const buttons = []
+
+  if (isInProgress) {
+    buttons.push(
+      <button
+        key="pause"
+        type="button"
+        onClick={onPause}
+        className="rounded-2xl border border-slate-600 bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-200 transition hover:border-sky-500 hover:text-white"
+      >
+        Pause match
+      </button>,
+    )
+  }
+
+  if (isPaused) {
+    buttons.push(
+      <button
+        key="resume"
+        type="button"
+        onClick={onResume}
+        className="rounded-2xl border border-emerald-500/60 bg-emerald-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200 transition hover:border-emerald-400 hover:text-white"
+      >
+        Resume match
+      </button>,
+    )
+  }
+
+  if (match.status !== 'completed') {
+    buttons.push(
+      <button
+        key="reset"
+        type="button"
+        onClick={onReset}
+        className="rounded-2xl border border-rose-500/60 bg-rose-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-rose-200 transition hover:border-rose-400 hover:text-white"
+      >
+        Reset match
+      </button>,
+    )
+  }
+
+  if (!buttons.length) {
+    return null
+  }
+
+  return <div className="flex flex-wrap items-center justify-end gap-3">{buttons}</div>
+}
+
 export function CoinTossPanel({
   match,
   teams,

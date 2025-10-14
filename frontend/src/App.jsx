@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
@@ -9,7 +9,7 @@ import { initialTeams } from './data/teams'
 import { questionBank } from './data/questions'
 import { moderatorAccounts } from './data/moderators'
 import TeamDashboard from './components/TeamDashboard'
-import { initializeTournament, recordMatchResult, findMatchForTeams, attachLiveMatch, detachLiveMatch } from './tournament/engine'
+import { initializeTournament, recordMatchResult, attachLiveMatch, detachLiveMatch } from './tournament/engine'
 
 const QUESTIONS_PER_TEAM = 1
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
@@ -137,6 +137,39 @@ function advanceMatchState(match, scores) {
   }
 }
 
+function createLiveMatch(teamAId, teamBId, options = {}) {
+  const {
+    id = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    moderatorId = null,
+    tournamentMatchId = null,
+  } = options
+
+  const questionQueue = drawQuestions(QUESTIONS_PER_TEAM * 2)
+
+  return {
+    id,
+    teams: [teamAId, teamBId],
+    scores: {
+      [teamAId]: 0,
+      [teamBId]: 0,
+    },
+    questionQueue,
+    assignedTeamOrder: [],
+    questionIndex: 0,
+    activeTeamId: null,
+    awaitingSteal: false,
+    status: 'coin-toss',
+    coinToss: {
+      status: 'ready',
+      winnerId: null,
+      decision: null,
+      resultFace: null,
+    },
+    tournamentMatchId,
+    moderatorId,
+  }
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -153,6 +186,7 @@ function AppShell() {
   const [recentResult, setRecentResult] = useState(null)
   const [authError, setAuthError] = useState(null)
   const [tournament, setTournament] = useState(() => initializeTournament(teams, MODERATOR_ACCOUNTS))
+  const [tournamentLaunched, setTournamentLaunched] = useState(false)
   const finalizedMatchesRef = useRef(new Set())
 
   const navigate = useNavigate()
@@ -215,87 +249,53 @@ function AppShell() {
     navigate('/', { replace: true })
   }
 
-  const handleStartMatch = (teamAId, teamBId) => {
-    let matchAdded = false
-    const liveMatchId = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    const bracketMatch = tournament ? findMatchForTeams(tournament, teamAId, teamBId) : null
-    const tournamentMatchId = bracketMatch ? bracketMatch.id : null
+  useEffect(() => {
+    if (!tournamentLaunched || !tournament) {
+      return
+    }
 
-    setActiveMatches((previousMatches) => {
-      const isTeamBusy = previousMatches.some(
-        (match) =>
-          match.status !== 'completed' &&
-          match.teams.some((teamId) => teamId === teamAId || teamId === teamBId),
-      )
+    const activeTournamentMatches = new Set(
+      activeMatches
+        .filter((match) => match.status !== 'completed' && match.tournamentMatchId)
+        .map((match) => match.tournamentMatchId),
+    )
 
-      if (isTeamBusy) {
-        return previousMatches
-      }
-
-      const assignedModeratorId = (() => {
-        if (bracketMatch?.moderatorId) {
-          return bracketMatch.moderatorId
-        }
-
-        const roster = (tournament?.moderatorRoster?.length
-          ? tournament.moderatorRoster
-          : MODERATOR_ACCOUNTS
-        ).map((entry, index) => ({ id: entry.id, order: index }))
-
-        if (!roster.length) {
-          return null
-        }
-
-        const loads = roster
-          .map((entry) => ({
-            id: entry.id,
-            order: entry.order,
-            active: previousMatches.filter(
-              (match) => match.status !== 'completed' && match.moderatorId === entry.id,
-            ).length,
-          }))
-          .sort((left, right) => {
-            if (left.active === right.active) {
-              return left.order - right.order
-            }
-            return left.active - right.active
-          })
-
-        return loads[0]?.id ?? null
-      })()
-
-      const questionQueue = drawQuestions(QUESTIONS_PER_TEAM * 2)
-
-      const match = {
-        id: liveMatchId,
-        teams: [teamAId, teamBId],
-        scores: {
-          [teamAId]: 0,
-          [teamBId]: 0,
-        },
-        questionQueue,
-        assignedTeamOrder: [],
-        questionIndex: 0,
-        activeTeamId: null,
-        awaitingSteal: false,
-        status: 'coin-toss',
-        coinToss: {
-          status: 'ready',
-          winnerId: null,
-          decision: null,
-          resultFace: null,
-        },
-        tournamentMatchId,
-        moderatorId: assignedModeratorId,
-      }
-
-      matchAdded = true
-      return [...previousMatches, match]
+    const matchesToLaunch = Object.values(tournament.matches ?? {}).filter((match) => {
+      if (match.status === 'completed') return false
+      if (!match.teams?.every((teamId) => Boolean(teamId))) return false
+      if (match.matchRefId) return false
+      if (activeTournamentMatches.has(match.id)) return false
+      return true
     })
 
-    if (matchAdded && bracketMatch) {
-      setTournament((previous) => (previous ? attachLiveMatch(previous, bracketMatch.id, liveMatchId) : previous))
+    if (!matchesToLaunch.length) {
+      return
     }
+
+    const creations = matchesToLaunch.map((bracketMatch) => {
+      const liveMatchId = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      return {
+        tournamentMatchId: bracketMatch.id,
+        liveMatch: createLiveMatch(bracketMatch.teams[0], bracketMatch.teams[1], {
+          id: liveMatchId,
+          tournamentMatchId: bracketMatch.id,
+          moderatorId: bracketMatch.moderatorId ?? null,
+        }),
+      }
+    })
+
+    setActiveMatches((previous) => [...previous, ...creations.map((item) => item.liveMatch)])
+    setTournament((previous) => {
+      if (!previous) return previous
+      return creations.reduce(
+        (state, item) => attachLiveMatch(state, item.tournamentMatchId, item.liveMatch.id),
+        previous,
+      )
+    })
+  }, [tournamentLaunched, tournament, activeMatches])
+
+  const handleLaunchTournament = () => {
+    setTournamentLaunched((previous) => (previous ? previous : true))
   }
 
   const handleFlipCoin = (matchId, options = {}) => {
@@ -393,7 +393,9 @@ function AppShell() {
     )
   }
 
-  const handlePauseMatch = (matchId, moderatorId) => {
+  const handlePauseMatch = (matchId, actor = {}) => {
+    const { moderatorId = null, isAdmin = false } = actor
+
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
         if (match.id !== matchId) {
@@ -401,7 +403,8 @@ function AppShell() {
         }
 
         if (match.status !== 'in-progress') return match
-        if (match.moderatorId && match.moderatorId !== moderatorId) return match
+        if (!isAdmin && match.moderatorId && match.moderatorId !== moderatorId) return match
+
 
         return {
           ...match,
@@ -411,7 +414,9 @@ function AppShell() {
     )
   }
 
-  const handleResumeMatch = (matchId, moderatorId) => {
+  const handleResumeMatch = (matchId, actor = {}) => {
+    const { moderatorId = null, isAdmin = false } = actor
+
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
         if (match.id !== matchId) {
@@ -419,7 +424,8 @@ function AppShell() {
         }
 
         if (match.status !== 'paused') return match
-        if (match.moderatorId && match.moderatorId !== moderatorId) return match
+        if (!isAdmin && match.moderatorId && match.moderatorId !== moderatorId) return match
+
 
         return {
           ...match,
@@ -429,7 +435,9 @@ function AppShell() {
     )
   }
 
-  const handleResetMatch = (matchId, moderatorId) => {
+  const handleResetMatch = (matchId, actor = {}) => {
+    const { moderatorId = null, isAdmin = false } = actor
+
     finalizedMatchesRef.current.delete(matchId)
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
@@ -438,7 +446,8 @@ function AppShell() {
         }
 
         if (match.status === 'completed') return match
-        if (match.moderatorId && match.moderatorId !== moderatorId) return match
+        if (!isAdmin && match.moderatorId && match.moderatorId !== moderatorId) return match
+
 
         const [teamAId, teamBId] = match.teams
 
@@ -689,7 +698,11 @@ function AppShell() {
               tournament={tournament}
               moderators={MODERATOR_ACCOUNTS}
               superAdmin={SUPER_ADMIN_PROFILE}
-              onStartMatch={handleStartMatch}
+              tournamentLaunched={tournamentLaunched}
+              onLaunchTournament={handleLaunchTournament}
+              onPauseMatch={(matchId) => handlePauseMatch(matchId, { isAdmin: true })}
+              onResumeMatch={(matchId) => handleResumeMatch(matchId, { isAdmin: true })}
+              onResetMatch={(matchId) => handleResetMatch(matchId, { isAdmin: true })}
               onDismissRecent={handleDismissRecent}
               onLogout={handleLogout}
             />
@@ -714,9 +727,10 @@ function AppShell() {
                   moderatorId: activeModerator?.id,
                 })
               }
-              onPauseMatch={(matchId) => handlePauseMatch(matchId, activeModerator?.id)}
-              onResumeMatch={(matchId) => handleResumeMatch(matchId, activeModerator?.id)}
-              onResetMatch={(matchId) => handleResetMatch(matchId, activeModerator?.id)}
+              onPauseMatch={(matchId) => handlePauseMatch(matchId, { moderatorId: activeModerator?.id })}
+              onResumeMatch={(matchId) => handleResumeMatch(matchId, { moderatorId: activeModerator?.id })}
+              onResetMatch={(matchId) => handleResetMatch(matchId, { moderatorId: activeModerator?.id })}
+
               onLogout={handleLogout}
             />
           </ProtectedRoute>
