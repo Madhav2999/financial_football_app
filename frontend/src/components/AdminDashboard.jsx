@@ -5,7 +5,6 @@ import { CoinTossPanel, LiveMatchPanel, MatchControlButtons } from './MatchPanel
 
 
 function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, autoLaunchActive }) {
-
   if (!tournament) {
     return null
   }
@@ -76,7 +75,6 @@ function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, au
               classes: 'border-slate-700 bg-slate-900 text-slate-400',
             }
           })()
-
 
           return (
             <div key={match.id} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm text-slate-200">
@@ -158,7 +156,6 @@ function TournamentLaunchPanel({ tournament, launched, onLaunch }) {
     </section>
   )
 }
-
 
 
 function MatchHistoryList({ history, teams }) {
@@ -369,7 +366,6 @@ export default function AdminDashboard({
           launched={tournamentLaunched}
           onLaunch={onLaunchTournament}
         />
-
         {recentResult ? (
           <div className="rounded-3xl border border-emerald-600/40 bg-emerald-500/10 p-5 text-sm text-emerald-200 shadow shadow-emerald-500/20">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -399,7 +395,6 @@ export default function AdminDashboard({
               activeMatches={activeMatches}
               moderators={moderators}
               autoLaunchActive={tournamentLaunched}
-
             />
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-white">Active Matches</h2>

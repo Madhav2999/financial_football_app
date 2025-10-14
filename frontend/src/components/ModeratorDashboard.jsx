@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import { CoinTossPanel, LiveMatchPanel, MatchControlButtons } from './MatchPanels'
 
-
 function AssignmentHeader({ moderator }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4">
