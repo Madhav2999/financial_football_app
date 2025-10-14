@@ -21,8 +21,8 @@ import {
 const QUESTIONS_PER_TEAM = 1
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
 const SUPER_ADMIN_PROFILE = {
-  name: 'Jordan Maxwell',
-  email: 'super@financialfootball.com',
+  name: 'SUNCOASTADMIN',
+  email: 'suncoastadmin@financialfootball.com',
   phone: '+1 (555) 013-3700',
 }
 const MODERATOR_ACCOUNTS = moderatorAccounts

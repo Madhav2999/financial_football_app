@@ -144,11 +144,10 @@ function TournamentLaunchPanel({ tournament, launched, onLaunch }) {
           type="button"
           onClick={() => onLaunch?.()}
           disabled={buttonDisabled}
-          className={`rounded-2xl px-5 py-2 text-sm font-semibold uppercase tracking-[0.3em] transition ${
-            !buttonDisabled
+          className={`rounded-2xl px-5 py-2 text-sm font-semibold uppercase tracking-[0.3em] transition ${!buttonDisabled
               ? 'bg-sky-500 text-white shadow shadow-sky-500/40 hover:bg-sky-400'
               : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-500'
-          }`}
+            }`}
         >
           {buttonLabel}
         </button>
@@ -186,11 +185,10 @@ function MatchHistoryList({ history, teams }) {
                 {teamA?.name} vs {teamB?.name}
               </p>
               <span
-                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                  isTie
+                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${isTie
                     ? 'bg-slate-700 text-slate-200'
                     : 'bg-emerald-500/20 text-emerald-300'
-                }`}
+                  }`}
               >
                 {isTie ? 'Tie' : `${winner?.name} won`}
               </span>
@@ -227,9 +225,8 @@ function TeamAnalyticsPanel({ teams }) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-base font-semibold text-white">{team.name}</p>
             <span
-              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                team.eliminated ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'
-              }`}
+              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${team.eliminated ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'
+                }`}
             >
               {team.eliminated ? 'Eliminated' : 'Active'}
             </span>
@@ -290,8 +287,8 @@ function SuperAdminOverview({ superAdmin, teams, moderators, activeMatches, hist
             key={item.label}
             className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-center shadow-inner shadow-slate-900/20"
           >
-            <p className="text-[10px] uppercase tracking-[0.35em] text-slate-400">{item.label}</p>
             <p className="mt-3 text-2xl font-semibold text-white">{item.value}</p>
+            <p className="text-[10px] uppercase tracking-[0.35em] text-slate-400">{item.label}</p>
           </div>
         ))}
       </div>
@@ -408,8 +405,8 @@ export default function AdminDashboard({
                         teams={teams}
                         moderators={moderators}
                         canControl={false}
-                        onFlip={() => {}}
-                        onSelectFirst={() => {}}
+                        onFlip={() => { }}
+                        onSelectFirst={() => { }}
                         description="The assigned moderator will run this toss and begin the match."
                       />
                     ) : (
