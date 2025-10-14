@@ -1,5 +1,4 @@
 import React from 'react';
-import {useState,useEffect} from 'react';
 
 const NAV_ITEMS = [
     {id: 'home', label:'Home', href:'#top'},
