@@ -1,20 +1,23 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
 import LandingPage from './components/LandingPage'
 import ModeratorDashboard from './components/ModeratorDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
-import SuperAdminDashboard from './components/SuperAdminDashboard'
 import { initialTeams } from './data/teams'
 import { questionBank } from './data/questions'
 import { moderatorAccounts } from './data/moderators'
 import TeamDashboard from './components/TeamDashboard'
-import { initializeTournament, recordMatchResult, findMatchForTeams, attachLiveMatch, detachLiveMatch } from './tournament/engine'
+import { initializeTournament, recordMatchResult, attachLiveMatch, detachLiveMatch } from './tournament/engine'
 
 const QUESTIONS_PER_TEAM = 1
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
-const SUPER_ADMIN_CREDENTIALS = { loginId: 'super', password: 'supreme' }
+const SUPER_ADMIN_PROFILE = {
+  name: 'Jordan Maxwell',
+  email: 'super@financialfootball.com',
+  phone: '+1 (555) 013-3700',
+}
 const MODERATOR_ACCOUNTS = moderatorAccounts
 
 function buildInitialTeams() {
@@ -134,6 +137,39 @@ function advanceMatchState(match, scores) {
   }
 }
 
+function createLiveMatch(teamAId, teamBId, options = {}) {
+  const {
+    id = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    moderatorId = null,
+    tournamentMatchId = null,
+  } = options
+
+  const questionQueue = drawQuestions(QUESTIONS_PER_TEAM * 2)
+
+  return {
+    id,
+    teams: [teamAId, teamBId],
+    scores: {
+      [teamAId]: 0,
+      [teamBId]: 0,
+    },
+    questionQueue,
+    assignedTeamOrder: [],
+    questionIndex: 0,
+    activeTeamId: null,
+    awaitingSteal: false,
+    status: 'coin-toss',
+    coinToss: {
+      status: 'ready',
+      winnerId: null,
+      decision: null,
+      resultFace: null,
+    },
+    tournamentMatchId,
+    moderatorId,
+  }
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -150,6 +186,7 @@ function AppShell() {
   const [recentResult, setRecentResult] = useState(null)
   const [authError, setAuthError] = useState(null)
   const [tournament, setTournament] = useState(() => initializeTournament(teams, MODERATOR_ACCOUNTS))
+  const [tournamentLaunched, setTournamentLaunched] = useState(false)
   const finalizedMatchesRef = useRef(new Set())
 
   const navigate = useNavigate()
@@ -206,78 +243,71 @@ function AppShell() {
     navigate(options.redirectTo ?? '/moderator', { replace: true })
   }
 
-  const handleSuperAdminLogin = (loginId, password, options = {}) => {
-    if (loginId !== SUPER_ADMIN_CREDENTIALS.loginId || password !== SUPER_ADMIN_CREDENTIALS.password) {
-      setAuthError('Incorrect super admin login details.')
-      return
-    }
-
-    setSession({ type: 'super-admin' })
-    setAuthError(null)
-    navigate(options.redirectTo ?? '/super', { replace: true })
-  }
-
   const handleLogout = () => {
     setSession({ type: 'guest' })
     setAuthError(null)
     navigate('/', { replace: true })
   }
 
-  const handleStartMatch = (teamAId, teamBId) => {
-    let matchAdded = false
-    const liveMatchId = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    const bracketMatch = tournament ? findMatchForTeams(tournament, teamAId, teamBId) : null
-    const tournamentMatchId = bracketMatch ? bracketMatch.id : null
+  useEffect(() => {
+    if (!tournamentLaunched || !tournament) {
+      return
+    }
 
-    setActiveMatches((previousMatches) => {
-      const isTeamBusy = previousMatches.some(
-        (match) =>
-          match.status !== 'completed' &&
-          match.teams.some((teamId) => teamId === teamAId || teamId === teamBId),
-      )
+    const activeTournamentMatches = new Set(
+      activeMatches
+        .filter((match) => match.status !== 'completed' && match.tournamentMatchId)
+        .map((match) => match.tournamentMatchId),
+    )
 
-      if (isTeamBusy) {
-        return previousMatches
-      }
-
-      const questionQueue = drawQuestions(QUESTIONS_PER_TEAM * 2)
-
-      const match = {
-        id: liveMatchId,
-        teams: [teamAId, teamBId],
-        scores: {
-          [teamAId]: 0,
-          [teamBId]: 0,
-        },
-        questionQueue,
-        assignedTeamOrder: [],
-        questionIndex: 0,
-        activeTeamId: null,
-        awaitingSteal: false,
-        status: 'coin-toss',
-        coinToss: {
-          status: 'ready',
-          winnerId: null,
-          decision: null,
-          resultFace: null,
-        },
-        tournamentMatchId,
-      }
-
-      matchAdded = true
-      return [...previousMatches, match]
+    const matchesToLaunch = Object.values(tournament.matches ?? {}).filter((match) => {
+      if (match.status === 'completed') return false
+      if (!match.teams?.every((teamId) => Boolean(teamId))) return false
+      if (match.matchRefId) return false
+      if (activeTournamentMatches.has(match.id)) return false
+      return true
     })
 
-    if (matchAdded && bracketMatch) {
-      setTournament((previous) => (previous ? attachLiveMatch(previous, bracketMatch.id, liveMatchId) : previous))
+    if (!matchesToLaunch.length) {
+      return
     }
+
+    const creations = matchesToLaunch.map((bracketMatch) => {
+      const liveMatchId = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      return {
+        tournamentMatchId: bracketMatch.id,
+        liveMatch: createLiveMatch(bracketMatch.teams[0], bracketMatch.teams[1], {
+          id: liveMatchId,
+          tournamentMatchId: bracketMatch.id,
+          moderatorId: bracketMatch.moderatorId ?? null,
+        }),
+      }
+    })
+
+    setActiveMatches((previous) => [...previous, ...creations.map((item) => item.liveMatch)])
+    setTournament((previous) => {
+      if (!previous) return previous
+      return creations.reduce(
+        (state, item) => attachLiveMatch(state, item.tournamentMatchId, item.liveMatch.id),
+        previous,
+      )
+    })
+  }, [tournamentLaunched, tournament, activeMatches])
+
+  const handleLaunchTournament = () => {
+    setTournamentLaunched((previous) => (previous ? previous : true))
   }
 
-  const handleFlipCoin = (matchId) => {
+  const handleFlipCoin = (matchId, options = {}) => {
+    const { moderatorId } = options
     setActiveMatches((previousMatches) => {
       const targetMatch = previousMatches.find((match) => match.id === matchId)
 
       if (!targetMatch || targetMatch.coinToss.status !== 'ready') {
+        return previousMatches
+      }
+
+      if (targetMatch.moderatorId && targetMatch.moderatorId !== moderatorId) {
         return previousMatches
       }
 
@@ -328,7 +358,8 @@ function AppShell() {
     })
   }
 
-  const handleSelectFirst = (matchId, deciderId, firstTeamId) => {
+  const handleSelectFirst = (matchId, deciderId, firstTeamId, options = {}) => {
+    const { moderatorId } = options
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
         if (match.id !== matchId) {
@@ -336,7 +367,10 @@ function AppShell() {
         }
 
         if (match.coinToss.status !== 'flipped') return match
-        if (match.coinToss.winnerId !== deciderId) return match
+        const tossWinnerId = match.coinToss.winnerId
+        const moderatorAuthorized =
+          Boolean(moderatorId) && (!match.moderatorId || match.moderatorId === moderatorId)
+        if (!moderatorAuthorized && tossWinnerId !== deciderId) return match
         if (!match.teams.includes(firstTeamId)) return match
 
         const order = buildQuestionOrder(firstTeamId, match.teams, QUESTIONS_PER_TEAM)
@@ -353,6 +387,80 @@ function AppShell() {
               deciderId,
               firstTeamId,
             },
+          },
+        }
+      }),
+    )
+  }
+
+  const handlePauseMatch = (matchId, actor = {}) => {
+    const { moderatorId = null, isAdmin = false } = actor
+    setActiveMatches((previousMatches) =>
+      previousMatches.map((match) => {
+        if (match.id !== matchId) {
+          return match
+        }
+
+        if (match.status !== 'in-progress') return match
+        if (!isAdmin && match.moderatorId && match.moderatorId !== moderatorId) return match
+
+        return {
+          ...match,
+          status: 'paused',
+        }
+      }),
+    )
+  }
+
+  const handleResumeMatch = (matchId, actor = {}) => {
+    const { moderatorId = null, isAdmin = false } = actor
+    setActiveMatches((previousMatches) =>
+      previousMatches.map((match) => {
+        if (match.id !== matchId) {
+          return match
+        }
+
+        if (match.status !== 'paused') return match
+        if (!isAdmin && match.moderatorId && match.moderatorId !== moderatorId) return match
+
+        return {
+          ...match,
+          status: 'in-progress',
+        }
+      }),
+    )
+  }
+
+  const handleResetMatch = (matchId, actor = {}) => {
+    const { moderatorId = null, isAdmin = false } = actor
+    finalizedMatchesRef.current.delete(matchId)
+    setActiveMatches((previousMatches) =>
+      previousMatches.map((match) => {
+        if (match.id !== matchId) {
+          return match
+        }
+
+        if (match.status === 'completed') return match
+        if (!isAdmin && match.moderatorId && match.moderatorId !== moderatorId) return match
+
+        const [teamAId, teamBId] = match.teams
+
+        return {
+          ...match,
+          scores: {
+            [teamAId]: 0,
+            [teamBId]: 0,
+          },
+          questionIndex: 0,
+          assignedTeamOrder: [],
+          activeTeamId: null,
+          awaitingSteal: false,
+          status: 'coin-toss',
+          coinToss: {
+            status: 'ready',
+            winnerId: null,
+            decision: null,
+            resultFace: null,
           },
         }
       }),
@@ -564,7 +672,6 @@ function AppShell() {
             onTeamLogin={handleTeamLogin}
             onAdminLogin={handleAdminLogin}
             onModeratorLogin={handleModeratorLogin}
-            onSuperAdminLogin={handleSuperAdminLogin}
             onBack={() => {
               setAuthError(null)
               navigate('/')
@@ -583,25 +690,14 @@ function AppShell() {
               recentResult={recentResult}
               history={matchHistory}
               tournament={tournament}
-              onStartMatch={handleStartMatch}
-              onFlipCoin={handleFlipCoin}
-              onSelectFirst={handleSelectFirst}
-              onDismissRecent={handleDismissRecent}
-              onLogout={handleLogout}
-            />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/super"
-        element={
-          <ProtectedRoute isAllowed={session.type === 'super-admin'} redirectTo="/login?mode=super">
-            <SuperAdminDashboard
-              teams={teams}
-              activeMatches={activeMatches}
-              matchHistory={matchHistory}
               moderators={MODERATOR_ACCOUNTS}
-              tournament={tournament}
+              superAdmin={SUPER_ADMIN_PROFILE}
+              tournamentLaunched={tournamentLaunched}
+              onLaunchTournament={handleLaunchTournament}
+              onPauseMatch={(matchId) => handlePauseMatch(matchId, { isAdmin: true })}
+              onResumeMatch={(matchId) => handleResumeMatch(matchId, { isAdmin: true })}
+              onResetMatch={(matchId) => handleResetMatch(matchId, { isAdmin: true })}
+              onDismissRecent={handleDismissRecent}
               onLogout={handleLogout}
             />
           </ProtectedRoute>
@@ -616,6 +712,18 @@ function AppShell() {
               matches={activeMatches}
               teams={teams}
               tournament={tournament}
+              moderators={MODERATOR_ACCOUNTS}
+              onFlipCoin={(matchId) =>
+                handleFlipCoin(matchId, { moderatorId: activeModerator?.id })
+              }
+              onSelectFirst={(matchId, deciderId, firstTeamId) =>
+                handleSelectFirst(matchId, deciderId, firstTeamId, {
+                  moderatorId: activeModerator?.id,
+                })
+              }
+              onPauseMatch={(matchId) => handlePauseMatch(matchId, { moderatorId: activeModerator?.id })}
+              onResumeMatch={(matchId) => handleResumeMatch(matchId, { moderatorId: activeModerator?.id })}
+              onResetMatch={(matchId) => handleResetMatch(matchId, { moderatorId: activeModerator?.id })}
               onLogout={handleLogout}
             />
           </ProtectedRoute>
@@ -652,14 +760,13 @@ function LoginPage({
   onTeamLogin,
   onAdminLogin,
   onModeratorLogin,
-  onSuperAdminLogin,
   onBack,
   session,
 }) {
   const location = useLocation()
   const [searchParams] = useSearchParams()
 
-  const allowedModes = new Set(['team', 'admin', 'moderator', 'super'])
+  const allowedModes = new Set(['team', 'admin', 'moderator'])
   const requestedModeParam = searchParams.get('mode') ?? 'team'
   const requestedMode = allowedModes.has(requestedModeParam) ? requestedModeParam : 'team'
 
@@ -668,7 +775,6 @@ function LoginPage({
     ['/admin', 'admin'],
     ['/team', 'team'],
     ['/moderator', 'moderator'],
-    ['/super', 'super'],
   ]
 
   let inferredMode = requestedMode
@@ -695,10 +801,6 @@ function LoginPage({
     return <Navigate to="/moderator" replace />
   }
 
-  if (session.type === 'super-admin') {
-    return <Navigate to="/super" replace />
-  }
-
   return (
     <AuthenticationGateway
       initialMode={inferredMode}
@@ -710,9 +812,6 @@ function LoginPage({
       }
       onModeratorLogin={(loginId, password) =>
         onModeratorLogin(loginId, password, { redirectTo: redirectTarget ?? '/moderator' })
-      }
-      onSuperAdminLogin={(loginId, password) =>
-        onSuperAdminLogin(loginId, password, { redirectTo: redirectTarget ?? '/super' })
       }
       onBack={onBack}
       error={authError}
