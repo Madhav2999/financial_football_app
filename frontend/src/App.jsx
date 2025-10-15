@@ -19,10 +19,11 @@ import {
 
 
 const QUESTIONS_PER_TEAM = 1
+const TOURNAMENT_TEAM_LIMIT = 12
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
 const SUPER_ADMIN_PROFILE = {
-  name: 'SUNCOASTADMIN',
-  email: 'suncoastadmin@financialfootball.com',
+  name: 'Jordan Maxwell',
+  email: 'super@financialfootball.com',
   phone: '+1 (555) 013-3700',
 }
 const MODERATOR_ACCOUNTS = moderatorAccounts
@@ -35,6 +36,14 @@ function buildInitialTeams() {
     totalScore: 0,
     eliminated: false,
   }))
+}
+
+const INITIAL_TEAM_STATE = buildInitialTeams()
+
+function buildDefaultTeamSelection(teams, limit = TOURNAMENT_TEAM_LIMIT) {
+  const roster = Array.isArray(teams) ? teams : []
+  const requiredCount = Math.min(limit, roster.length)
+  return roster.slice(0, requiredCount).map((team) => team.id)
 }
 
 function shuffleArray(array) {
@@ -197,6 +206,8 @@ function advanceMatchState(match, scores) {
       activeTeamId: match.assignedTeamOrder[nextIndex],
       timer: createRunningTimer('primary'),
     },
+    tournamentMatchId,
+    moderatorId,
   }
 }
 
@@ -289,39 +300,6 @@ function createLiveMatch(teamAId, teamBId, options = {}) {
   }
 }
 
-function createLiveMatch(teamAId, teamBId, options = {}) {
-  const {
-    id = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    moderatorId = null,
-    tournamentMatchId = null,
-  } = options
-
-  const questionQueue = drawQuestions(QUESTIONS_PER_TEAM * 2)
-
-  return {
-    id,
-    teams: [teamAId, teamBId],
-    scores: {
-      [teamAId]: 0,
-      [teamBId]: 0,
-    },
-    questionQueue,
-    assignedTeamOrder: [],
-    questionIndex: 0,
-    activeTeamId: null,
-    awaitingSteal: false,
-    status: 'coin-toss',
-    coinToss: {
-      status: 'ready',
-      winnerId: null,
-      decision: null,
-      resultFace: null,
-    },
-    tournamentMatchId,
-    moderatorId,
-  }
-}
-
 export default function App() {
   return (
     <BrowserRouter>
@@ -331,13 +309,16 @@ export default function App() {
 }
 
 function AppShell() {
-  const [teams, setTeams] = useState(buildInitialTeams)
+  const [teams, setTeams] = useState(INITIAL_TEAM_STATE)
   const [session, setSession] = useState({ type: 'guest' })
   const [activeMatches, setActiveMatches] = useState([])
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
   const [authError, setAuthError] = useState(null)
-  const [tournament, setTournament] = useState(() => initializeTournament(teams, MODERATOR_ACCOUNTS))
+  const [selectedTeamIds, setSelectedTeamIds] = useState(() =>
+    buildDefaultTeamSelection(INITIAL_TEAM_STATE, TOURNAMENT_TEAM_LIMIT),
+  )
+  const [tournament, setTournament] = useState(null)
   const [tournamentLaunched, setTournamentLaunched] = useState(false)
   const finalizedMatchesRef = useRef(new Set())
 
@@ -357,6 +338,24 @@ function AppShell() {
     if (session.type !== 'moderator') return null
     return MODERATOR_ACCOUNTS.find((account) => account.id === session.moderatorId) ?? null
   }, [session])
+
+  useEffect(() => {
+    setSelectedTeamIds((previous) => {
+      const availableIds = teams.map((team) => team.id)
+      const requiredCount = Math.min(TOURNAMENT_TEAM_LIMIT, availableIds.length)
+      const filtered = previous.filter((id) => availableIds.includes(id))
+      if (filtered.length >= requiredCount) {
+        const limited = filtered.slice(0, requiredCount)
+        const unchanged = limited.length === previous.length && limited.every((id, index) => id === previous[index])
+        return unchanged ? previous : limited
+      }
+
+      const toAdd = availableIds.filter((id) => !filtered.includes(id))
+      const next = [...filtered, ...toAdd].slice(0, requiredCount)
+      const unchanged = next.length === previous.length && next.every((id, index) => id === previous[index])
+      return unchanged ? previous : next
+    })
+  }, [teams])
 
   const handleTeamLogin = (loginId, password, options = {}) => {
     const team = teams.find((item) => item.loginId === loginId)
@@ -448,8 +447,77 @@ function AppShell() {
   }, [tournamentLaunched, tournament, activeMatches])
 
   const handleLaunchTournament = () => {
+    if (!tournament) return
     setTournamentLaunched((previous) => (previous ? previous : true))
   }
+
+  const handleToggleTeamSelection = useCallback(
+    (teamId) => {
+      if (tournamentLaunched) {
+        return
+      }
+
+      setSelectedTeamIds((previous) => {
+        const isSelected = previous.includes(teamId)
+        if (isSelected) {
+          return previous.filter((id) => id !== teamId)
+        }
+
+        if (previous.length >= Math.min(TOURNAMENT_TEAM_LIMIT, teams.length)) {
+          return previous
+        }
+
+        const next = [...previous, teamId]
+        const orderedRoster = teams.map((team) => team.id)
+        const orderedSelection = orderedRoster.filter((id) => next.includes(id))
+        return orderedSelection
+      })
+    },
+    [teams, tournamentLaunched],
+  )
+
+  const handleMatchMaking = useCallback(() => {
+    if (tournamentLaunched) {
+      return
+    }
+
+    const availableIds = teams.map((team) => team.id)
+    const requiredCount = Math.min(TOURNAMENT_TEAM_LIMIT, availableIds.length)
+    if (selectedTeamIds.length < requiredCount) {
+      return
+    }
+
+    const orderedRoster = new Map(teams.map((team, index) => [team.id, index]))
+    const seededIds = [...selectedTeamIds]
+      .filter((id) => orderedRoster.has(id))
+      .sort((left, right) => (orderedRoster.get(left) ?? 0) - (orderedRoster.get(right) ?? 0))
+      .slice(0, requiredCount)
+    const seededSet = new Set(seededIds)
+    const seededTeams = teams.filter((team) => seededSet.has(team.id))
+
+    if (!seededTeams.length) {
+      return
+    }
+
+    const nextTournament = initializeTournament(seededTeams, MODERATOR_ACCOUNTS)
+
+    finalizedMatchesRef.current = new Set()
+    setActiveMatches([])
+    setMatchHistory([])
+    setRecentResult(null)
+    setTournamentLaunched(false)
+    setTeams((previous) =>
+      previous.map((team) => ({
+        ...team,
+        wins: 0,
+        losses: 0,
+        totalScore: 0,
+        eliminated: false,
+      })),
+    )
+    setTournament(nextTournament)
+  }, [selectedTeamIds, teams, tournamentLaunched])
+
 
   const handleFlipCoin = (matchId, options = {}) => {
     const { moderatorId } = options
@@ -555,7 +623,6 @@ function AppShell() {
         if (match.id !== matchId) {
           return match
         }
-
 
         if (match.status !== 'in-progress') return match
         if (!isAdmin && match.moderatorId && match.moderatorId !== moderatorId) return match
@@ -728,6 +795,7 @@ function AppShell() {
 
       const runFinalization = () => finalizeMatch(match)
 
+
       if (typeof queueMicrotask === 'function') {
         queueMicrotask(runFinalization)
       } else {
@@ -885,6 +953,8 @@ function AppShell() {
               moderators={MODERATOR_ACCOUNTS}
               superAdmin={SUPER_ADMIN_PROFILE}
               tournamentLaunched={tournamentLaunched}
+              selectedTeamIds={selectedTeamIds}
+              matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
               onLaunchTournament={handleLaunchTournament}
               onPauseMatch={(matchId) => handlePauseMatch(matchId, { isAdmin: true })}
               onResumeMatch={(matchId) => handleResumeMatch(matchId, { isAdmin: true })}
@@ -905,6 +975,11 @@ function AppShell() {
               teams={teams}
               tournament={tournament}
               moderators={MODERATOR_ACCOUNTS}
+              selectedTeamIds={selectedTeamIds}
+              matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
+              tournamentLaunched={tournamentLaunched}
+              onToggleTeamSelection={handleToggleTeamSelection}
+              onMatchMake={handleMatchMaking}
               onFlipCoin={(matchId) =>
                 handleFlipCoin(matchId, { moderatorId: activeModerator?.id })
               }
