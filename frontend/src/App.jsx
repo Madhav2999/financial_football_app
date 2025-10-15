@@ -205,6 +205,8 @@ function advanceMatchState(match, scores) {
       activeTeamId: match.assignedTeamOrder[nextIndex],
       timer: createRunningTimer('primary'),
     },
+    tournamentMatchId,
+    moderatorId,
   }
 }
 
@@ -513,6 +515,7 @@ function AppShell() {
     )
     setTournament(nextTournament)
   }, [selectedTeamIds, teams, tournamentLaunched])
+
 
   const handleFlipCoin = (matchId, options = {}) => {
     const { moderatorId } = options
