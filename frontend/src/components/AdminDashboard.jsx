@@ -2,124 +2,7 @@ import { useMemo } from 'react'
 import { listMatchesForStage, listStages } from '../tournament/engine'
 import ScoreboardTable from './ScoreboardTable'
 import { CoinTossPanel, LiveMatchPanel, MatchControlButtons } from './MatchPanels'
-
-function MatchMakingStatusPanel({
-  teams,
-  selectedTeamIds,
-  limit,
-  tournamentSeeded,
-  tournamentLaunched,
-}) {
-  const { selectedTeams, reserveTeams } = useMemo(() => {
-    const selection = new Set(selectedTeamIds)
-    const ordered = [...teams].sort((left, right) => left.name.localeCompare(right.name))
-    const selected = []
-    const reserves = []
-
-    ordered.forEach((team) => {
-      if (selection.has(team.id)) {
-        selected.push(team)
-      } else {
-        reserves.push(team)
-      }
-    })
-
-    return { selectedTeams: selected, reserveTeams: reserves }
-  }, [teams, selectedTeamIds])
-
-  const requiredCount = Math.min(limit, teams.length)
-  const selectedCount = selectedTeams.length
-  const remainingSlots = Math.max(0, requiredCount - selectedCount)
-
-  const statusBadge = (() => {
-    if (tournamentLaunched) {
-      return {
-        label: 'Tournament launched',
-        classes: 'border-emerald-500/60 bg-emerald-500/10 text-emerald-200',
-      }
-    }
-
-    if (tournamentSeeded) {
-      return {
-        label: 'Match making ready',
-        classes: 'border-sky-500/60 bg-sky-500/10 text-sky-200',
-      }
-    }
-
-    return {
-      label: 'Awaiting match making',
-      classes: 'border-slate-700 bg-slate-900 text-slate-300',
-    }
-  })()
-
-  return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-lg shadow-slate-900/40">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-sky-400">Match making overview</p>
-          <h2 className="text-2xl font-semibold text-white">Opening round roster</h2>
-          <p className="mt-2 text-sm text-slate-300">
-            Moderators must select {requiredCount} teams before the bracket can be launched. {remainingSlots
-              ? `${remainingSlots} slot${remainingSlots === 1 ? '' : 's'} still open.`
-              : 'Selection complete.'}
-          </p>
-          <p className="mt-2 text-xs uppercase tracking-[0.3em] text-slate-400">
-            {selectedCount} of {requiredCount} teams locked in
-          </p>
-        </div>
-        <span
-          className={`rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.3em] ${statusBadge.classes}`}
-        >
-          {statusBadge.label}
-        </span>
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200">
-          <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Selected teams</p>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">{selectedTeams.length}</span>
-          </div>
-          {selectedTeams.length ? (
-            <div className="flex flex-wrap gap-2">
-              {selectedTeams.map((team) => (
-                <span
-                  key={team.id}
-                  className="rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1 text-[11px] uppercase tracking-[0.3em] text-sky-200"
-                >
-                  {team.name}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-slate-400">No teams selected yet.</p>
-          )}
-        </div>
-
-        <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200">
-          <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Reserve teams</p>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">{reserveTeams.length}</span>
-          </div>
-          {reserveTeams.length ? (
-            <div className="flex flex-wrap gap-2">
-              {reserveTeams.map((team) => (
-                <span
-                  key={team.id}
-                  className="rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1 text-[11px] uppercase tracking-[0.3em] text-slate-300"
-                >
-                  {team.name}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-slate-400">All teams are currently selected.</p>
-          )}
-        </div>
-      </div>
-    </section>
-  )
-}
+import RosterSelectionPanel from './RosterSelectionPanel'
 
 function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, autoLaunchActive }) {
   if (!tournament) {
@@ -425,6 +308,8 @@ export default function AdminDashboard({
   selectedTeamIds,
   matchMakingLimit,
   tournamentLaunched,
+  onToggleTeamSelection,
+  onMatchMake,
   onLaunchTournament,
   onPauseMatch,
   onResumeMatch,
@@ -470,12 +355,20 @@ export default function AdminDashboard({
       </header>
 
       <main className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-8">
-        <MatchMakingStatusPanel
+        <RosterSelectionPanel
           teams={teams}
           selectedTeamIds={selectedTeamIds}
           limit={matchMakingLimit}
           tournamentSeeded={Boolean(tournament)}
           tournamentLaunched={tournamentLaunched}
+          canEdit
+          onToggleTeam={onToggleTeamSelection}
+          onSubmit={onMatchMake}
+          description={`Select up to ${Math.min(
+            matchMakingLimit,
+            teams.length,
+          )} teams for the opening round, then randomize their pairings.`}
+          footerNote="Click Match making to lock in randomized first-round pairings."
         />
         <SuperAdminOverview
           superAdmin={superAdmin}

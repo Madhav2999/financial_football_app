@@ -17,7 +17,6 @@ import {
   STEAL_QUESTION_POINTS,
 } from './constants/matchSettings'
 
-
 const QUESTIONS_PER_TEAM = 1
 const TOURNAMENT_TEAM_LIMIT = 12
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
@@ -423,7 +422,6 @@ function AppShell() {
       return
     }
 
-
     const creations = matchesToLaunch.map((bracketMatch) => {
       const liveMatchId = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       return {
@@ -617,7 +615,6 @@ function AppShell() {
 
   const handlePauseMatch = (matchId, actor = {}) => {
     const { moderatorId = null, isAdmin = false } = actor
-
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
         if (match.id !== matchId) {
@@ -795,7 +792,6 @@ function AppShell() {
 
       const runFinalization = () => finalizeMatch(match)
 
-
       if (typeof queueMicrotask === 'function') {
         queueMicrotask(runFinalization)
       } else {
@@ -955,6 +951,8 @@ function AppShell() {
               tournamentLaunched={tournamentLaunched}
               selectedTeamIds={selectedTeamIds}
               matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
+              onToggleTeamSelection={handleToggleTeamSelection}
+              onMatchMake={handleMatchMaking}
               onLaunchTournament={handleLaunchTournament}
               onPauseMatch={(matchId) => handlePauseMatch(matchId, { isAdmin: true })}
               onResumeMatch={(matchId) => handleResumeMatch(matchId, { isAdmin: true })}
@@ -978,8 +976,6 @@ function AppShell() {
               selectedTeamIds={selectedTeamIds}
               matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
               tournamentLaunched={tournamentLaunched}
-              onToggleTeamSelection={handleToggleTeamSelection}
-              onMatchMake={handleMatchMaking}
               onFlipCoin={(matchId) =>
                 handleFlipCoin(matchId, { moderatorId: activeModerator?.id })
               }
