@@ -132,6 +132,15 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
       : 'border border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
   const timerLabel = timerType === 'steal' ? 'Steal window' : 'Answer window'
 
+  const { remainingSeconds, timerType, timerStatus } = useMatchTimer(match.timer)
+  const formattedRemaining = formatSeconds(remainingSeconds)
+  const isTimerVisible = Boolean(match.timer)
+  const timerBadgeClass =
+    timerType === 'steal'
+      ? 'border border-amber-400/40 bg-amber-500/15 text-amber-200'
+      : 'border border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
+  const timerLabel = timerType === 'steal' ? 'Steal window' : 'Answer window'
+
   const [selectedOption, setSelectedOption] = useState(null)
   const isPaused = match.status === 'paused'
   const isActive = match.status === 'in-progress' && match.activeTeamId === teamId

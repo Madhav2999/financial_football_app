@@ -302,6 +302,39 @@ function createLiveMatch(teamAId, teamBId, options = {}) {
   }
 }
 
+// function createLiveMatch(teamAId, teamBId, options = {}) {
+//   const {
+//     id = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+//     moderatorId = null,
+//     tournamentMatchId = null,
+//   } = options
+
+//   const questionQueue = drawQuestions(QUESTIONS_PER_TEAM * 2)
+
+//   return {
+//     id,
+//     teams: [teamAId, teamBId],
+//     scores: {
+//       [teamAId]: 0,
+//       [teamBId]: 0,
+//     },
+//     questionQueue,
+//     assignedTeamOrder: [],
+//     questionIndex: 0,
+//     activeTeamId: null,
+//     awaitingSteal: false,
+//     status: 'coin-toss',
+//     coinToss: {
+//       status: 'ready',
+//       winnerId: null,
+//       decision: null,
+//       resultFace: null,
+//     },
+//     tournamentMatchId,
+//     moderatorId,
+//   }
+// }
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -656,7 +689,11 @@ function AppShell() {
       previousMatches.map((match) => {
         if (match.id !== matchId) {
           return match
+
         }
+      }),
+    )
+  }
 
         if (match.status !== 'paused') return match
         if (!isAdmin && match.moderatorId && match.moderatorId !== moderatorId) return match
