@@ -17,6 +17,7 @@ import {
   STEAL_QUESTION_POINTS,
 } from './constants/matchSettings'
 
+
 const QUESTIONS_PER_TEAM = 1
 const TOURNAMENT_TEAM_LIMIT = 12
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
@@ -205,6 +206,8 @@ function advanceMatchState(match, scores) {
       activeTeamId: match.assignedTeamOrder[nextIndex],
       timer: createRunningTimer('primary'),
     },
+    tournamentMatchId,
+    moderatorId,
   }
 }
 
@@ -420,6 +423,7 @@ function AppShell() {
       return
     }
 
+
     const creations = matchesToLaunch.map((bracketMatch) => {
       const liveMatchId = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       return {
@@ -513,6 +517,7 @@ function AppShell() {
     )
     setTournament(nextTournament)
   }, [selectedTeamIds, teams, tournamentLaunched])
+
 
   const handleFlipCoin = (matchId, options = {}) => {
     const { moderatorId } = options
@@ -612,6 +617,7 @@ function AppShell() {
 
   const handlePauseMatch = (matchId, actor = {}) => {
     const { moderatorId = null, isAdmin = false } = actor
+
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
         if (match.id !== matchId) {
@@ -788,6 +794,7 @@ function AppShell() {
       if (!match) return
 
       const runFinalization = () => finalizeMatch(match)
+
 
       if (typeof queueMicrotask === 'function') {
         queueMicrotask(runFinalization)
