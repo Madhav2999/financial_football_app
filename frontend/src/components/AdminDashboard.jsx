@@ -109,55 +109,6 @@ function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, au
 }
 
 
-function TournamentLaunchPanel({ tournament, launched, onLaunch }) {
-  const readyCount = useMemo(() => {
-    if (!tournament) return 0
-    return Object.values(tournament.matches).filter((match) => {
-      if (match.status === 'completed') return false
-      if (!match.teams?.every((teamId) => Boolean(teamId))) return false
-      if (match.matchRefId) return false
-      return true
-    }).length
-  }, [tournament])
-
-  const buttonDisabled = launched || readyCount === 0
-  const buttonLabel = launched ? 'Tournament live' : 'Launch tournament'
-
-  return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-lg shadow-slate-900/30">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-sky-400">Bracket kickoff</p>
-          <h2 className="text-2xl font-semibold text-white">One-click tournament launch</h2>
-          <p className="mt-2 text-sm text-slate-300">
-            {launched
-              ? 'Automated pairing is active. New bracket rounds will open for moderators as soon as teams advance.'
-              : 'Queue every opening-round match and hand control to the assigned moderators with a single action.'}
-          </p>
-          {!launched ? (
-            <p className="mt-3 text-xs uppercase tracking-[0.3em] text-slate-400">
-              {readyCount} match{readyCount === 1 ? '' : 'es'} ready to open
-            </p>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={() => onLaunch?.()}
-          disabled={buttonDisabled}
-          className={`rounded-2xl px-5 py-2 text-sm font-semibold uppercase tracking-[0.3em] transition ${
-            !buttonDisabled
-              ? 'bg-sky-500 text-white shadow shadow-sky-500/40 hover:bg-sky-400'
-              : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-500'
-          }`}
-        >
-          {buttonLabel}
-        </button>
-      </div>
-    </section>
-  )
-}
-
-
 function MatchHistoryList({ history, teams }) {
   if (!history.length) {
     return (
@@ -328,6 +279,16 @@ export default function AdminDashboard({
     [activeMatches],
   )
 
+  const launchReadyCount = useMemo(() => {
+    if (!tournament) return 0
+    return Object.values(tournament.matches ?? {}).filter((match) => {
+      if (match.status === 'completed') return false
+      if (!match.teams?.every((teamId) => Boolean(teamId))) return false
+      if (match.matchRefId) return false
+      return true
+    }).length
+  }, [tournament])
+
   const renderMatchControls = (match) => (
     <MatchControlButtons
       match={match}
@@ -364,6 +325,8 @@ export default function AdminDashboard({
           canEdit
           onToggleTeam={onToggleTeamSelection}
           onSubmit={onMatchMake}
+          onLaunch={onLaunchTournament}
+          launchReadyCount={launchReadyCount}
           description={`Select up to ${Math.min(
             matchMakingLimit,
             teams.length,
@@ -377,11 +340,6 @@ export default function AdminDashboard({
           activeMatches={activeMatches}
           history={history}
           tournament={tournament}
-        />
-        <TournamentLaunchPanel
-          tournament={tournament}
-          launched={tournamentLaunched}
-          onLaunch={onLaunchTournament}
         />
         {recentResult ? (
           <div className="rounded-3xl border border-emerald-600/40 bg-emerald-500/10 p-5 text-sm text-emerald-200 shadow shadow-emerald-500/20">

@@ -9,7 +9,10 @@ export default function RosterSelectionPanel({
   canEdit = false,
   onToggleTeam,
   onSubmit,
+  onLaunch,
+  launchReadyCount = 0,
   actionLabel,
+  launchActionLabel,
   title,
   description,
   readOnlyDescription,
@@ -31,8 +34,35 @@ export default function RosterSelectionPanel({
   const remainingSlots = Math.max(0, requiredCount - selectedCount)
   const selectionLocked = tournamentLaunched || !canEdit
 
-  const buttonDisabled =
+  const matchMakingDisabled =
     !canEdit || selectionLocked || selectedCount !== requiredCount || !teams.length
+
+  const launchButtonLabel = tournamentLaunched
+    ? 'Tournament live'
+    : launchActionLabel || 'Launch tournament'
+
+  const launchButtonDisabled =
+    !onLaunch || tournamentLaunched || !tournamentSeeded || launchReadyCount === 0
+
+  const launchStatusMessage = (() => {
+    if (!onLaunch) {
+      return null
+    }
+
+    if (tournamentLaunched) {
+      return 'Opening round matches are live and moderators now control the action.'
+    }
+
+    if (!tournamentSeeded) {
+      return 'Run match making to enable the tournament launch button.'
+    }
+
+    if (launchReadyCount === 0) {
+      return 'Awaiting fully-seeded matches before launching the tournament.'
+    }
+
+    return `Ready to launch ${launchReadyCount} match${launchReadyCount === 1 ? '' : 'es'} for the opening round.`
+  })()
 
   const statusBadge = (() => {
     if (tournamentLaunched) {
@@ -130,22 +160,41 @@ export default function RosterSelectionPanel({
         })}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="text-xs text-slate-400">{footerMessage}</div>
-        {canEdit ? (
-          <button
-            type="button"
-            onClick={() => onSubmit?.()}
-            disabled={buttonDisabled}
-            className={`rounded-2xl px-5 py-2 text-sm font-semibold uppercase tracking-[0.3em] transition ${
-              !buttonDisabled
-                ? 'bg-sky-500 text-white shadow shadow-sky-500/40 hover:bg-sky-400'
-                : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-500'
-            }`}
-          >
-            {submitLabel}
-          </button>
-        ) : null}
+      <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2 text-xs text-slate-400">
+          <div>{footerMessage}</div>
+          {launchStatusMessage ? <div>{launchStatusMessage}</div> : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {canEdit ? (
+            <button
+              type="button"
+              onClick={() => onSubmit?.()}
+              disabled={matchMakingDisabled}
+              className={`rounded-2xl px-5 py-2 text-sm font-semibold uppercase tracking-[0.3em] transition ${
+                !matchMakingDisabled
+                  ? 'bg-sky-500 text-white shadow shadow-sky-500/40 hover:bg-sky-400'
+                  : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-500'
+              }`}
+            >
+              {submitLabel}
+            </button>
+          ) : null}
+          {onLaunch ? (
+            <button
+              type="button"
+              onClick={() => onLaunch?.()}
+              disabled={launchButtonDisabled}
+              className={`rounded-2xl px-5 py-2 text-sm font-semibold uppercase tracking-[0.3em] transition ${
+                !launchButtonDisabled
+                  ? 'bg-emerald-500 text-white shadow shadow-emerald-500/40 hover:bg-emerald-400'
+                  : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-500'
+              }`}
+            >
+              {launchButtonLabel}
+            </button>
+          ) : null}
+        </div>
       </div>
     </section>
   )
