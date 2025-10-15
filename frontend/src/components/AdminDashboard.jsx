@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { listMatchesForStage, listStages } from '../tournament/engine'
 import ScoreboardTable from './ScoreboardTable'
 import { CoinTossPanel, LiveMatchPanel, MatchControlButtons } from './MatchPanels'
-
+import RosterSelectionPanel from './RosterSelectionPanel'
 
 function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, autoLaunchActive }) {
   if (!tournament) {
@@ -144,10 +144,11 @@ function TournamentLaunchPanel({ tournament, launched, onLaunch }) {
           type="button"
           onClick={() => onLaunch?.()}
           disabled={buttonDisabled}
-          className={`rounded-2xl px-5 py-2 text-sm font-semibold uppercase tracking-[0.3em] transition ${!buttonDisabled
+          className={`rounded-2xl px-5 py-2 text-sm font-semibold uppercase tracking-[0.3em] transition ${
+            !buttonDisabled
               ? 'bg-sky-500 text-white shadow shadow-sky-500/40 hover:bg-sky-400'
               : 'cursor-not-allowed border border-slate-700 bg-slate-900/60 text-slate-500'
-            }`}
+          }`}
         >
           {buttonLabel}
         </button>
@@ -287,8 +288,8 @@ function SuperAdminOverview({ superAdmin, teams, moderators, activeMatches, hist
             key={item.label}
             className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-center shadow-inner shadow-slate-900/20"
           >
-            <p className="mt-3 text-2xl font-semibold text-white">{item.value}</p>
             <p className="text-[10px] uppercase tracking-[0.35em] text-slate-400">{item.label}</p>
+            <p className="mt-3 text-2xl font-semibold text-white">{item.value}</p>
           </div>
         ))}
       </div>
@@ -304,7 +305,11 @@ export default function AdminDashboard({
   tournament,
   moderators,
   superAdmin,
+  selectedTeamIds,
+  matchMakingLimit,
   tournamentLaunched,
+  onToggleTeamSelection,
+  onMatchMake,
   onLaunchTournament,
   onPauseMatch,
   onResumeMatch,
@@ -350,6 +355,21 @@ export default function AdminDashboard({
       </header>
 
       <main className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-8">
+        <RosterSelectionPanel
+          teams={teams}
+          selectedTeamIds={selectedTeamIds}
+          limit={matchMakingLimit}
+          tournamentSeeded={Boolean(tournament)}
+          tournamentLaunched={tournamentLaunched}
+          canEdit
+          onToggleTeam={onToggleTeamSelection}
+          onSubmit={onMatchMake}
+          description={`Select up to ${Math.min(
+            matchMakingLimit,
+            teams.length,
+          )} teams for the opening round, then randomize their pairings.`}
+          footerNote="Click Match making to lock in randomized first-round pairings."
+        />
         <SuperAdminOverview
           superAdmin={superAdmin}
           teams={teams}
@@ -405,8 +425,8 @@ export default function AdminDashboard({
                         teams={teams}
                         moderators={moderators}
                         canControl={false}
-                        onFlip={() => { }}
-                        onSelectFirst={() => { }}
+                        onFlip={() => {}}
+                        onSelectFirst={() => {}}
                         description="The assigned moderator will run this toss and begin the match."
                       />
                     ) : (
