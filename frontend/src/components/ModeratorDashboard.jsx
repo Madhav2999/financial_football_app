@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { CoinTossPanel, LiveMatchPanel, MatchControlButtons } from './MatchPanels'
+import RosterSelectionPanel from './RosterSelectionPanel'
 
 function AssignmentHeader({ moderator }) {
   return (
@@ -55,6 +56,9 @@ export default function ModeratorDashboard({
   teams,
   tournament,
   moderators,
+  selectedTeamIds,
+  matchMakingLimit,
+  tournamentLaunched,
   onFlipCoin,
   onSelectFirst,
   onPauseMatch,
@@ -124,6 +128,20 @@ export default function ModeratorDashboard({
             Log out
           </button>
         </div>
+
+        <RosterSelectionPanel
+          teams={teams}
+          selectedTeamIds={selectedTeamIds}
+          limit={matchMakingLimit}
+          tournamentSeeded={Boolean(tournament)}
+          tournamentLaunched={tournamentLaunched}
+          canEdit={false}
+          readOnlyDescription={`The admin will lock in ${Math.min(
+            matchMakingLimit,
+            teams.length,
+          )} teams before the opening round begins.`}
+          readOnlyFooterNote="Match making will be available once the admin finalizes the roster."
+        />
 
         {!moderator ? (
           <section className="rounded-3xl border border-rose-500/30 bg-rose-500/10 p-6 text-sm text-rose-200">

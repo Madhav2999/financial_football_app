@@ -1,4 +1,5 @@
 import { useMatchTimer, formatSeconds } from '../hooks/useMatchTimer'
+
 export function InlineCoinFlipAnimation({ status, teamAName, teamBName, resultFace }) {
   const classes = ['coin-flip__scene']
   const coinClasses = ['coin-flip']
@@ -222,7 +223,9 @@ export function CoinTossPanel({
 }
 
 export function LiveMatchPanel({ match, teams, moderators, actions, description }) {
-  const question = match.questionQueue[match.questionIndex]
+  const question = match.questionQueue?.[match.questionIndex] ?? null
+  const questionOptions = question?.options ?? []
+  const optionKeyPrefix = question?.instanceId ?? match.id
   const [teamAId, teamBId] = match.teams
   const teamA = teams.find((team) => team.id === teamAId) ?? null
   const teamB = teams.find((team) => team.id === teamBId) ?? null
@@ -257,7 +260,7 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
           {actions}
           <div className="flex items-center gap-3 rounded-full bg-slate-800/80 px-4 py-2 text-sm text-slate-200">
             <span className="font-semibold text-white">{match.questionIndex + 1}</span>
-            <span className="text-slate-400">/ {match.questionQueue.length}</span>
+            <span className="text-slate-400">/ {match.questionQueue?.length ?? 0}</span>
           </div>
           {isTimerVisible ? (
             <div
@@ -276,8 +279,12 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
         <div className="space-y-4">
           <p className="text-xs uppercase tracking-widest text-slate-400">Category</p>
-          <p className="text-lg font-semibold text-sky-300">{question.category}</p>
-          <p className="text-sm leading-relaxed text-slate-200">{question.prompt}</p>
+          <p className="text-lg font-semibold text-sky-300">
+            {question?.category ?? 'Awaiting question details'}
+          </p>
+          <p className="text-sm leading-relaxed text-slate-200">
+            {question?.prompt ?? 'The next question will appear as soon as the match resumes.'}
+          </p>
         </div>
 
         <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200">
@@ -301,7 +308,6 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
                   : `${activeTeam?.name ?? 'Team'} is responding${
                       remainingSeconds ? ` (${remainingSeconds}s left)` : ''
                     }.`}
-
               </p>
             )}
             <p className="text-xs text-slate-400">
@@ -310,8 +316,8 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
             <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-300">
               <p className="font-semibold text-slate-200">Multiple-choice options</p>
               <ol className="mt-3 space-y-2">
-                {question.options.map((option, index) => (
-                  <li key={option} className="flex items-center gap-2">
+                {questionOptions.map((option, index) => (
+                  <li key={`${optionKeyPrefix}-${index}-${option}`} className="flex items-center gap-2">
                     <span className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 text-[11px] uppercase text-slate-400">
                       {String.fromCharCode(65 + index)}
                     </span>

@@ -119,7 +119,18 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const activeTeam = teams.find((team) => team.id === match.activeTeamId)
   const opponent = teams.find((team) => team.id === opponentId)
   const thisTeam = teams.find((team) => team.id === teamId)
-  const question = match.questionQueue[match.questionIndex]
+  const question = match.questionQueue?.[match.questionIndex] ?? null
+  const questionInstanceId = question?.instanceId ?? match.id
+  const questionOptions = question?.options ?? []
+
+  const { remainingSeconds, timerType, timerStatus } = useMatchTimer(match.timer)
+  const formattedRemaining = formatSeconds(remainingSeconds)
+  const isTimerVisible = Boolean(match.timer)
+  const timerBadgeClass =
+    timerType === 'steal'
+      ? 'border border-amber-400/40 bg-amber-500/15 text-amber-200'
+      : 'border border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
+  const timerLabel = timerType === 'steal' ? 'Steal window' : 'Answer window'
 
   const { remainingSeconds, timerType, timerStatus } = useMatchTimer(match.timer)
   const formattedRemaining = formatSeconds(remainingSeconds)
@@ -158,7 +169,7 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
         <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-3 rounded-full bg-slate-800/80 px-4 py-2 text-sm text-slate-200">
             <span className="font-semibold text-white">Question {match.questionIndex + 1}</span>
-            <span className="text-slate-400">/ {match.questionQueue.length}</span>
+            <span className="text-slate-400">/ {match.questionQueue?.length ?? 0}</span>
           </div>
           {isTimerVisible ? (
             <div
@@ -177,11 +188,15 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr,0.8fr]">
         <div className="space-y-4">
           <p className="text-xs uppercase tracking-wider text-slate-400">Category</p>
-          <p className="text-lg font-semibold text-sky-300">{question.category}</p>
-          <p className="text-sm leading-relaxed text-slate-200">{question.prompt}</p>
+          <p className="text-lg font-semibold text-sky-300">
+            {question?.category ?? 'Awaiting question details'}
+          </p>
+          <p className="text-sm leading-relaxed text-slate-200">
+            {question?.prompt ?? 'The moderator will share the next prompt shortly.'}
+          </p>
           <div className="mt-4 space-y-3">
-            {question.options.map((option, index) => {
-              const optionKey = `${question.instanceId}-${index}`
+            {questionOptions.map((option, index) => {
+              const optionKey = `${questionInstanceId}-${index}`
               const isChoiceSelected = selectedOption === option
               const disabled = !isActive || (selectedOption !== null && !isChoiceSelected)
 
