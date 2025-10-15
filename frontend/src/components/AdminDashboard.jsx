@@ -186,11 +186,10 @@ function MatchHistoryList({ history, teams }) {
                 {teamA?.name} vs {teamB?.name}
               </p>
               <span
-                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                  isTie
+                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${isTie
                     ? 'bg-slate-700 text-slate-200'
                     : 'bg-emerald-500/20 text-emerald-300'
-                }`}
+                  }`}
               >
                 {isTie ? 'Tie' : `${winner?.name} won`}
               </span>
@@ -227,9 +226,8 @@ function TeamAnalyticsPanel({ teams }) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-base font-semibold text-white">{team.name}</p>
             <span
-              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                team.eliminated ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'
-              }`}
+              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${team.eliminated ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'
+                }`}
             >
               {team.eliminated ? 'Eliminated' : 'Active'}
             </span>
