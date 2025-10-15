@@ -1,45 +1,50 @@
 import { useEffect, useState } from 'react'
+import { useMatchTimer, formatSeconds } from '../hooks/useMatchTimer'
+import { InlineCoinFlipAnimation } from './MatchPanels'
 import ScoreboardTable from './ScoreboardTable'
 
 function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
+  const [teamAId, teamBId] = match.teams
+  const teamA = teams.find((team) => team.id === teamAId)
+  const teamB = teams.find((team) => team.id === teamBId)
   const opponentId = match.teams.find((id) => id !== teamId)
   const opponent = teams.find((team) => team.id === opponentId)
+  const status = match.coinToss.status
+  const resultFace = match.coinToss.resultFace
+  const resultFaceLabel = resultFace === 'heads' ? 'Heads' : resultFace === 'tails' ? 'Tails' : null
   const winnerId = match.coinToss.winnerId
   const winner = teams.find((team) => team.id === winnerId)
+  const isWinner = winnerId === teamId
   const decision = match.coinToss.decision
   const selectedFirstTeam = decision ? teams.find((team) => team.id === decision.firstTeamId) : null
-  const isWinner = winnerId === teamId
 
-  if (match.coinToss.status === 'ready') {
-    return (
-      <div className="rounded-3xl border border-amber-500/40 bg-amber-500/10 p-6 text-sm text-amber-100 shadow shadow-amber-500/20">
-        <p className="text-base font-semibold text-white">Coin toss in progress</p>
-        <p className="mt-2">
-          The moderator will flip the coin to determine who answers first. Stay sharp and watch for your opening
-          question.
+  let statusContent = null
+
+  if (status === 'ready') {
+    statusContent = (
+      <div className="space-y-2">
+        <p className="text-base font-semibold text-white">Coin toss incoming</p>
+        <p className="text-slate-300">
+          The moderator will flip the coin to determine who answers first. Stay sharp and be ready for the result.
         </p>
       </div>
     )
-  }
-
-  if (match.coinToss.status === 'flipping') {
-    return (
-      <div className="rounded-3xl border border-sky-500/40 bg-sky-500/10 p-6 text-sm text-sky-100 shadow shadow-sky-500/20">
+  } else if (status === 'flipping') {
+    statusContent = (
+      <div className="space-y-2">
         <p className="text-base font-semibold text-white">Coin is in the air...</p>
-        <p className="mt-2">Hang tight while the coin settles. We will announce the winner in a moment.</p>
+        <p className="text-slate-300">Hang tight while we reveal who gains control of the opening question.</p>
       </div>
     )
-  }
-
-  if (match.coinToss.status === 'flipped') {
-    return (
-      <div className="rounded-3xl border border-emerald-500/40 bg-emerald-500/10 p-6 text-sm text-emerald-100 shadow shadow-emerald-500/20">
+  } else if (status === 'flipped') {
+    statusContent = (
+      <div className="space-y-3">
         <p className="text-base font-semibold text-white">
           {winner ? `${winner.name} won the toss!` : 'Toss winner decided.'}
         </p>
         {isWinner ? (
-          <div className="mt-3 space-y-3">
-            <p>You control the first-question advantage. Choose who should begin the quiz.</p>
+          <>
+            <p className="text-slate-300">You control the advantage. Decide who should answer the first question.</p>
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
@@ -53,26 +58,58 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
                 onClick={() => onSelectFirst?.(match.id, opponentId)}
                 className="rounded-2xl border border-slate-200/40 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
               >
-                Let {opponent?.name} start
+                Let {opponent?.name ?? 'opponent'} start
               </button>
             </div>
-          </div>
+          </>
         ) : (
-          <p className="mt-2">
-            {winner ? `${winner.name}` : 'The toss winner'} has the choice of who begins. Await their decision.
+          <p className="text-slate-300">
+            {winner ? `${winner.name}` : 'The toss winner'} will choose who answers first. Await their decision.
           </p>
         )}
+      </div>
+    )
+  } else if (status === 'decided') {
+    statusContent = (
+      <div className="space-y-2">
+        <p className="text-base font-semibold text-white">Coin toss locked in</p>
+        <p className="text-slate-300">
+          {winner ? `${winner.name}` : 'The toss winner'} chose {selectedFirstTeam?.name ?? 'a team'} to open the quiz.
+          Prepare for your turn.
+        </p>
+      </div>
+    )
+  }
+
+  if (!statusContent) {
+    statusContent = (
+      <div className="space-y-2">
+        <p className="text-base font-semibold text-white">Coin toss status pending</p>
+        <p className="text-slate-300">Await further instructions from the moderator.</p>
       </div>
     )
   }
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 text-sm text-slate-200 shadow shadow-slate-900/40">
-      <p className="text-base font-semibold text-white">Coin toss locked in</p>
-      <p className="mt-2">
-        {winner ? `${winner.name}` : 'The toss winner'} chose {selectedFirstTeam?.name ?? 'a team'} to open the quiz. Get
-        ready for your question when it&apos;s your turn.
-      </p>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,0.85fr),1.15fr]">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/60 p-6 text-center">
+          <InlineCoinFlipAnimation
+            status={status}
+            teamAName={teamA?.name ?? 'Team A'}
+            teamBName={teamB?.name ?? 'Team B'}
+            resultFace={resultFace}
+          />
+          <p className="mt-4 text-xs uppercase tracking-widest text-slate-400">
+            Heads - {teamA?.name ?? 'Team A'} | Tails - {teamB?.name ?? 'Team B'}
+          </p>
+          {resultFaceLabel && status !== 'flipping' ? (
+            <p className="mt-2 text-sm font-semibold text-white">Result: {resultFaceLabel}</p>
+          ) : null}
+        </div>
+
+        <div className="space-y-3">{statusContent}</div>
+      </div>
     </div>
   )
 }
@@ -82,10 +119,22 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const activeTeam = teams.find((team) => team.id === match.activeTeamId)
   const opponent = teams.find((team) => team.id === opponentId)
   const thisTeam = teams.find((team) => team.id === teamId)
-  const question = match.questionQueue[match.questionIndex]
+  const question = match.questionQueue?.[match.questionIndex] ?? null
+  const questionInstanceId = question?.instanceId ?? match.id
+  const questionOptions = question?.options ?? []
+
+  const { remainingSeconds, timerType, timerStatus } = useMatchTimer(match.timer)
+  const formattedRemaining = formatSeconds(remainingSeconds)
+  const isTimerVisible = Boolean(match.timer)
+  const timerBadgeClass =
+    timerType === 'steal'
+      ? 'border border-amber-400/40 bg-amber-500/15 text-amber-200'
+      : 'border border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
+  const timerLabel = timerType === 'steal' ? 'Steal window' : 'Answer window'
 
   const [selectedOption, setSelectedOption] = useState(null)
-  const isActive = match.activeTeamId === teamId
+  const isPaused = match.status === 'paused'
+  const isActive = match.status === 'in-progress' && match.activeTeamId === teamId
   const isSteal = match.awaitingSteal && isActive
 
   useEffect(() => {
@@ -108,20 +157,37 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
           <p className="text-xs uppercase tracking-[0.2em] text-sky-400">Live Match</p>
           <h2 className="text-2xl font-semibold text-white">{thisTeam.name} vs {opponent?.name}</h2>
         </div>
-        <div className="flex items-center gap-3 rounded-full bg-slate-800/80 px-4 py-2 text-sm text-slate-200">
-          <span className="font-semibold text-white">Question {match.questionIndex + 1}</span>
-          <span className="text-slate-400">/ {match.questionQueue.length}</span>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex items-center gap-3 rounded-full bg-slate-800/80 px-4 py-2 text-sm text-slate-200">
+            <span className="font-semibold text-white">Question {match.questionIndex + 1}</span>
+            <span className="text-slate-400">/ {match.questionQueue?.length ?? 0}</span>
+          </div>
+          {isTimerVisible ? (
+            <div
+              className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${timerBadgeClass}`}
+            >
+              <span>{timerLabel}</span>
+              <span>{formattedRemaining}</span>
+              {timerStatus === 'paused' ? (
+                <span className="text-xs uppercase tracking-wider text-slate-200/70">Paused</span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr,0.8fr]">
         <div className="space-y-4">
           <p className="text-xs uppercase tracking-wider text-slate-400">Category</p>
-          <p className="text-lg font-semibold text-sky-300">{question.category}</p>
-          <p className="text-sm leading-relaxed text-slate-200">{question.prompt}</p>
+          <p className="text-lg font-semibold text-sky-300">
+            {question?.category ?? 'Awaiting question details'}
+          </p>
+          <p className="text-sm leading-relaxed text-slate-200">
+            {question?.prompt ?? 'The moderator will share the next prompt shortly.'}
+          </p>
           <div className="mt-4 space-y-3">
-            {question.options.map((option, index) => {
-              const optionKey = `${question.instanceId}-${index}`
+            {questionOptions.map((option, index) => {
+              const optionKey = `${questionInstanceId}-${index}`
               const isChoiceSelected = selectedOption === option
               const disabled = !isActive || (selectedOption !== null && !isChoiceSelected)
 
@@ -162,18 +228,32 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
             <span className="text-lg font-bold text-amber-400">{match.scores[opponentId]}</span>
           </div>
           <div className="mt-4 rounded-xl bg-slate-800/70 px-4 py-3 text-slate-200">
-            {match.awaitingSteal ? (
+            {isPaused ? (
+              <p className="font-semibold text-white">The match is currently paused. Await instructions from the moderator.</p>
+            ) : match.awaitingSteal ? (
               isSteal ? (
                 <p className="font-semibold text-white">
-                  Opportunity to steal! Prepare your best answer.
+                  Opportunity to steal! {remainingSeconds ? `You have ${remainingSeconds} seconds` : 'Act fast'} to snag a
+                  1-point bonus.
                 </p>
               ) : (
-                <p>Waiting for the opposing team to attempt the steal.</p>
+                <p>
+                  Waiting for {opponent?.name ?? 'the opposing team'} to attempt the steal{remainingSeconds
+                    ? ` (${remainingSeconds} seconds remaining).`
+                    : '.'}
+                </p>
               )
             ) : activeTeam?.id === teamId ? (
-              <p className="font-semibold text-white">It&apos;s your turn to answer first.</p>
+              <p className="font-semibold text-white">
+                It&apos;s your turn to answer. {remainingSeconds ? `You have ${remainingSeconds} seconds` : 'Move quickly'} to
+                secure 3 points.
+              </p>
             ) : (
-              <p>Hold tight while the opposing team answers.</p>
+              <p>
+                Hold tight while {opponent?.name ?? 'the opposing team'} answers{remainingSeconds
+                  ? ` (${remainingSeconds} seconds remaining).`
+                  : '.'}
+              </p>
             )}
           </div>
         </div>
