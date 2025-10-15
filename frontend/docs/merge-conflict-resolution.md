@@ -12,8 +12,10 @@ you may see conflict markers like:
 ```
 
 Always **keep the code from the feature branch** (the section between `<<<<<<<` and `=======`) because it
-contains the finalized roster selection, match making, and tournament launch logic. The code below
-`=======` reflects the pre-feature implementation that lacks these capabilities.
+contains the finalized roster selection, match making, and tournament launch logic. After you keep that
+section, delete everything between the divider line (`=======`) and the closing marker (`>>>>>>> main`). The
+code below `=======` reflects the pre-feature implementation that lacks these capabilities, so it should be
+removed along with the conflict markers.
 
 Steps to resolve:
 
