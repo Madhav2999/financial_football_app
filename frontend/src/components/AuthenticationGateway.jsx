@@ -18,7 +18,6 @@ export default function AuthenticationGateway({
   onTeamLogin,
   onAdminLogin,
   onModeratorLogin,
-  onSuperAdminLogin,
   error,
   onBack,
 }) {
@@ -69,8 +68,6 @@ export default function AuthenticationGateway({
       onAdminLogin(loginId, password)
     } else if (mode === 'moderator') {
       onModeratorLogin?.(loginId, password)
-    } else if (mode === 'super') {
-      onSuperAdminLogin?.(loginId, password)
     }
   }
 
@@ -81,22 +78,19 @@ export default function AuthenticationGateway({
   const loginPlaceholder = (() => {
     if (mode === 'team') return 'e.g. alpha'
     if (mode === 'admin') return 'admin'
-    if (mode === 'moderator') return 'mod1'
-    return 'super'
+    return 'mod1'
   })()
 
   const loginLabel = (() => {
     if (mode === 'team') return 'Team Login ID'
     if (mode === 'admin') return 'Admin Login ID'
-    if (mode === 'moderator') return 'Moderator Login ID'
-    return 'Super Admin Login ID'
+    return 'Moderator Login ID'
   })()
 
   const submitLabel = (() => {
     if (mode === 'team') return 'Enter Team Lobby'
     if (mode === 'admin') return 'Sign in as Admin'
-    if (mode === 'moderator') return 'Sign in as Moderator'
-    return 'Enter Super Admin Console'
+    return 'Sign in as Moderator'
   })()
 
   const handleRegistrationSubmit = (event) => {
