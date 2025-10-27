@@ -1120,12 +1120,59 @@ function AppShell() {
     openAuthModal({ role: 'team', view: 'register', redirectTo: '/team' })
 
   return (
-    <>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <LandingPage
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <LandingPage
+            teams={teams}
+            onTeamLogin={() => navigateToLogin('team')}
+            onModeratorLogin={() => navigateToLogin('moderator')}
+            onAdminLogin={() => navigateToLogin('admin')}
+          />
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          <LoginPage
+            authError={authError}
+            onTeamLogin={handleTeamLogin}
+            onAdminLogin={handleAdminLogin}
+            onModeratorLogin={handleModeratorLogin}
+            onSuperAdminLogin={handleSuperAdminLogin}
+            onBack={() => {
+              setAuthError(null)
+              navigate('/')
+            }}
+            session={session}
+          />
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute isAllowed={session.type === 'admin'} redirectTo="/login?mode=admin">
+            <AdminDashboard
+              teams={teams}
+              activeMatches={activeMatches}
+              recentResult={recentResult}
+              history={matchHistory}
+              tournament={tournament}
+              onStartMatch={handleStartMatch}
+              onFlipCoin={handleFlipCoin}
+              onSelectFirst={handleSelectFirst}
+              onDismissRecent={handleDismissRecent}
+              onLogout={handleLogout}
+            />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super"
+        element={
+          <ProtectedRoute isAllowed={session.type === 'super-admin'} redirectTo="/login?mode=super">
+            <SuperAdminDashboard
               teams={teams}
               onTeamLogin={handleOpenTeamLogin}
               onModeratorLogin={handleOpenModeratorLogin}

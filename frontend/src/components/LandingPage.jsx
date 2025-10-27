@@ -68,13 +68,7 @@ const recentHighlights = [
 ];
 
 
-export default function LandingPage({
-  teams,
-  onTeamLogin,
-  onModeratorLogin,
-  onAdminLogin,
-  onTeamRegister,
-}) {
+export default function LandingPage({ teams, onTeamLogin, onModeratorLogin, onAdminLogin }) {
   const standings = [...teams]
     .sort((a, b) => b.wins - a.wins || b.totalScore - a.totalScore)
     .slice(0, 5)
@@ -82,6 +76,10 @@ export default function LandingPage({
   // const recentHighlights = history.slice(0, 2).map((entry) => formatHistoryEntry(entry, teams))
 
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  const handleTeamLogin = onTeamLogin ?? (() => {})
+  const handleModeratorLogin = onModeratorLogin ?? (() => {})
+  const handleAdminLogin = onAdminLogin ?? (() => {})
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -123,31 +121,24 @@ export default function LandingPage({
             <div className="flex flex-wrap items-center gap-3 justify-end">
               <button
                 type="button"
-                onClick={onAdminLogin}
-                className="rounded-full border border-white/40 px-4 py-2 text-[0.6rem] uppercase tracking-[0.35em] text-white transition hover:border-emerald-300 hover:text-emerald-300 cursor-pointer"
+                onClick={handleTeamLogin}
+                className="rounded-full border border-white/50 px-4 py-2 text-xs uppercase tracking-widest transition hover:border-emerald-300 hover:text-emerald-300 cursor-pointer"
               >
-                Admin Login
+                Team Login
               </button>
               <button
                 type="button"
-                onClick={onModeratorLogin}
-                className="rounded-full border border-white/40 px-4 py-2 text-[0.6rem] uppercase tracking-[0.35em] text-white transition hover:border-emerald-300 hover:text-emerald-300 cursor-pointer"
+                onClick={handleModeratorLogin}
+                className="rounded-full border border-white/50 px-4 py-2 text-xs uppercase tracking-widest transition hover:border-emerald-300 hover:text-emerald-300 cursor-pointer"
               >
                 Moderator Login
               </button>
               <button
                 type="button"
-                onClick={onTeamRegister}
-                className="rounded-full border border-white/60 px-4 py-2 text-[0.6rem] uppercase tracking-[0.4em] text-white transition hover:border-emerald-300 hover:text-emerald-300 cursor-pointer"
-              >
-                Register Team
-              </button>
-              <button
-                type="button"
-                onClick={onTeamLogin}
+                onClick={handleAdminLogin}
                 className="rounded-full bg-emerald-400 px-5 py-2 text-xs uppercase tracking-[0.3em] text-slate-900 transition hover:bg-emerald-300 cursor-pointer"
               >
-                Enter Tournament
+                Admin Login
               </button>
             </div>
           </nav>
@@ -162,7 +153,7 @@ export default function LandingPage({
               <div className="flex flex-wrap gap-4">
                 <button
                   type="button"
-                  onClick={onTeamLogin}
+                  onClick={handleTeamLogin}
                   className="cursor-pointer rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 px-6 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 transition hover:from-emerald-300 hover:to-sky-300"
                 >
                   Enter Tournament
