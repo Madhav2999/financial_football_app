@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import AuthenticationGateway from './components/AuthenticationGateway'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import AdminDashboard from './components/AdminDashboard'
 import LandingPage from './components/LandingPage'
 import ModeratorDashboard from './components/ModeratorDashboard'
@@ -10,6 +9,7 @@ import { questionBank } from './data/questions'
 import { moderatorAccounts } from './data/moderators'
 import TeamDashboard from './components/TeamDashboard'
 import { initializeTournament, recordMatchResult, attachLiveMatch, detachLiveMatch } from './tournament/engine'
+import AuthModal from './components/AuthModal'
 import {
   PRIMARY_QUESTION_DURATION_MS,
   PRIMARY_QUESTION_POINTS,
@@ -19,13 +19,15 @@ import {
 
 const QUESTIONS_PER_TEAM = 1
 const TOURNAMENT_TEAM_LIMIT = 12
-const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
+const DEFAULT_ADMIN_ACCOUNTS = [
+  { id: 'admin-1', name: 'Tournament Admin', loginId: 'admin', password: 'moderator' },
+]
 const SUPER_ADMIN_PROFILE = {
   name: 'Jordan Maxwell',
   email: 'super@financialfootball.com',
   phone: '+1 (555) 013-3700',
 }
-const MODERATOR_ACCOUNTS = moderatorAccounts
+const DEFAULT_MODERATOR_ACCOUNTS = moderatorAccounts
 
 function buildInitialTeams() {
   return initialTeams.map((team) => ({
@@ -209,7 +211,10 @@ function advanceMatchState(match, scores) {
       status: 'in-progress',
       activeTeamId: match.assignedTeamOrder[nextIndex],
       timer: createRunningTimer('primary'),
+
     },
+    tournamentMatchId,
+    moderatorId,
   }
 }
 
@@ -313,10 +318,18 @@ export default function App() {
 function AppShell() {
   const [teams, setTeams] = useState(INITIAL_TEAM_STATE)
   const [session, setSession] = useState({ type: 'guest' })
+  const [adminAccounts, setAdminAccounts] = useState(DEFAULT_ADMIN_ACCOUNTS)
+  const [moderators, setModerators] = useState(DEFAULT_MODERATOR_ACCOUNTS)
   const [activeMatches, setActiveMatches] = useState([])
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
-  const [authError, setAuthError] = useState(null)
+  const [authModal, setAuthModal] = useState({
+    open: false,
+    role: 'team',
+    view: 'login',
+    redirectTo: null,
+  })
+  const [authFeedback, setAuthFeedback] = useState({ error: null, success: null })
   const [selectedTeamIds, setSelectedTeamIds] = useState(() =>
     buildDefaultTeamSelection(INITIAL_TEAM_STATE, TOURNAMENT_TEAM_LIMIT),
   )
@@ -325,7 +338,28 @@ function AppShell() {
   const finalizedMatchesRef = useRef(new Set())
   const rosterSeedKeyRef = useRef('')
 
+  const location = useLocation()
   const navigate = useNavigate()
+
+  const clearAuthFeedback = useCallback(() => setAuthFeedback({ error: null, success: null }), [])
+
+  const openAuthModal = useCallback(
+    ({ role = 'team', view = 'login', redirectTo = null } = {}) => {
+      setAuthModal({ open: true, role, view, redirectTo })
+      setAuthFeedback({ error: null, success: null })
+    },
+    [],
+  )
+
+  const closeAuthModal = useCallback(() => {
+    setAuthModal((previous) => ({ ...previous, open: false }))
+    setAuthFeedback({ error: null, success: null })
+  }, [])
+
+  const createIdentifier = useCallback(
+    (prefix) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    [],
+  )
 
   const activeTeam = useMemo(() => {
     if (session.type !== 'team') return null
@@ -339,8 +373,26 @@ function AppShell() {
 
   const activeModerator = useMemo(() => {
     if (session.type !== 'moderator') return null
-    return MODERATOR_ACCOUNTS.find((account) => account.id === session.moderatorId) ?? null
-  }, [session])
+    return moderators.find((account) => account.id === session.moderatorId) ?? null
+  }, [moderators, session])
+
+  useEffect(() => {
+    setSelectedTeamIds((previous) => {
+      const availableIds = teams.map((team) => team.id)
+      const requiredCount = Math.min(TOURNAMENT_TEAM_LIMIT, availableIds.length)
+      const filtered = previous.filter((id) => availableIds.includes(id))
+      if (filtered.length >= requiredCount) {
+        const limited = filtered.slice(0, requiredCount)
+        const unchanged = limited.length === previous.length && limited.every((id, index) => id === previous[index])
+        return unchanged ? previous : limited
+      }
+
+      const toAdd = availableIds.filter((id) => !filtered.includes(id))
+      const next = [...filtered, ...toAdd].slice(0, requiredCount)
+      const unchanged = next.length === previous.length && next.every((id, index) => id === previous[index])
+      return unchanged ? previous : next
+    })
+  }, [teams])
 
   useEffect(() => {
     setSelectedTeamIds((previous) => {
@@ -361,47 +413,177 @@ function AppShell() {
   }, [teams])
 
   const handleTeamLogin = (loginId, password, options = {}) => {
-    const team = teams.find((item) => item.loginId === loginId)
+    clearAuthFeedback()
+    const normalizedLogin = loginId.trim().toLowerCase()
+    const team = teams.find((item) => item.loginId.toLowerCase() === normalizedLogin)
 
-    if (!team || team.password !== password) {
-      setAuthError('Invalid team credentials. Please try again.')
-      return
+    if (!team || team.password !== password.trim()) {
+      setAuthFeedback({ error: 'Invalid team credentials. Please try again.', success: null })
+      return false
     }
 
     setSession({ type: 'team', teamId: team.id })
-    setAuthError(null)
-    navigate(options.redirectTo ?? '/team', { replace: true })
+    clearAuthFeedback()
+    const redirectTo = options.redirectTo ?? authModal.redirectTo ?? '/team'
+    navigate(redirectTo, { replace: true })
+    options.onSuccess?.()
+    return true
   }
 
   const handleAdminLogin = (loginId, password, options = {}) => {
-    if (loginId !== ADMIN_CREDENTIALS.loginId || password !== ADMIN_CREDENTIALS.password) {
-      setAuthError('Incorrect admin login details.')
-      return
+    clearAuthFeedback()
+    const normalizedLogin = loginId.trim().toLowerCase()
+    const account = adminAccounts.find((item) => item.loginId.toLowerCase() === normalizedLogin)
+
+    if (!account || account.password !== password.trim()) {
+      setAuthFeedback({ error: 'Incorrect admin login details.', success: null })
+      return false
     }
 
-    setSession({ type: 'admin' })
-    setAuthError(null)
-    navigate(options.redirectTo ?? '/admin', { replace: true })
+    setSession({ type: 'admin', adminId: account.id })
+    clearAuthFeedback()
+    const redirectTo = options.redirectTo ?? authModal.redirectTo ?? '/admin'
+    navigate(redirectTo, { replace: true })
+    options.onSuccess?.()
+    return true
   }
 
   const handleModeratorLogin = (loginId, password, options = {}) => {
-    const moderator = MODERATOR_ACCOUNTS.find((item) => item.loginId === loginId)
+    clearAuthFeedback()
+    const normalizedLogin = loginId.trim().toLowerCase()
+    const moderator = moderators.find((item) => item.loginId.toLowerCase() === normalizedLogin)
 
-    if (!moderator || moderator.password !== password) {
-      setAuthError('Invalid moderator credentials. Please try again.')
-      return
+    if (!moderator || moderator.password !== password.trim()) {
+      setAuthFeedback({ error: 'Invalid moderator credentials. Please try again.', success: null })
+      return false
     }
 
     setSession({ type: 'moderator', moderatorId: moderator.id })
-    setAuthError(null)
-    navigate(options.redirectTo ?? '/moderator', { replace: true })
+    clearAuthFeedback()
+    const redirectTo = options.redirectTo ?? authModal.redirectTo ?? '/moderator'
+    navigate(redirectTo, { replace: true })
+    options.onSuccess?.()
+    return true
+  }
+
+  const handleTeamRegistration = (form) => {
+    clearAuthFeedback()
+    const name = form.name.trim()
+    const loginId = form.loginId.trim()
+    const password = form.password.trim()
+
+    if (!name || !loginId || !password) {
+      setAuthFeedback({ error: 'All fields are required to register a team.', success: null })
+      return false
+    }
+
+    const normalizedLogin = loginId.toLowerCase()
+    if (teams.some((team) => team.loginId.toLowerCase() === normalizedLogin)) {
+      setAuthFeedback({ error: 'A team with that login ID already exists.', success: null })
+      return false
+    }
+
+    const newTeam = {
+      id: createIdentifier('team'),
+      name,
+      loginId,
+      password,
+      wins: 0,
+      losses: 0,
+      totalScore: 0,
+      eliminated: false,
+    }
+
+    setTeams((previous) => [...previous, newTeam])
+    setAuthFeedback({ error: null, success: 'Team registered successfully! You can now log in.' })
+    setAuthModal((previous) => ({ ...previous, role: 'team', view: 'login', redirectTo: previous.redirectTo ?? '/team' }))
+    return true
+  }
+
+  const handleAdminRegistration = (form) => {
+    clearAuthFeedback()
+    const name = form.name.trim()
+    const loginId = form.loginId.trim()
+    const password = form.password.trim()
+
+    if (!name || !loginId || !password) {
+      setAuthFeedback({ error: 'All fields are required to register an admin.', success: null })
+      return false
+    }
+
+    const normalizedLogin = loginId.toLowerCase()
+    if (adminAccounts.some((account) => account.loginId.toLowerCase() === normalizedLogin)) {
+      setAuthFeedback({ error: 'An admin with that login ID already exists.', success: null })
+      return false
+    }
+
+    const newAdmin = {
+      id: createIdentifier('admin'),
+      name,
+      loginId,
+      password,
+    }
+
+    setAdminAccounts((previous) => [...previous, newAdmin])
+    setAuthFeedback({ error: null, success: 'Admin registered successfully! You can now log in.' })
+    setAuthModal((previous) => ({ ...previous, role: 'admin', view: 'login', redirectTo: previous.redirectTo ?? '/admin' }))
+    return true
+  }
+
+  const handleModeratorRegistration = (form) => {
+    clearAuthFeedback()
+    const name = form.name.trim()
+    const loginId = form.loginId.trim()
+    const password = form.password.trim()
+
+    if (!name || !loginId || !password) {
+      setAuthFeedback({ error: 'All fields are required to register a moderator.', success: null })
+      return false
+    }
+
+    const normalizedLogin = loginId.toLowerCase()
+    if (moderators.some((account) => account.loginId.toLowerCase() === normalizedLogin)) {
+      setAuthFeedback({ error: 'A moderator with that login ID already exists.', success: null })
+      return false
+    }
+
+    const newModerator = {
+      id: createIdentifier('mod'),
+      name,
+      loginId,
+      password,
+    }
+
+    setModerators((previous) => [...previous, newModerator])
+    setAuthFeedback({ error: null, success: 'Moderator registered successfully! You can now log in.' })
+    setAuthModal((previous) => ({ ...previous, role: 'moderator', view: 'login', redirectTo: previous.redirectTo ?? '/moderator' }))
+    return true
   }
 
   const handleLogout = () => {
     setSession({ type: 'guest' })
-    setAuthError(null)
+    clearAuthFeedback()
     navigate('/', { replace: true })
   }
+
+  useEffect(() => {
+    const state = location.state
+    if (!state?.authMode) {
+      return
+    }
+
+    const redirectFrom = state.from
+    const redirectTarget = redirectFrom
+      ? `${redirectFrom.pathname ?? ''}${redirectFrom.search ?? ''}${redirectFrom.hash ?? ''}`
+      : state.authMode === 'admin'
+      ? '/admin'
+      : state.authMode === 'moderator'
+      ? '/moderator'
+      : '/team'
+
+    openAuthModal({ role: state.authMode, view: state.authView ?? 'login', redirectTo: redirectTarget })
+    navigate(location.pathname, { replace: true })
+  }, [location, navigate, openAuthModal])
 
   useEffect(() => {
     if (!tournamentLaunched || !tournament) {
@@ -514,7 +696,7 @@ function AppShell() {
       return
     }
 
-    const nextTournament = initializeTournament(seededTeams, MODERATOR_ACCOUNTS)
+    const nextTournament = initializeTournament(seededTeams, moderators)
     rosterSeedKeyRef.current = createSelectionKey(seededIds)
 
     finalizedMatchesRef.current = new Set()
@@ -532,7 +714,7 @@ function AppShell() {
       })),
     )
     setTournament(nextTournament)
-  }, [selectedTeamIds, teams, tournamentLaunched])
+  }, [moderators, selectedTeamIds, teams, tournamentLaunched])
 
   const handleFlipCoin = (matchId, options = {}) => {
     const { moderatorId } = options
@@ -925,182 +1107,157 @@ function AppShell() {
 
   const handleDismissRecent = () => setRecentResult(null)
 
-  const navigateToLogin = (mode = 'team') => {
-    setAuthError(null)
-    const modeParam = mode && mode !== 'team' ? `?mode=${mode}` : ''
-    navigate(`/login${modeParam}`)
-  }
+  const handleOpenTeamLogin = () =>
+    openAuthModal({ role: 'team', view: 'login', redirectTo: '/team' })
+
+  const handleOpenAdminLogin = () =>
+    openAuthModal({ role: 'admin', view: 'login', redirectTo: '/admin' })
+
+  const handleOpenModeratorLogin = () =>
+    openAuthModal({ role: 'moderator', view: 'login', redirectTo: '/moderator' })
+
+  const handleOpenTeamRegistration = () =>
+    openAuthModal({ role: 'team', view: 'register', redirectTo: '/team' })
 
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <LandingPage
-            teams={teams}
-            onEnter={() => navigateToLogin('team')}
-            onAdminEnter={() => navigateToLogin('admin')}
-          />
-        }
-      />
-      <Route
-        path="/login"
-        element={
-          <LoginPage
-            authError={authError}
-            onTeamLogin={handleTeamLogin}
-            onAdminLogin={handleAdminLogin}
-            onModeratorLogin={handleModeratorLogin}
-            onBack={() => {
-              setAuthError(null)
-              navigate('/')
-            }}
-            session={session}
-          />
-        }
-      />
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute isAllowed={session.type === 'admin'} redirectTo="/login?mode=admin">
-            <AdminDashboard
+    <>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <LandingPage
               teams={teams}
-              activeMatches={activeMatches}
-              recentResult={recentResult}
-              history={matchHistory}
-              tournament={tournament}
-              moderators={MODERATOR_ACCOUNTS}
-              superAdmin={SUPER_ADMIN_PROFILE}
-              tournamentLaunched={tournamentLaunched}
-              selectedTeamIds={selectedTeamIds}
-              matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
-              onToggleTeamSelection={handleToggleTeamSelection}
-              onMatchMake={handleMatchMaking}
-              onLaunchTournament={handleLaunchTournament}
-              onPauseMatch={(matchId) => handlePauseMatch(matchId, { isAdmin: true })}
-              onResumeMatch={(matchId) => handleResumeMatch(matchId, { isAdmin: true })}
-              onResetMatch={(matchId) => handleResetMatch(matchId, { isAdmin: true })}
-              onDismissRecent={handleDismissRecent}
-              onLogout={handleLogout}
+              onTeamLogin={handleOpenTeamLogin}
+              onModeratorLogin={handleOpenModeratorLogin}
+              onAdminLogin={handleOpenAdminLogin}
+              onTeamRegister={handleOpenTeamRegistration}
             />
-          </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute
+              isAllowed={session.type === 'admin'}
+              redirectTo="/"
+              redirectState={{ authMode: 'admin', authView: 'login' }}
+            >
+              <AdminDashboard
+                teams={teams}
+                activeMatches={activeMatches}
+                recentResult={recentResult}
+                history={matchHistory}
+                tournament={tournament}
+                moderators={moderators}
+                superAdmin={SUPER_ADMIN_PROFILE}
+                tournamentLaunched={tournamentLaunched}
+                selectedTeamIds={selectedTeamIds}
+                matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
+                onToggleTeamSelection={handleToggleTeamSelection}
+                onMatchMake={handleMatchMaking}
+                onLaunchTournament={handleLaunchTournament}
+                onPauseMatch={(matchId) => handlePauseMatch(matchId, { isAdmin: true })}
+                onResumeMatch={(matchId) => handleResumeMatch(matchId, { isAdmin: true })}
+                onResetMatch={(matchId) => handleResetMatch(matchId, { isAdmin: true })}
+                onDismissRecent={handleDismissRecent}
+                onLogout={handleLogout}
+              />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/moderator"
+          element={
+            <ProtectedRoute
+              isAllowed={session.type === 'moderator'}
+              redirectTo="/"
+              redirectState={{ authMode: 'moderator', authView: 'login' }}
+            >
+              <ModeratorDashboard
+                moderator={activeModerator}
+                matches={activeMatches}
+                teams={teams}
+                tournament={tournament}
+                moderators={moderators}
+                selectedTeamIds={selectedTeamIds}
+                matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
+                tournamentLaunched={tournamentLaunched}
+                onFlipCoin={(matchId) =>
+                  handleFlipCoin(matchId, { moderatorId: activeModerator?.id })
+                }
+                onSelectFirst={(matchId, deciderId, firstTeamId) =>
+                  handleSelectFirst(matchId, deciderId, firstTeamId, {
+                    moderatorId: activeModerator?.id,
+                  })
+                }
+                onPauseMatch={(matchId) =>
+                  handlePauseMatch(matchId, { moderatorId: activeModerator?.id })
+                }
+                onResumeMatch={(matchId) =>
+                  handleResumeMatch(matchId, { moderatorId: activeModerator?.id })
+                }
+                onResetMatch={(matchId) =>
+                  handleResetMatch(matchId, { moderatorId: activeModerator?.id })
+                }
+                onLogout={handleLogout}
+              />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/team"
+          element={
+            <ProtectedRoute
+              isAllowed={session.type === 'team' && Boolean(activeTeam)}
+              redirectTo="/"
+              redirectState={{ authMode: 'team', authView: 'login' }}
+            >
+              <TeamDashboard
+                team={activeTeam}
+                teams={teams}
+                match={activeTeamMatch}
+                history={matchHistory}
+                onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
+                onSelectFirst={(matchId, firstTeamId) =>
+                  handleSelectFirst(matchId, activeTeam.id, firstTeamId)
+                }
+                onLogout={handleLogout}
+              />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <AuthModal
+        isOpen={authModal.open}
+        initialRole={authModal.role}
+        initialView={authModal.view}
+        error={authFeedback.error}
+        successMessage={authFeedback.success}
+        onClose={closeAuthModal}
+        onTeamLogin={(loginId, password) =>
+          handleTeamLogin(loginId, password, {
+            redirectTo: authModal.redirectTo ?? '/team',
+            onSuccess: closeAuthModal,
+          })
         }
-      />
-      <Route
-        path="/moderator"
-        element={
-          <ProtectedRoute isAllowed={session.type === 'moderator'} redirectTo="/login?mode=moderator">
-            <ModeratorDashboard
-              moderator={activeModerator}
-              matches={activeMatches}
-              teams={teams}
-              tournament={tournament}
-              moderators={MODERATOR_ACCOUNTS}
-              selectedTeamIds={selectedTeamIds}
-              matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
-              tournamentLaunched={tournamentLaunched}
-              onFlipCoin={(matchId) =>
-                handleFlipCoin(matchId, { moderatorId: activeModerator?.id })
-              }
-              onSelectFirst={(matchId, deciderId, firstTeamId) =>
-                handleSelectFirst(matchId, deciderId, firstTeamId, {
-                  moderatorId: activeModerator?.id,
-                })
-              }
-              onPauseMatch={(matchId) => handlePauseMatch(matchId, { moderatorId: activeModerator?.id })}
-              onResumeMatch={(matchId) => handleResumeMatch(matchId, { moderatorId: activeModerator?.id })}
-              onResetMatch={(matchId) => handleResetMatch(matchId, { moderatorId: activeModerator?.id })}
-              onLogout={handleLogout}
-            />
-          </ProtectedRoute>
+        onAdminLogin={(loginId, password) =>
+          handleAdminLogin(loginId, password, {
+            redirectTo: authModal.redirectTo ?? '/admin',
+            onSuccess: closeAuthModal,
+          })
+
         }
-      />
-      <Route
-        path="/team"
-        element={
-          <ProtectedRoute
-            isAllowed={session.type === 'team' && Boolean(activeTeam)}
-            redirectTo="/login"
-          >
-            <TeamDashboard
-              team={activeTeam}
-              teams={teams}
-              match={activeTeamMatch}
-              history={matchHistory}
-              onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
-              onSelectFirst={(matchId, firstTeamId) =>
-                handleSelectFirst(matchId, activeTeam.id, firstTeamId)
-              }
-              onLogout={handleLogout}
-            />
-          </ProtectedRoute>
+        onModeratorLogin={(loginId, password) =>
+          handleModeratorLogin(loginId, password, {
+            redirectTo: authModal.redirectTo ?? '/moderator',
+            onSuccess: closeAuthModal,
+          })
         }
+        onTeamRegister={handleTeamRegistration}
+        onAdminRegister={handleAdminRegistration}
+        onModeratorRegister={handleModeratorRegistration}
       />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  )
-}
-
-function LoginPage({
-  authError,
-  onTeamLogin,
-  onAdminLogin,
-  onModeratorLogin,
-  onBack,
-  session,
-}) {
-  const location = useLocation()
-  const [searchParams] = useSearchParams()
-
-  const allowedModes = new Set(['team', 'admin', 'moderator'])
-  const requestedModeParam = searchParams.get('mode') ?? 'team'
-  const requestedMode = allowedModes.has(requestedModeParam) ? requestedModeParam : 'team'
-
-  const fromLocation = location.state?.from
-  const pathToMode = [
-    ['/admin', 'admin'],
-    ['/team', 'team'],
-    ['/moderator', 'moderator'],
-  ]
-
-  let inferredMode = requestedMode
-  if (fromLocation?.pathname) {
-    const match = pathToMode.find(([prefix]) => fromLocation.pathname.startsWith(prefix))
-    if (match) {
-      inferredMode = match[1]
-    }
-  }
-
-  const redirectTarget = fromLocation
-    ? `${fromLocation.pathname}${fromLocation.search ?? ''}${fromLocation.hash ?? ''}`
-    : null
-
-  if (session.type === 'admin') {
-    return <Navigate to="/admin" replace />
-  }
-
-  if (session.type === 'team') {
-    return <Navigate to="/team" replace />
-  }
-
-  if (session.type === 'moderator') {
-    return <Navigate to="/moderator" replace />
-  }
-
-  return (
-    <AuthenticationGateway
-      initialMode={inferredMode}
-      onTeamLogin={(loginId, password) =>
-        onTeamLogin(loginId, password, { redirectTo: redirectTarget ?? '/team' })
-      }
-      onAdminLogin={(loginId, password) =>
-        onAdminLogin(loginId, password, { redirectTo: redirectTarget ?? '/admin' })
-      }
-      onModeratorLogin={(loginId, password) =>
-        onModeratorLogin(loginId, password, { redirectTo: redirectTarget ?? '/moderator' })
-      }
-      onBack={onBack}
-      error={authError}
-    />
+    </>
   )
 }

@@ -123,7 +123,6 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const questionInstanceId = question?.instanceId ?? match.id
   const questionOptions = question?.options ?? []
 
-
   const { remainingSeconds, timerType, timerStatus } = useMatchTimer(match.timer)
   const formattedRemaining = formatSeconds(remainingSeconds)
   const isTimerVisible = Boolean(match.timer)

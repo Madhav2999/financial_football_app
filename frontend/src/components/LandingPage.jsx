@@ -68,7 +68,13 @@ const recentHighlights = [
 ];
 
 
-export default function LandingPage({ teams, onEnter, onAdminEnter }) {
+export default function LandingPage({
+  teams,
+  onTeamLogin,
+  onModeratorLogin,
+  onAdminLogin,
+  onTeamRegister,
+}) {
   const standings = [...teams]
     .sort((a, b) => b.wins - a.wins || b.totalScore - a.totalScore)
     .slice(0, 5)
@@ -114,17 +120,31 @@ export default function LandingPage({ teams, onEnter, onAdminEnter }) {
                 </a>
               ))}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 justify-end">
               <button
                 type="button"
-                onClick={onAdminEnter}
-                className="rounded-full border border-white/50 px-4 py-2 text-xs uppercase tracking-widest transition hover:border-emerald-300 hover:text-emerald-300 cursor-pointer"
+                onClick={onAdminLogin}
+                className="rounded-full border border-white/40 px-4 py-2 text-[0.6rem] uppercase tracking-[0.35em] text-white transition hover:border-emerald-300 hover:text-emerald-300 cursor-pointer"
+              >
+                Admin Login
+              </button>
+              <button
+                type="button"
+                onClick={onModeratorLogin}
+                className="rounded-full border border-white/40 px-4 py-2 text-[0.6rem] uppercase tracking-[0.35em] text-white transition hover:border-emerald-300 hover:text-emerald-300 cursor-pointer"
               >
                 Moderator Login
               </button>
               <button
                 type="button"
-                onClick={onEnter}
+                onClick={onTeamRegister}
+                className="rounded-full border border-white/60 px-4 py-2 text-[0.6rem] uppercase tracking-[0.4em] text-white transition hover:border-emerald-300 hover:text-emerald-300 cursor-pointer"
+              >
+                Register Team
+              </button>
+              <button
+                type="button"
+                onClick={onTeamLogin}
                 className="rounded-full bg-emerald-400 px-5 py-2 text-xs uppercase tracking-[0.3em] text-slate-900 transition hover:bg-emerald-300 cursor-pointer"
               >
                 Enter Tournament
@@ -142,7 +162,7 @@ export default function LandingPage({ teams, onEnter, onAdminEnter }) {
               <div className="flex flex-wrap gap-4">
                 <button
                   type="button"
-                  onClick={onEnter}
+                  onClick={onTeamLogin}
                   className="cursor-pointer rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 px-6 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 transition hover:from-emerald-300 hover:to-sky-300"
                 >
                   Enter Tournament
