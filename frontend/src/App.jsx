@@ -211,7 +211,10 @@ function advanceMatchState(match, scores) {
       status: 'in-progress',
       activeTeamId: match.assignedTeamOrder[nextIndex],
       timer: createRunningTimer('primary'),
+
     },
+    tournamentMatchId,
+    moderatorId,
   }
 }
 
@@ -372,6 +375,24 @@ function AppShell() {
     if (session.type !== 'moderator') return null
     return moderators.find((account) => account.id === session.moderatorId) ?? null
   }, [moderators, session])
+
+  useEffect(() => {
+    setSelectedTeamIds((previous) => {
+      const availableIds = teams.map((team) => team.id)
+      const requiredCount = Math.min(TOURNAMENT_TEAM_LIMIT, availableIds.length)
+      const filtered = previous.filter((id) => availableIds.includes(id))
+      if (filtered.length >= requiredCount) {
+        const limited = filtered.slice(0, requiredCount)
+        const unchanged = limited.length === previous.length && limited.every((id, index) => id === previous[index])
+        return unchanged ? previous : limited
+      }
+
+      const toAdd = availableIds.filter((id) => !filtered.includes(id))
+      const next = [...filtered, ...toAdd].slice(0, requiredCount)
+      const unchanged = next.length === previous.length && next.every((id, index) => id === previous[index])
+      return unchanged ? previous : next
+    })
+  }, [teams])
 
   useEffect(() => {
     setSelectedTeamIds((previous) => {
@@ -1225,6 +1246,7 @@ function AppShell() {
             redirectTo: authModal.redirectTo ?? '/admin',
             onSuccess: closeAuthModal,
           })
+
         }
         onModeratorLogin={(loginId, password) =>
           handleModeratorLogin(loginId, password, {
