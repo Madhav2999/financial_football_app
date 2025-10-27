@@ -551,8 +551,9 @@ function AppShell() {
         element={
           <LandingPage
             teams={teams}
-            onEnter={() => navigateToLogin('team')}
-            onAdminEnter={() => navigateToLogin('admin')}
+            onTeamLogin={() => navigateToLogin('team')}
+            onModeratorLogin={() => navigateToLogin('moderator')}
+            onAdminLogin={() => navigateToLogin('admin')}
           />
         }
       />
