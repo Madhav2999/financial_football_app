@@ -118,7 +118,7 @@ export default function LandingPage({ teams, onTeamLogin, onModeratorLogin, onAd
                 </a>
               ))}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 justify-end">
               <button
                 type="button"
                 onClick={handleTeamLogin}

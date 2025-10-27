@@ -12,15 +12,6 @@ const STAGE_DEFINITIONS = [
   { id: 'final-2', label: 'Grand Final Reset', bracket: 'finals', order: 11 },
 ]
 
-const INITIAL_SEED_MATCHES = [
-  { stageId: 'winners-r1', seeds: [0, 1] },
-  { stageId: 'winners-r1', seeds: [2, 3] },
-  { stageId: 'winners-r1', seeds: [4, 5] },
-  { stageId: 'winners-r1', seeds: [6, 7] },
-  { stageId: 'winners-r1', seeds: [8, 9] },
-  { stageId: 'winners-r1', seeds: [10, 11] },
-]
-
 const EMPTY_PROGRESS = {
   winnersRound1: { winners: [], losers: [] },
   losersRound1: { winners: [] },
@@ -52,6 +43,15 @@ function pairTeams(teamIds) {
     pairs.push([a, b])
   }
   return pairs
+}
+
+function shuffleTeamIds(teamIds) {
+  const shuffled = [...teamIds]
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1))
+    ;[shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]]
+  }
+  return shuffled
 }
 
 function sortByPoints(records, teamIds) {
@@ -508,12 +508,10 @@ export function initializeTournament(teams, moderators) {
     progress: JSON.parse(JSON.stringify(EMPTY_PROGRESS)),
   }
 
-  const teamIds = teams.map((team) => team.id)
-  INITIAL_SEED_MATCHES.forEach((seed, index) => {
-    const [seedA, seedB] = seed.seeds
-    const teamA = teamIds[seedA] ?? null
-    const teamB = teamIds[seedB] ?? null
-    state = createMatch(state, seed.stageId, [teamA, teamB], { seedIndex: index })
+  const shuffledTeamIds = shuffleTeamIds(teams.map((team) => team.id))
+  const initialPairs = pairTeams(shuffledTeamIds)
+  initialPairs.forEach((teamsForMatch, index) => {
+    state = createMatch(state, 'winners-r1', teamsForMatch, { seedIndex: index })
   })
 
   return state
