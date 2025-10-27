@@ -538,10 +538,19 @@ function AppShell() {
 
   const handleDismissRecent = () => setRecentResult(null)
 
-  const navigateToLogin = (mode = 'team') => {
+  const navigateToLogin = (mode = 'team', tab = 'login') => {
     setAuthError(null)
-    const modeParam = mode && mode !== 'team' ? `?mode=${mode}` : ''
-    navigate(`/login${modeParam}`)
+    const params = new URLSearchParams()
+    if (mode && mode !== 'team') {
+      params.set('mode', mode)
+    } else if (mode === 'team') {
+      params.set('mode', 'team')
+    }
+    if (tab && tab !== 'login') {
+      params.set('tab', tab)
+    }
+    const search = params.toString()
+    navigate(`/login${search ? `?${search}` : ''}`)
   }
 
   return (
@@ -551,8 +560,10 @@ function AppShell() {
         element={
           <LandingPage
             teams={teams}
-            onEnter={() => navigateToLogin('team')}
-            onAdminEnter={() => navigateToLogin('admin')}
+            onTeamLogin={() => navigateToLogin('team')}
+            onModeratorLogin={() => navigateToLogin('moderator')}
+            onAdminLogin={() => navigateToLogin('admin')}
+            onRegisterTeam={() => navigateToLogin('team', 'register')}
           />
         }
       />
@@ -662,6 +673,9 @@ function LoginPage({
   const allowedModes = new Set(['team', 'admin', 'moderator', 'super'])
   const requestedModeParam = searchParams.get('mode') ?? 'team'
   const requestedMode = allowedModes.has(requestedModeParam) ? requestedModeParam : 'team'
+  const allowedTabs = new Set(['login', 'register'])
+  const requestedTabParam = searchParams.get('tab') ?? 'login'
+  const requestedTab = allowedTabs.has(requestedTabParam) ? requestedTabParam : 'login'
 
   const fromLocation = location.state?.from
   const pathToMode = [
@@ -678,6 +692,8 @@ function LoginPage({
       inferredMode = match[1]
     }
   }
+
+  const inferredTab = inferredMode === 'team' ? requestedTab : 'login'
 
   const redirectTarget = fromLocation
     ? `${fromLocation.pathname}${fromLocation.search ?? ''}${fromLocation.hash ?? ''}`
@@ -702,6 +718,7 @@ function LoginPage({
   return (
     <AuthenticationGateway
       initialMode={inferredMode}
+      initialTab={inferredTab}
       onTeamLogin={(loginId, password) =>
         onTeamLogin(loginId, password, { redirectTo: redirectTarget ?? '/team' })
       }
