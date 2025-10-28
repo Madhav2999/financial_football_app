@@ -281,8 +281,8 @@ export default function LandingPage({
 
                 {/* Text Overlay */}
                 <div className="absolute bottom-6 left-6 text-white z-30">
-                  <p className="text-xs uppercase tracking-[0.3em]">Team</p>
-                  <h2 className="text-3xl font-bold tracking-[0.2em]">Updates</h2>
+                  <h2 className="text-3xl font-bold tracking-[0.3em] text-center flex items-center justify-center pl-1">TEAM</h2>
+                  <h2 className="text-3xl font-bold tracking-[0.7em] text-center flex items-center justify-center pl-40">UPDATES</h2>
                 </div>
               </div>
 

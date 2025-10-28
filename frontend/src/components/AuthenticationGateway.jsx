@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 const BASE_MODES = [
-  { id: 'team', label: 'Team Login' },
+  { id: 'team', label: 'User Login' }, // label to match screenshot
   { id: 'admin', label: 'Admin Login' },
   { id: 'moderator', label: 'Moderator Login' },
 ]
@@ -26,6 +26,8 @@ export default function AuthenticationGateway({
   displayVariant = 'page',
   showRegistrationTab = false,
   onClose,
+  // right-side artwork
+  heroImageUrl = './public/assets/register-modal-img.jpg',
 }) {
   const modes = useMemo(
     () => (showRegistrationTab ? [...BASE_MODES, REGISTRATION_MODE] : BASE_MODES),
@@ -50,20 +52,14 @@ export default function AuthenticationGateway({
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    if (!form.loginId || !form.password) {
-      return
-    }
+    if (!form.loginId || !form.password) return
 
     const loginId = form.loginId.trim()
     const password = form.password.trim()
 
-    if (mode === 'team') {
-      onTeamLogin(loginId, password)
-    } else if (mode === 'admin') {
-      onAdminLogin(loginId, password)
-    } else if (mode === 'moderator') {
-      onModeratorLogin?.(loginId, password)
-    }
+    if (mode === 'team') onTeamLogin(loginId, password)
+    else if (mode === 'admin') onAdminLogin(loginId, password)
+    else if (mode === 'moderator') onModeratorLogin?.(loginId, password)
   }
 
   const handleModeChange = (nextMode) => {
@@ -73,24 +69,11 @@ export default function AuthenticationGateway({
     setRegistrationSubmitted(false)
   }
 
-  const loginPlaceholder = (() => {
-    if (mode === 'team') return 'e.g. alpha'
-    if (mode === 'admin') return 'admin'
-    return 'mod1'
-  })()
-
-  const loginLabel = (() => {
-    if (mode === 'team') return 'Team Login ID'
-    if (mode === 'admin') return 'Admin Login ID'
-    return 'Moderator Login ID'
-  })()
-
-  const submitLabel = (() => {
-    if (mode === 'team') return 'Enter Team Lobby'
-    if (mode === 'admin') return 'Sign in as Admin'
-    return 'Sign in as Moderator'
-  })()
-
+  const loginPlaceholder = mode === 'team' ? 'Enter user Id' : mode === 'admin' ? 'admin' : 'mod1'
+  const loginLabel =
+    mode === 'team' ? 'User Id' : mode === 'admin' ? 'Admin Login ID' : 'Moderator Login ID'
+  const submitLabel =
+    mode === 'team' ? 'Login' : mode === 'admin' ? 'Sign in as Admin' : 'Sign in as Moderator'
   const isRegistrationMode = mode === 'register'
 
   const handleRegistrationSubmit = (event) => {
@@ -99,21 +82,117 @@ export default function AuthenticationGateway({
   }
 
   useEffect(() => {
-    if (displayVariant !== 'modal') {
-      return undefined
-    }
-
+    if (displayVariant !== 'modal') return
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && onClose) {
-        onClose()
-      }
+      if (event.key === 'Escape' && onClose) onClose()
     }
-
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [displayVariant, onClose])
 
-  const registrationSuccessMessage = (
+  // ---------- UI parts ----------
+
+  const TopHeader = (
+    <div className="mb-6">
+      <h2 className="text-3xl sm:text-4xl font-semibold text-white">
+        {isRegistrationMode ? 'Create Your Account' : 'Welcome Back'}
+      </h2>
+
+      <div className="mt-2 text-slate-300">
+        {isRegistrationMode ? (
+          <span className="text-sm">
+            Already a member?{' '}
+            <button
+              type="button"
+              onClick={() => handleModeChange('team')}
+              className="font-semibold text-sky-300 hover:text-sky-200 underline-offset-4 hover:underline"
+            >
+              Log in
+            </button>
+          </span>
+        ) : (
+          <span className="text-sm">
+            New to site?{' '}
+            <button
+              type="button"
+              onClick={() => handleModeChange('register')}
+              className="font-semibold text-sky-300 hover:text-sky-200 underline-offset-4 hover:underline"
+            >
+              Create Account
+            </button>
+          </span>
+        )}
+      </div>
+    </div>
+  )
+
+  const TabTriggers = !isRegistrationMode ? (
+    <div className="mb-6 flex flex-wrap gap-3">
+      {BASE_MODES.map((item) => {
+        const active = mode === item.id
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => handleModeChange(item.id)}
+            className={[
+              'rounded-full px-4 py-2 text-sm font-medium transition-all',
+              'border',
+              active
+                ? 'bg-cyan-500 text-white border-cyan-400 shadow-lg shadow-cyan-500/40'
+                : 'border-white/30 text-slate-200 hover:bg-white/10',
+            ].join(' ')}
+          >
+            {item.label}
+          </button>
+        )
+      })}
+    </div>
+  ) : null
+
+  const LoginForm = (
+    <form className="space-y-5" onSubmit={handleSubmit}>
+      <div>
+        <label className="mb-2 block text-sm font-semibold text-slate-200">{loginLabel}</label>
+        <input
+          required
+          value={form.loginId}
+          onChange={(e) => setForm((p) => ({ ...p, loginId: e.target.value }))}
+          placeholder={loginPlaceholder}
+          className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400
+                     px-5 py-3.5 border border-zinc-600 focus:outline-none
+                     focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
+        />
+      </div>
+
+      <div>
+        <label className="mb-2 block text-sm font-semibold text-slate-200">Password</label>
+        <input
+          required
+          type="password"
+          value={form.password}
+          onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+          placeholder="Password"
+          className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400
+                     px-5 py-3.5 border border-zinc-600 focus:outline-none
+                     focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
+        />
+      </div>
+
+      {error ? <p className="text-sm text-rose-400">{error}</p> : null}
+
+      <button
+        type="submit"
+        className="w-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500
+                   px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-500/30
+                   hover:from-orange-400 hover:to-amber-400 transition"
+      >
+        {submitLabel}
+      </button>
+    </form>
+  )
+
+  const RegistrationSuccess = (
     <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-6 text-sm text-emerald-200">
       <h3 className="text-lg font-semibold text-emerald-300">Registration request captured</h3>
       <p className="mt-2 text-slate-200">
@@ -132,179 +211,117 @@ export default function AuthenticationGateway({
     </div>
   )
 
-  const registrationForm = (
-    <form className="space-y-5" onSubmit={handleRegistrationSubmit}>
+  const RegistrationForm = (
+    <form className="space-y-3" onSubmit={handleRegistrationSubmit}>
       <div>
-        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Team Name</label>
+        <label className="mb-2 block text-sm font-semibold text-slate-200">School/ORG Name</label>
         <input
           required
           value={registerForm.teamName}
-          onChange={(event) =>
-            setRegisterForm((prev) => ({ ...prev, teamName: event.target.value }))
-          }
-          className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-base text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-          placeholder="e.g. Tampa Titans"
+          onChange={(e) => setRegisterForm((p) => ({ ...p, teamName: e.target.value }))}
+          placeholder="School/ORG Name"
+          className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400
+                     px-5 py-3.5 border border-zinc-600 focus:outline-none
+                     focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
         />
       </div>
 
-      <div>
-        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-          School or Organization
-        </label>
-        <input
-          required
-          value={registerForm.organization}
-          onChange={(event) =>
-            setRegisterForm((prev) => ({ ...prev, organization: event.target.value }))
-          }
-          className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-base text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-          placeholder="e.g. Suncoast High"
-        />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-            Contact Name
-          </label>
+          <label className="mb-2 block text-sm font-semibold text-slate-200">School/ORG Name/Title</label>
           <input
             required
-            value={registerForm.contactName}
-            onChange={(event) =>
-              setRegisterForm((prev) => ({ ...prev, contactName: event.target.value }))
-            }
-            className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-base text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-            placeholder="e.g. Jordan Rivers"
+            value={registerForm.organization}
+            onChange={(e) => setRegisterForm((p) => ({ ...p, organization: e.target.value }))}
+            placeholder="Enter Title"
+            className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400
+                       px-5 py-3.5 border border-zinc-600 focus:outline-none
+                       focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-            Contact Email
-          </label>
+          <label className="mb-2 block text-sm font-semibold text-slate-200">County</label>
+          <input
+            value={registerForm.notes}
+            onChange={(e) => setRegisterForm((p) => ({ ...p, notes: e.target.value }))}
+            placeholder="County"
+            className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400
+                       px-5 py-3.5 border border-zinc-600 focus:outline-none
+                       focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-200">Email Id</label>
           <input
             required
             type="email"
             value={registerForm.contactEmail}
-            onChange={(event) =>
-              setRegisterForm((prev) => ({ ...prev, contactEmail: event.target.value }))
-            }
-            className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-base text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-            placeholder="you@example.com"
+            onChange={(e) => setRegisterForm((p) => ({ ...p, contactEmail: e.target.value }))}
+            placeholder="Enter Email Id"
+            className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400
+                       px-5 py-3.5 border border-zinc-600 focus:outline-none
+                       focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-200">Phone Number</label>
+          <input
+            value={registerForm.contactName}
+            onChange={(e) => setRegisterForm((p) => ({ ...p, contactName: e.target.value }))}
+            placeholder="Enter Phone Number"
+            className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400
+                       px-5 py-3.5 border border-zinc-600 focus:outline-none
+                       focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-          Notes for the coordinators
-        </label>
-        <textarea
-          value={registerForm.notes}
-          onChange={(event) =>
-            setRegisterForm((prev) => ({ ...prev, notes: event.target.value }))
-          }
-          rows={3}
-          className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-base text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-          placeholder="Share roster size, experience level, or special requests"
+        <label className="mb-2 block text-sm font-semibold text-slate-200">Address</label>
+        <input
+          value={registerForm.organization}
+          onChange={(e) => setRegisterForm((p) => ({ ...p, organization: e.target.value }))}
+          placeholder="Address"
+          className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400
+                     px-5 py-3.5 border border-zinc-600 focus:outline-none
+                     focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
         />
       </div>
 
       <button
         type="submit"
-        className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-sky-500 px-4 py-3 text-base font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:from-emerald-400 hover:to-sky-400"
+        className="w-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500
+                   px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-500/30
+                   hover:from-orange-400 hover:to-amber-400 transition"
       >
-        Submit Registration Request
+        Submit
       </button>
     </form>
   )
 
-  const tabTriggers = (
-    <div className="flex rounded-full bg-slate-800/70 p-1 text-sm font-medium text-slate-300 mb-8 flex-wrap gap-2">
-      {modes.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          onClick={() => handleModeChange(item.id)}
-          className={`flex-1 rounded-full px-3 py-2 transition-all duration-200 min-w-[140px] ${
-            mode === item.id ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/40' : 'hover:bg-slate-800'
-          }`}
-        >
-          {item.label}
-        </button>
-      ))}
-    </div>
-  )
-
-  const formContent = isRegistrationMode ? (
-    registrationSubmitted ? registrationSuccessMessage : registrationForm
-  ) : (
-    <form className="space-y-6" onSubmit={handleSubmit}>
-      <div>
-        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-          {loginLabel}
-        </label>
-        <input
-          required
-          value={form.loginId}
-          onChange={(event) => setForm((prev) => ({ ...prev, loginId: event.target.value }))}
-          className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-base text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-          placeholder={loginPlaceholder}
+  const RightArtPanel = (
+    <aside className="hidden lg:block">
+      <div className="relative h-full min-h-[520px] rounded-3xl overflow-hidden border border-slate-800 shadow-2xl shadow-orange-500/10">
+        <img
+          src={heroImageUrl}
+          alt="Football artwork"
+          className="absolute inset-0 h-full w-full object-cover opacity-90"
         />
+        <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/60 via-slate-950/20 to-transparent" />
       </div>
-
-      <div>
-        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Password</label>
-        <input
-          required
-          type="password"
-          value={form.password}
-          onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-          className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-base text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-          placeholder="********"
-        />
-      </div>
-
-      {error ? <p className="text-sm text-rose-400">{error}</p> : null}
-
-      <button
-        type="submit"
-        className="w-full rounded-2xl bg-gradient-to-r from-sky-500 to-blue-500 px-4 py-3 text-base font-semibold text-white shadow-lg shadow-sky-500/40 transition hover:from-sky-400 hover:to-blue-400"
-      >
-        {submitLabel}
-      </button>
-    </form>
+    </aside>
   )
 
-  const promoPanel = (
-    <section className="rounded-3xl bg-slate-900/60 border border-slate-800 p-10 shadow-2xl shadow-sky-500/10">
-      <p className="text-sm uppercase tracking-widest text-sky-400 mb-4">Financial Football Quiz Arena</p>
-      <h1 className="text-4xl font-semibold text-white mb-6">
-        Prepare your team for a fast-paced head-to-head trivia showdown.
-      </h1>
-      <ul className="space-y-4 text-slate-300 leading-relaxed">
-        <li className="flex items-start gap-3">
-          <span className="mt-1 h-2 w-2 rounded-full bg-sky-400" aria-hidden />
-          Twelve teams battle through double elimination until a champion remains.
-        </li>
-        <li className="flex items-start gap-3">
-          <span className="mt-1 h-2 w-2 rounded-full bg-sky-400" aria-hidden />
-          Coin tosses determine control, question steals keep both teams alert, and every point counts.
-        </li>
-        <li className="flex items-start gap-3">
-          <span className="mt-1 h-2 w-2 rounded-full bg-sky-400" aria-hidden />
-          Admin moderators can create matches, flip coins, track scoring, and eliminate teams after two losses.
-        </li>
-      </ul>
-    </section>
-  )
-
-  const formPanel = (
-    <section className="rounded-3xl bg-slate-900/40 border border-slate-800 p-8 shadow-xl shadow-sky-500/5">
+  const FormCard = (
+    <section className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 sm:p-8 shadow-2xl shadow-sky-500/10">
       {displayVariant === 'modal' ? (
-        <div className="mb-6 flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-400">
             {isRegistrationMode ? 'Team Registration' : 'Secure Sign In'}
-          </p>
+          </span>
           {onClose ? (
             <button
               type="button"
@@ -319,22 +336,22 @@ export default function AuthenticationGateway({
         <button
           type="button"
           onClick={onBack}
-          className="mb-6 text-xs font-semibold uppercase tracking-[0.3em] text-slate-400 transition hover:text-white"
+          className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-slate-400 transition hover:text-white"
         >
           Back to landing
         </button>
       ) : null}
 
-      {tabTriggers}
-
-      {formContent}
+      {TopHeader}
+      {TabTriggers}
+      {isRegistrationMode ? (registrationSubmitted ? RegistrationSuccess : RegistrationForm) : LoginForm}
     </section>
   )
 
   const innerContent = (
-    <div className="w-full max-w-4xl grid gap-10 lg:grid-cols-[1.2fr,1fr]">
-      {promoPanel}
-      {formPanel}
+    <div className="w-full max-w-6xl grid gap-8 lg:grid-cols-2">
+      {FormCard}
+      {RightArtPanel}
     </div>
   )
 
@@ -348,7 +365,7 @@ export default function AuthenticationGateway({
           aria-label="Close authentication"
           tabIndex={-1}
         />
-        <div className="relative w-full max-w-5xl">
+        <div className="relative w-full max-w-6xl">
           <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/90 p-6 text-slate-100 shadow-2xl shadow-sky-500/20">
             {innerContent}
           </div>
