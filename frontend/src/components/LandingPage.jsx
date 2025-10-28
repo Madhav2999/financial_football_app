@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import AuthenticationGateway from "./AuthenticationGateway";
 const NAV_ITEMS = [
   { id: 'home', label: 'Home', href: '#top' },
   { id: 'about', label: 'About us', href: '#about' },
@@ -68,7 +69,14 @@ const recentHighlights = [
 ];
 
 
-export default function LandingPage({ teams, onEnter, onAdminEnter }) {
+export default function LandingPage({
+  teams,
+  onTeamLogin,
+  onAdminLogin,
+  onModeratorLogin,
+  authError,
+  onClearAuthError,
+}) {
   const standings = [...teams]
     .sort((a, b) => b.wins - a.wins || b.totalScore - a.totalScore)
     .slice(0, 5)
@@ -76,6 +84,8 @@ export default function LandingPage({ teams, onEnter, onAdminEnter }) {
   // const recentHighlights = history.slice(0, 2).map((entry) => formatHistoryEntry(entry, teams))
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('team');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -84,11 +94,47 @@ export default function LandingPage({ teams, onEnter, onAdminEnter }) {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!isAuthOpen) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isAuthOpen]);
+
   const visibleCards = recentHighlights.slice(currentIndex, currentIndex + 2);
+
+  const openAuth = (mode = 'team') => {
+    setAuthMode(mode);
+    setIsAuthOpen(true);
+    onClearAuthError?.();
+  };
+
+  const closeAuth = () => {
+    setIsAuthOpen(false);
+    onClearAuthError?.();
+  };
 
 
   return (
     <div id="top" className="min-h-screen bg-white text-slate-900">
+      {isAuthOpen ? (
+        <AuthenticationGateway
+          initialMode={authMode}
+          onTeamLogin={onTeamLogin}
+          onAdminLogin={onAdminLogin}
+          onModeratorLogin={onModeratorLogin}
+          error={authError}
+          displayVariant="modal"
+          showRegistrationTab
+          onClose={closeAuth}
+        />
+      ) : null}
       <header className="relative overflow-hidden">
         <div
           className="absolute inset-0"
@@ -117,14 +163,21 @@ export default function LandingPage({ teams, onEnter, onAdminEnter }) {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={onAdminEnter}
+                onClick={() => openAuth('register')}
+                className="rounded-full border border-white/50 px-4 py-2 text-xs uppercase tracking-widest text-white transition hover:border-emerald-300 hover:text-emerald-300 cursor-pointer"
+              >
+                Register Team
+              </button>
+              <button
+                type="button"
+                onClick={() => openAuth('moderator')}
                 className="rounded-full border border-white/50 px-4 py-2 text-xs uppercase tracking-widest transition hover:border-emerald-300 hover:text-emerald-300 cursor-pointer"
               >
                 Moderator Login
               </button>
               <button
                 type="button"
-                onClick={onEnter}
+                onClick={() => openAuth('team')}
                 className="rounded-full bg-emerald-400 px-5 py-2 text-xs uppercase tracking-[0.3em] text-slate-900 transition hover:bg-emerald-300 cursor-pointer"
               >
                 Enter Tournament
@@ -142,10 +195,17 @@ export default function LandingPage({ teams, onEnter, onAdminEnter }) {
               <div className="flex flex-wrap gap-4">
                 <button
                   type="button"
-                  onClick={onEnter}
+                  onClick={() => openAuth('team')}
                   className="cursor-pointer rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 px-6 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 transition hover:from-emerald-300 hover:to-sky-300"
                 >
                   Enter Tournament
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openAuth('register')}
+                  className="cursor-pointer rounded-full border border-white/40 px-6 py-3 text-sm font-semibold text-white transition hover:border-emerald-300 hover:text-emerald-300"
+                >
+                  Register Team
                 </button>
                 <a
                   href="#how-to-play"
@@ -163,7 +223,7 @@ export default function LandingPage({ teams, onEnter, onAdminEnter }) {
                   <div key={team.id} className="flex items-center justify-between rounded-2xl bg-slate-900/40 px-4 py-3">
                     <div>
                       <p className="font-semibold">{team.name}</p>
-                      <p className="text-xs text-slate-300">W {team.wins} � L {team.losses}</p>
+                      <p className="text-xs text-slate-300">W {team.wins} • L {team.losses}</p>
                     </div>
                     <span className="text-lg font-bold text-emerald-300">{team.totalScore}</span>
                     <span className="text-xs text-slate-400">#{index + 1}</span>
