@@ -925,12 +925,6 @@ function AppShell() {
 
   const handleDismissRecent = () => setRecentResult(null)
 
-  const navigateToLogin = (mode = 'team') => {
-    setAuthError(null)
-    const modeParam = mode && mode !== 'team' ? `?mode=${mode}` : ''
-    navigate(`/login${modeParam}`)
-  }
-
   return (
     <Routes>
       <Route
@@ -938,8 +932,17 @@ function AppShell() {
         element={
           <LandingPage
             teams={teams}
-            onEnter={() => navigateToLogin('team')}
-            onAdminEnter={() => navigateToLogin('admin')}
+            onTeamLogin={(loginId, password) =>
+              handleTeamLogin(loginId, password, { redirectTo: '/team' })
+            }
+            onAdminLogin={(loginId, password) =>
+              handleAdminLogin(loginId, password, { redirectTo: '/admin' })
+            }
+            onModeratorLogin={(loginId, password) =>
+              handleModeratorLogin(loginId, password, { redirectTo: '/moderator' })
+            }
+            authError={authError}
+            onClearAuthError={() => setAuthError(null)}
           />
         }
       />
