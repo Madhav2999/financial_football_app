@@ -236,7 +236,7 @@ export default function LandingPage({
       </header>
 
       <main>
-        <section id="about" className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-16 lg:flex-row">
+        <section id="about" className="mx-auto flex max-w-6xl flex-col gap-10 py-16 lg:flex-row justify-start items-start">
           <div className="lg:w-[60%]">
             <p className="text-sm uppercase tracking-[0.4em] text-emerald-500">What is</p>
             <h2 className="text-3xl font-semibold text-slate-900">Financial Football</h2>
@@ -250,10 +250,25 @@ export default function LandingPage({
             </p>
           </div>
           <div className="lg:w-[40%]">
-            <div className="relative inset-0">
-              <img src="/assets/financial-football.jpg" alt="Financial Football crest" className="mx-auto rounded-3xl" />
+            <div className="relative">
+              <video
+                className="w-full rounded-3xl object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                poster="/assets/football-poster.jpg"   // optional
+                aria-label="Financial Football background video"
+                onError={(e) => console.error('Video failed to load', e)}
+              >
+                <source src="/assets/football-bg-video.mp4" type="video/mp4" />
+                {/* Fallback text */}
+                Your browser does not support HTML5 video.
+              </video>
             </div>
           </div>
+
         </section>
 
         <section className="bg-amber-50 py-12 relative">

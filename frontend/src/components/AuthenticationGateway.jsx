@@ -27,7 +27,7 @@ export default function AuthenticationGateway({
   showRegistrationTab = false,
   onClose,
   // right-side artwork
-  heroImageUrl = './public/assets/register-modal-img.jpg',
+  heroImageUrl = '/assets/register-modal-img.jpg',
 }) {
   const modes = useMemo(
     () => (showRegistrationTab ? [...BASE_MODES, REGISTRATION_MODE] : BASE_MODES),
@@ -316,7 +316,7 @@ export default function AuthenticationGateway({
   )
 
   const FormCard = (
-    <section className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 sm:p-8 shadow-2xl shadow-sky-500/10">
+    <section className="rounded-3xl p-6 sm:p-8">
       {displayVariant === 'modal' ? (
         <div className="mb-3 flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-400">
@@ -359,7 +359,7 @@ export default function AuthenticationGateway({
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
         <div
-          className="absolute inset-0 bg-slate-950/80 backdrop-blur"
+          className="absolute inset-0 bg-slate-500/30 backdrop-blur"
           onClick={onClose}
           role="button"
           aria-label="Close authentication"
