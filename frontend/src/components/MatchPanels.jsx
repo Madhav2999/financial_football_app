@@ -222,6 +222,8 @@ export function CoinTossPanel({
   )
 }
 
+// same signature/logic; only classes/markup are tweaked to match the visual you showed
+
 export function LiveMatchPanel({ match, teams, moderators, actions, description }) {
   const question = match.questionQueue?.[match.questionIndex] ?? null
   const questionOptions = question?.options ?? []
@@ -234,18 +236,25 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
   const opponent = teams.find((team) => team.id === opponentId)
   const awaitingSteal = match.awaitingSteal
   const moderatorName = resolveModeratorName(moderators, match.moderatorId)
+
   const isPaused = match.status === 'paused'
   const { remainingSeconds, timerType, timerStatus } = useMatchTimer(match.timer)
   const formattedRemaining = formatSeconds(remainingSeconds)
   const isTimerVisible = Boolean(match.timer)
   const timerBadgeClass =
     timerType === 'steal'
-      ? 'border border-amber-400/40 bg-amber-500/15 text-amber-200'
-      : 'border border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
+      ? 'border-amber-400/40 bg-amber-500/15 text-amber-200'
+      : 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
   const timerLabel = timerType === 'steal' ? 'Steal window' : 'Answer window'
 
+  // tiny helper to paint neutral score pips without touching any logic
+  const indicatorCount = 8
+  const renderPip = (filled, good) =>
+    `h-4 w-4 rounded-full ${filled ? (good ? 'bg-emerald-400' : 'bg-rose-400') : 'border border-white/15 bg-transparent'}`
+
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl shadow-slate-900/40">
+    <div className="rounded-3xl border border-white/10 bg-slate-800/60 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
+      {/* header row: title, actions, progress + timer */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Live Question</p>
@@ -256,16 +265,16 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
           <p className="mt-1 text-xs uppercase tracking-[0.3em] text-slate-400">Moderator: {moderatorName}</p>
           {description ? <p className="mt-3 text-sm text-slate-300">{description}</p> : null}
         </div>
+
         <div className="flex flex-wrap items-center justify-end gap-3">
           {actions}
           <div className="flex items-center gap-3 rounded-full bg-slate-800/80 px-4 py-2 text-sm text-slate-200">
             <span className="font-semibold text-white">{match.questionIndex + 1}</span>
             <span className="text-slate-400">/ {match.questionQueue?.length ?? 0}</span>
           </div>
+
           {isTimerVisible ? (
-            <div
-              className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${timerBadgeClass}`}
-            >
+            <div className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold ${timerBadgeClass}`}>
               <span>{timerLabel}</span>
               <span>{formattedRemaining}</span>
               {timerStatus === 'paused' ? (
@@ -276,18 +285,55 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
-        <div className="space-y-4">
+      {/* body */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        {/* left: big question card with orange Q badge and pill options */}
+        <div className="relative rounded-[28px] border border-white/10 bg-slate-950/60 p-6 shadow-inner">
+          {/* orange corner badge like your mock */}
+          <div className="absolute left-0 top-0 translate-x-[-17px] translate-y-[-24px]">
+            <div className="rounded-[18px] rounded-bl-none bg-orange-500 px-4 py-3 text-lg font-bold text-white shadow-lg">
+              Q{match.questionIndex + 1}
+            </div>
+          </div>
+
           <p className="text-xs uppercase tracking-widest text-slate-400">Category</p>
           <p className="text-lg font-semibold text-sky-300">
             {question?.category ?? 'Awaiting question details'}
           </p>
-          <p className="text-sm leading-relaxed text-slate-200">
+
+          <p className="mt-2 text-[15px] leading-relaxed text-slate-100">
             {question?.prompt ?? 'The next question will appear as soon as the match resumes.'}
           </p>
+
+          {/* options list → thick rounded pills with leading letter */}
+          <div className="mt-5 grid gap-3">
+            {questionOptions.map((option, index) => (
+              <div
+                key={`${optionKeyPrefix}-${index}-${option}`}
+                className="group flex items-center justify-between rounded-[999px] border border-white/10 bg-slate-800/70 px-4 py-3 text-slate-100 shadow hover:border-sky-400/40 hover:bg-slate-800/80 transition"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-slate-900/60 text-[11px] font-semibold uppercase tracking-wider text-slate-200">
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                  <span className="text-[15px]">{option}</span>
+                </div>
+                {/* subtle ring on hover to mimic focus */}
+                <span className="hidden rounded-full px-3 py-1 text-xs text-sky-300 ring-1 ring-sky-400/30 group-hover:inline-block">
+                  View
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200">
+        {/* right: compact score panel that mirrors your screenshot layout */}
+        <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/70 p-5 text-sm text-slate-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-white">Score</h3>
+            {/* (timer already shown above; keeping panel minimal) */}
+          </div>
+
           <div className="flex items-center justify-between">
             <span className="font-semibold text-white">{teamA?.name}</span>
             <span className="text-lg font-bold text-sky-400">{match.scores[teamAId]}</span>
@@ -296,41 +342,46 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
             <span className="font-semibold text-white">{teamB?.name}</span>
             <span className="text-lg font-bold text-amber-400">{match.scores[teamBId]}</span>
           </div>
+
+          {/* neutral progress pips (purely visual; does not change behavior) */}
+          <div className="mt-4 grid gap-4">
+            <div>
+              <div className="mb-2 text-xs uppercase tracking-widest text-slate-400">{teamA?.name}</div>
+              <div className="flex flex-wrap gap-2">
+                {Array.from({ length: indicatorCount }).map((_, i) => (
+                  <span key={`a-${i}`} className={renderPip(i < match.questionIndex && !match.awaitingSteal, true)} />
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="mb-2 text-xs uppercase tracking-widest text-slate-400">{teamB?.name}</div>
+              <div className="flex flex-wrap gap-2">
+                {Array.from({ length: indicatorCount }).map((_, i) => (
+                  <span key={`b-${i}`} className={renderPip(i < match.questionIndex && !match.awaitingSteal, true)} />
+                ))}
+              </div>
+            </div>
+          </div>
+
           <div className="mt-4 space-y-3">
             {isPaused ? (
               <p className="font-semibold text-white">Match paused by {moderatorName}. Waiting to resume.</p>
             ) : (
               <p className="font-semibold text-white">
                 {awaitingSteal
-                  ? `${opponent?.name ?? 'Opponent'} is attempting a steal${
-                      remainingSeconds ? ` (${remainingSeconds}s left)` : ''
-                    }.`
-                  : `${activeTeam?.name ?? 'Team'} is responding${
-                      remainingSeconds ? ` (${remainingSeconds}s left)` : ''
-                    }.`}
+                  ? `${opponent?.name ?? 'Opponent'} is attempting a steal${remainingSeconds ? ` (${remainingSeconds}s left)` : ''}.`
+                  : `${activeTeam?.name ?? 'Team'} is responding${remainingSeconds ? ` (${remainingSeconds}s left)` : ''}.`}
               </p>
             )}
             <p className="text-xs text-slate-400">
-              Teams submit answers directly from their dashboards. Monitor progress and adjust pacing as needed.
+              Teams submit answers from their dashboards. Monitor progress and adjust pacing as needed.
             </p>
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-300">
-              <p className="font-semibold text-slate-200">Multiple-choice options</p>
-              <ol className="mt-3 space-y-2">
-                {questionOptions.map((option, index) => (
-                  <li key={`${optionKeyPrefix}-${index}-${option}`} className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 text-[11px] uppercase text-slate-400">
-                      {String.fromCharCode(65 + index)}
-                    </span>
-                    <span>{option}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
           </div>
         </div>
       </div>
     </div>
   )
 }
+
 
 export default { CoinTossPanel, LiveMatchPanel }

@@ -126,10 +126,11 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const { remainingSeconds, timerType, timerStatus } = useMatchTimer(match.timer)
   const formattedRemaining = formatSeconds(remainingSeconds)
   const isTimerVisible = Boolean(match.timer)
+  // → badges now have **no background**, only border + text color
   const timerBadgeClass =
     timerType === 'steal'
-      ? 'border border-amber-400/40 bg-amber-500/15 text-amber-200'
-      : 'border border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
+      ? 'border border-amber-400/70 text-amber-200'
+      : 'border border-emerald-400/70 text-emerald-200'
   const timerLabel = timerType === 'steal' ? 'Steal window' : 'Answer window'
 
   const [selectedOption, setSelectedOption] = useState(null)
@@ -142,34 +143,44 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   }, [match.questionIndex, match.awaitingSteal, match.activeTeamId])
 
   const handleClick = (option) => {
-    if (!isActive || selectedOption !== null) {
-      return
-    }
-
+    if (!isActive || selectedOption !== null) return
     setSelectedOption(option)
     onAnswer(match.id, option)
   }
 
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-lg shadow-slate-900/40">
+    <div
+      className="
+        rounded-3xl p-6
+        border border-slate-800
+        bg-slate-900/70
+        [--txtshadow:0_1px_2px_rgba(0,0,0,.85)]
+        [--headshadow:0_2px_8px_rgba(0,0,0,.9)]
+        [&_*:where(h2)]:[text-shadow:var(--headshadow)]
+        [&_*:where(p,span,small,button)]:[text-shadow:var(--txtshadow)]
+      "
+    >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-sky-400">Live Match</p>
-          <h2 className="text-2xl font-semibold text-white">{thisTeam.name} vs {opponent?.name}</h2>
+          <p className="text-xs uppercase tracking-[0.2em] text-sky-300">Live Match</p>
+          <h2 className="text-2xl font-extrabold text-white tracking-tight">
+            {thisTeam.name} vs {opponent?.name}
+          </h2>
         </div>
+
         <div className="flex flex-wrap items-center justify-end gap-3">
-          <div className="flex items-center gap-3 rounded-full bg-slate-800/80 px-4 py-2 text-sm text-slate-200">
+          {/* progress chip — no bg */}
+          <div className="flex items-center gap-3 rounded-full border border-white/25 px-4 py-2 text-sm text-slate-100">
             <span className="font-semibold text-white">Question {match.questionIndex + 1}</span>
-            <span className="text-slate-400">/ {match.questionQueue?.length ?? 0}</span>
+            <span className="text-slate-200">/ {match.questionQueue?.length ?? 0}</span>
           </div>
+
           {isTimerVisible ? (
-            <div
-              className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${timerBadgeClass}`}
-            >
+            <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${timerBadgeClass}`}>
               <span>{timerLabel}</span>
               <span>{formattedRemaining}</span>
               {timerStatus === 'paused' ? (
-                <span className="text-xs uppercase tracking-wider text-slate-200/70">Paused</span>
+                <span className="text-xs uppercase tracking-wider text-slate-100/90">Paused</span>
               ) : null}
             </div>
           ) : null}
@@ -177,15 +188,17 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr,0.8fr]">
+        {/* LEFT */}
         <div className="space-y-4">
-          <p className="text-xs uppercase tracking-wider text-slate-400">Category</p>
-          <p className="text-lg font-semibold text-sky-300">
+          <p className="text-xs uppercase tracking-wider text-slate-100">Category</p>
+          <p className="text-lg font-bold text-white">
             {question?.category ?? 'Awaiting question details'}
           </p>
-          <p className="text-sm leading-relaxed text-slate-200">
+          <p className="text-base leading-relaxed text-slate-100">
             {question?.prompt ?? 'The moderator will share the next prompt shortly.'}
           </p>
-          <div className="mt-4 space-y-3">
+
+          <div className="mt-4 space-x-3 flex">
             {questionOptions.map((option, index) => {
               const optionKey = `${questionInstanceId}-${index}`
               const isChoiceSelected = selectedOption === option
@@ -197,20 +210,26 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
                   type="button"
                   onClick={() => handleClick(option)}
                   disabled={disabled}
-                  className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                    isChoiceSelected
-                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-200'
-                      : disabled
-                      ? 'border-slate-800 bg-slate-900/40 text-slate-400'
-                      : 'border-slate-700 bg-slate-900/70 text-slate-100 hover:border-sky-500 hover:text-white'
-                  }`}
+                  className={[
+                    'flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-base transition',
+                    // base — transparent, high-contrast borders, brighter text
+                    'border-white/35 text-white',
+                    // hover (no bg)
+                    !disabled && 'hover:border-sky-400',
+                    // disabled (no bg)
+                    disabled && 'opacity-70 cursor-not-allowed',
+                    // selected — bright ring, still no bg
+                    isChoiceSelected && 'ring-2 ring-emerald-400/70'
+                  ].filter(Boolean).join(' ')}
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-600 text-xs font-semibold uppercase">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/50 text-xs font-bold uppercase">
                     {String.fromCharCode(65 + index)}
                   </span>
-                  <span className="flex-1">{option}</span>
+                  <span className="flex-1 font-semibold tracking-tight">{option}</span>
                   {isChoiceSelected ? (
-                    <span className="text-xs font-semibold uppercase tracking-wide text-emerald-300">Submitted</span>
+                    <span className="text-xs font-bold uppercase tracking-wide text-emerald-300">
+                      Submitted
+                    </span>
                   ) : null}
                 </button>
               )
@@ -218,41 +237,43 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
           </div>
         </div>
 
-        <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-300">
+        {/* RIGHT */}
+        <div className="space-y-4 rounded-2xl border border-white/20 bg-transparent p-5 text-sm text-slate-100">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-white">Your team</span>
-            <span className="text-lg font-bold text-sky-400">{match.scores[teamId]}</span>
+            <span className="font-bold text-white tracking-tight">Your team</span>
+            <span className="text-xl font-black text-sky-300">{match.scores[teamId]}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-white">{opponent?.name}</span>
-            <span className="text-lg font-bold text-amber-400">{match.scores[opponentId]}</span>
+            <span className="font-bold text-white tracking-tight">{opponent?.name}</span>
+            <span className="text-xl font-black text-amber-300">{match.scores[opponentId]}</span>
           </div>
-          <div className="mt-4 rounded-xl bg-slate-800/70 px-4 py-3 text-slate-200">
+
+          <div className="mt-4 rounded-xl ring-1 ring-white/25 px-4 py-3 text-slate-100">
             {isPaused ? (
-              <p className="font-semibold text-white">The match is currently paused. Await instructions from the moderator.</p>
+              <p className="font-bold text-white">
+                The match is currently paused. Await instructions from the moderator.
+              </p>
             ) : match.awaitingSteal ? (
               isSteal ? (
-                <p className="font-semibold text-white">
+                <p className="font-bold text-white">
                   Opportunity to steal! {remainingSeconds ? `You have ${remainingSeconds} seconds` : 'Act fast'} to snag a
                   1-point bonus.
                 </p>
               ) : (
                 <p>
-                  Waiting for {opponent?.name ?? 'the opposing team'} to attempt the steal{remainingSeconds
-                    ? ` (${remainingSeconds} seconds remaining).`
-                    : '.'}
+                  Waiting for {opponent?.name ?? 'the opposing team'} to attempt the steal
+                  {remainingSeconds ? ` (${remainingSeconds} seconds remaining).` : '.'}
                 </p>
               )
             ) : activeTeam?.id === teamId ? (
-              <p className="font-semibold text-white">
+              <p className="font-bold text-white">
                 It&apos;s your turn to answer. {remainingSeconds ? `You have ${remainingSeconds} seconds` : 'Move quickly'} to
                 secure 3 points.
               </p>
             ) : (
               <p>
-                Hold tight while {opponent?.name ?? 'the opposing team'} answers{remainingSeconds
-                  ? ` (${remainingSeconds} seconds remaining).`
-                  : '.'}
+                Hold tight while {opponent?.name ?? 'the opposing team'} answers
+                {remainingSeconds ? ` (${remainingSeconds} seconds remaining).` : '.'}
               </p>
             )}
           </div>
@@ -261,6 +282,7 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
     </div>
   )
 }
+
 
 function RecentResults({ history, teamId, teams }) {
   const entries = history.filter((match) => match.teams.includes(teamId)).slice(0, 5)
@@ -291,13 +313,12 @@ function RecentResults({ history, teamId, teams }) {
                 vs {opponent?.name}
               </p>
               <span
-                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                  isTie
+                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${isTie
                     ? 'bg-slate-700 text-slate-200'
                     : didWin
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'bg-rose-500/20 text-rose-300'
-                }`}
+                      ? 'bg-emerald-500/20 text-emerald-300'
+                      : 'bg-rose-500/20 text-rose-300'
+                  }`}
               >
                 {isTie ? 'Tie' : didWin ? 'Win' : 'Loss'}
               </span>
@@ -319,16 +340,40 @@ function RecentResults({ history, teamId, teams }) {
 
 export default function TeamDashboard({ team, teams, match, history, onAnswer, onSelectFirst, onLogout }) {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
+    <div
+      className="
+        relative min-h-screen text-slate-100 antialiased
+        [--txtshadow:0_1px_2px_rgba(0,0,0,.85)]
+        [--headshadow:0_2px_8px_rgba(0,0,0,.9)]
+        [&_*:where(h1,h2,h3)]:[text-shadow:var(--headshadow)]
+        [&_*:where(h1,h2,h3)]:[-webkit-text-stroke:0.4px_rgba(0,0,0,.45)]
+        [&_*:where(p,span,li,small,label,strong)]:[text-shadow:var(--txtshadow)]
+        [&_button]:[text-shadow:0_1px_2px_rgba(0,0,0,.7)]
+      "
+    >
+      {/* FULLSCREEN BACKGROUND VIDEO (no overlay, no blur) */}
+      <video
+        className="fixed inset-0 -z-10 h-dvh w-screen md:h-screen object-cover object-center
+             brightness-70 contrast-110"
+        src="/assets/american-football.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        aria-hidden="true"
+      />
+
+
+      {/* header: no backdrop-blur, only text emphasis */}
+      <header className="border-b border-white/10 bg-transparent">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Team Arena</p>
-            <h1 className="text-3xl font-semibold text-white">Welcome, {team.name}</h1>
+            <p className="text-xs uppercase tracking-[0.3em] text-sky-300">Team Arena</p>
+            <h1 className="text-3xl font-extrabold text-white tracking-tight">Welcome, {team.name}</h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm">
-              <div className="flex items-center gap-3 text-slate-300">
+            <div className="rounded-2xl border border-white/15 bg-transparent px-4 py-3 text-sm">
+              <div className="flex items-center gap-3 text-slate-100">
                 <span className="font-semibold text-white">Wins:</span>
                 <span>{team.wins}</span>
                 <span className="font-semibold text-white">Losses:</span>
@@ -337,7 +382,7 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
             </div>
             <button
               onClick={onLogout}
-              className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+              className="rounded-2xl border border-white/25 bg-transparent px-4 py-2 text-sm font-semibold text-slate-100 hover:border-white/40"
             >
               Log out
             </button>
@@ -345,7 +390,7 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-8">
+      <main className="mx-auto max-w-6xl px-6 py-8">
         {match && match.teams.includes(team.id) ? (
           match.status === 'coin-toss' ? (
             <CoinTossStatusCard match={match} teamId={team.id} teams={teams} onSelectFirst={onSelectFirst} />
@@ -353,22 +398,20 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
             <CurrentMatchCard match={match} teamId={team.id} teams={teams} onAnswer={onAnswer} />
           )
         ) : (
-          <div className="rounded-3xl border border-dashed border-slate-800 bg-slate-900/30 p-8 text-center text-slate-300 shadow-inner shadow-slate-900/30">
-            <p className="text-lg font-semibold text-slate-200">No live match right now.</p>
-            <p className="mt-2 text-sm text-slate-400">
-              Your next opponent and schedule will appear here once the moderator pairs your team.
-            </p>
+          <div className="rounded-3xl border border-dashed border-white/25 bg-transparent p-8 text-center text-slate-100">
+            <p className="text-lg font-bold text-white">No live match right now.</p>
+            <p className="mt-2 text-sm">Your next opponent and schedule will appear here once the moderator pairs your team.</p>
           </div>
         )}
 
-        <section className="grid gap-8 lg:grid-cols-[1.2fr,1fr]">
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-white">Tournament Standings</h2>
+        <section className="mt-8 grid gap-8 lg:grid-cols-[1.2fr,1fr]">
+          <div>
+            <h2 className="text-xl font-bold text-white tracking-tight">Tournament Standings</h2>
             <ScoreboardTable teams={teams} highlightTeamId={team.id} />
           </div>
 
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-white">Recent Matches</h2>
+          <div>
+            <h2 className="text-xl font-bold text-white tracking-tight">Recent Matches</h2>
             <RecentResults history={history} teamId={team.id} teams={teams} />
           </div>
         </section>
@@ -376,3 +419,6 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
     </div>
   )
 }
+
+
+
