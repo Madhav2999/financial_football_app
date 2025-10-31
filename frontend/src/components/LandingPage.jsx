@@ -4,7 +4,7 @@ const NAV_ITEMS = [
   { id: 'home', label: 'Home', href: '#top' },
   { id: 'about', label: 'About us', href: 'about' },
   { id: 'play', label: 'How to Play', href: 'howtoplay' },
-  { id: 'contact', label: 'Contact us', href: 'contact' },
+  { id: 'tournament', label: 'Tournament', href: 'tournament' },
 ]
 
 const PLAY_CARDS = [
