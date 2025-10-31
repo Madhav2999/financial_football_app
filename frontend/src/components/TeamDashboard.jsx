@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useMatchTimer, formatSeconds } from '../hooks/useMatchTimer'
 import { InlineCoinFlipAnimation } from './MatchPanels'
 import ScoreboardTable from './ScoreboardTable'
@@ -114,6 +114,9 @@ function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
   )
 }
 
+// add useRef in your imports
+// import { useEffect, useState, useRef } from 'react';
+
 function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const opponentId = match.teams.find((id) => id !== teamId)
   const activeTeam = teams.find((team) => team.id === match.activeTeamId)
@@ -122,11 +125,13 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const question = match.questionQueue?.[match.questionIndex] ?? null
   const questionInstanceId = question?.instanceId ?? match.id
   const questionOptions = question?.options ?? []
+  // if you expose either of these in your question object, both are supported:
+  const correctIndex = typeof question?.correctIndex === 'number' ? question.correctIndex : null
+  const correctAnswer = question?.answer ?? null
 
   const { remainingSeconds, timerType, timerStatus } = useMatchTimer(match.timer)
   const formattedRemaining = formatSeconds(remainingSeconds)
   const isTimerVisible = Boolean(match.timer)
-  // → badges now have **no background**, only border + text color
   const timerBadgeClass =
     timerType === 'steal'
       ? 'border border-amber-400/70 text-amber-200'
@@ -138,28 +143,82 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const isActive = match.status === 'in-progress' && match.activeTeamId === teamId
   const isSteal = match.awaitingSteal && isActive
 
+  // ---- 1.8s visual feedback state ----
+  const FEEDBACK_MS = 1800
+  const [flashKey, setFlashKey] = useState(null)     // e.g. "q123-2"
+  const [flashType, setFlashType] = useState(null)   // 'correct' | 'wrong' | null
+  const flashTimerRef = useRef(null)
+  const correctSfxRef = useRef(null);
+  const wrongSfxRef = useRef(null);
+
+  useEffect(() => {
+    const ok = new Audio('/assets/correct.mp3'); // <-- put your path
+    ok.preload = 'auto';
+    ok.volume = 0.9;         // tweak as you like
+    ok.playbackRate = 1.0;
+
+    const bad = new Audio('/assets/wrong.mp3');  // <-- put your path
+    bad.preload = 'auto';
+    bad.volume = 0.9;
+    bad.playbackRate = 1.0;
+
+    correctSfxRef.current = ok;
+    wrongSfxRef.current = bad;
+
+    return () => {          // cleanup
+      ok.pause(); bad.pause();
+    };
+  }, []);
+
+
   useEffect(() => {
     setSelectedOption(null)
+    setFlashKey(null)
+    setFlashType(null)
+    if (flashTimerRef.current) {
+      clearTimeout(flashTimerRef.current)
+      flashTimerRef.current = null
+    }
   }, [match.questionIndex, match.awaitingSteal, match.activeTeamId])
 
-  const handleClick = (option) => {
+  const handleClick = (option, index, optionKey) => {
     if (!isActive || selectedOption !== null) return
+
     setSelectedOption(option)
-    onAnswer(match.id, option)
+
+    // decide correctness if available (supports either correctIndex OR answer)
+    let isCorrect = null
+    if (correctIndex !== null) isCorrect = index === correctIndex
+    else if (correctAnswer != null) isCorrect = option === correctAnswer
+
+    try {
+      if (isCorrect === true && correctSfxRef.current) {
+        correctSfxRef.current.currentTime = 0;
+        correctSfxRef.current.play();
+      } else if (isCorrect === false && wrongSfxRef.current) {
+        wrongSfxRef.current.currentTime = 0;
+        wrongSfxRef.current.play();
+      }
+    } catch (_) {
+      // ignore autoplay errors silently
+    }
+
+    setFlashKey(optionKey)
+    setFlashType(isCorrect === null ? null : isCorrect ? 'correct' : 'wrong')
+
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+    flashTimerRef.current = setTimeout(() => {
+      // after 1.8s, continue your normal flow:
+      onAnswer(match.id, option)
+      // clear flash if parent didn’t advance immediately
+      setFlashKey(null)
+      setFlashType(null)
+      flashTimerRef.current = null
+    }, FEEDBACK_MS)
   }
 
   return (
-    <div
-      className="
-        rounded-3xl p-6
-        border border-slate-800
-        bg-slate-900/70
-        [--txtshadow:0_1px_2px_rgba(0,0,0,.85)]
-        [--headshadow:0_2px_8px_rgba(0,0,0,.9)]
-        [&_*:where(h2)]:[text-shadow:var(--headshadow)]
-        [&_*:where(p,span,small,button)]:[text-shadow:var(--txtshadow)]
-      "
-    >
+    <div className="rounded-3xl p-6 border border-slate-800 bg-slate-900/70 [--txtshadow:0_1px_2px_rgba(0,0,0,.85)] [--headshadow:0_2px_8px_rgba(0,0,0,.9)] [&_*:where(h2)]:[text-shadow:var(--headshadow)] [&_*:where(p,span,small,button)]:[text-shadow:var(--txtshadow)]">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-sky-300">Live Match</p>
@@ -169,12 +228,10 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-3">
-          {/* progress chip — no bg */}
           <div className="flex items-center gap-3 rounded-full border border-white/25 px-4 py-2 text-sm text-slate-100">
             <span className="font-semibold text-white">Question {match.questionIndex + 1}</span>
             <span className="text-slate-200">/ {match.questionQueue?.length ?? 0}</span>
           </div>
-
           {isTimerVisible ? (
             <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${timerBadgeClass}`}>
               <span>{timerLabel}</span>
@@ -191,35 +248,37 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
         {/* LEFT */}
         <div className="space-y-4">
           <p className="text-xs uppercase tracking-wider text-slate-100">Category</p>
-          <p className="text-lg font-bold text-white">
-            {question?.category ?? 'Awaiting question details'}
-          </p>
+          <p className="text-lg font-bold text-white">{question?.category ?? 'Awaiting question details'}</p>
           <p className="text-base leading-relaxed text-slate-100">
             {question?.prompt ?? 'The moderator will share the next prompt shortly.'}
           </p>
 
-          <div className="mt-4 space-x-3 flex">
+          <div className="mt-4 flex space-x-3">
             {questionOptions.map((option, index) => {
               const optionKey = `${questionInstanceId}-${index}`
               const isChoiceSelected = selectedOption === option
               const disabled = !isActive || (selectedOption !== null && !isChoiceSelected)
+              const isFlashing = flashKey === optionKey
+
+              const showCorrect = isFlashing && flashType === 'correct'
+              const showWrong = isFlashing && flashType === 'wrong'
 
               return (
                 <button
                   key={optionKey}
                   type="button"
-                  onClick={() => handleClick(option)}
+                  onClick={() => handleClick(option, index, optionKey)}
                   disabled={disabled}
                   className={[
                     'flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-base transition',
-                    // base — transparent, high-contrast borders, brighter text
                     'border-white/35 text-white',
-                    // hover (no bg)
                     !disabled && 'hover:border-sky-400',
-                    // disabled (no bg)
                     disabled && 'opacity-70 cursor-not-allowed',
-                    // selected — bright ring, still no bg
-                    isChoiceSelected && 'ring-2 ring-emerald-400/70'
+                    // feedback styles (held for 1.8s)
+                    showCorrect && 'ring-2 ring-emerald-400/70 bg-emerald-500/10',
+                    showWrong && 'ring-2 ring-rose-400/70 bg-rose-500/10',
+                    // keep some focus if user selected but we don't know correctness client-side
+                    isChoiceSelected && flashType == null && 'ring-2 ring-sky-300/60'
                   ].filter(Boolean).join(' ')}
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/50 text-xs font-bold uppercase">
@@ -227,9 +286,7 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
                   </span>
                   <span className="flex-1 font-semibold tracking-tight">{option}</span>
                   {isChoiceSelected ? (
-                    <span className="text-xs font-bold uppercase tracking-wide text-emerald-300">
-                      Submitted
-                    </span>
+                    <span className="text-xs font-bold uppercase tracking-wide text-emerald-300">Submitted</span>
                   ) : null}
                 </button>
               )
@@ -250,14 +307,11 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
 
           <div className="mt-4 rounded-xl ring-1 ring-white/25 px-4 py-3 text-slate-100">
             {isPaused ? (
-              <p className="font-bold text-white">
-                The match is currently paused. Await instructions from the moderator.
-              </p>
+              <p className="font-bold text-white">The match is currently paused. Await instructions from the moderator.</p>
             ) : match.awaitingSteal ? (
               isSteal ? (
                 <p className="font-bold text-white">
-                  Opportunity to steal! {remainingSeconds ? `You have ${remainingSeconds} seconds` : 'Act fast'} to snag a
-                  1-point bonus.
+                  Opportunity to steal! {remainingSeconds ? `You have ${remainingSeconds} seconds` : 'Act fast'} to snag a 1-point bonus.
                 </p>
               ) : (
                 <p>
@@ -267,8 +321,7 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
               )
             ) : activeTeam?.id === teamId ? (
               <p className="font-bold text-white">
-                It&apos;s your turn to answer. {remainingSeconds ? `You have ${remainingSeconds} seconds` : 'Move quickly'} to
-                secure 3 points.
+                It&apos;s your turn to answer. {remainingSeconds ? `You have ${remainingSeconds} seconds` : 'Move quickly'} to secure 3 points.
               </p>
             ) : (
               <p>
@@ -282,6 +335,7 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
     </div>
   )
 }
+
 
 
 function RecentResults({ history, teamId, teams }) {
@@ -314,10 +368,10 @@ function RecentResults({ history, teamId, teams }) {
               </p>
               <span
                 className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${isTie
-                    ? 'bg-slate-700 text-slate-200'
-                    : didWin
-                      ? 'bg-emerald-500/20 text-emerald-300'
-                      : 'bg-rose-500/20 text-rose-300'
+                  ? 'bg-slate-700 text-slate-200'
+                  : didWin
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : 'bg-rose-500/20 text-rose-300'
                   }`}
               >
                 {isTie ? 'Tie' : didWin ? 'Win' : 'Loss'}
@@ -354,7 +408,7 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
       {/* FULLSCREEN BACKGROUND VIDEO (no overlay, no blur) */}
       <video
         className="fixed inset-0 -z-10 h-dvh w-screen md:h-screen object-cover object-center
-             brightness-70 contrast-110"
+             brightness-60 contrast-120"
         src="/assets/american-football.mp4"
         autoPlay
         muted

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Navigate, redirect, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
 import LandingPage from './components/LandingPage'
@@ -16,6 +16,7 @@ import {
   STEAL_QUESTION_DURATION_MS,
   STEAL_QUESTION_POINTS,
 } from './constants/matchSettings'
+import LearnToPlay from './components/LearnToPlay'
 
 const QUESTIONS_PER_TEAM = 1
 const TOURNAMENT_TEAM_LIMIT = 12
@@ -54,7 +55,7 @@ function shuffleArray(array) {
   const items = [...array]
   for (let index = items.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(Math.random() * (index + 1))
-    ;[items[index], items[swapIndex]] = [items[swapIndex], items[index]]
+      ;[items[index], items[swapIndex]] = [items[swapIndex], items[index]]
   }
   return items
 }
@@ -219,9 +220,9 @@ function applyAnswerResult(match, teamId, isCorrect) {
   if (isStealAttempt) {
     const updatedScores = isCorrect
       ? {
-          ...match.scores,
-          [teamId]: match.scores[teamId] + STEAL_QUESTION_POINTS,
-        }
+        ...match.scores,
+        [teamId]: match.scores[teamId] + STEAL_QUESTION_POINTS,
+      }
       : { ...match.scores }
 
     const sanitizedMatch = {
@@ -789,9 +790,8 @@ function AppShell() {
       const teamBName = teams.find((team) => team.id === teamBId)?.name ?? 'Team B'
 
       const summary = winnerId
-        ? `${teams.find((team) => team.id === winnerId)?.name} defeated ${
-            teams.find((team) => team.id === (winnerId === teamAId ? teamBId : teamAId))?.name
-          } ${teamAScore}-${teamBScore}`
+        ? `${teams.find((team) => team.id === winnerId)?.name} defeated ${teams.find((team) => team.id === (winnerId === teamAId ? teamBId : teamAId))?.name
+        } ${teamAScore}-${teamBScore}`
         : `Match tied ${teamAName} ${teamAScore} - ${teamBName} ${teamBScore}`
 
       setRecentResult({
@@ -943,6 +943,19 @@ function AppShell() {
             }
             authError={authError}
             onClearAuthError={() => setAuthError(null)}
+          />
+        }
+      />
+      <Route
+        path="/howtoplay"
+        element={
+          <LearnToPlay
+            teams={teams}
+            onTeamLogin={(loginId,password)=> handleTeamLogin(loginId,password,{redirectTo:'/team'})}
+            onAdminLogin={(loginId,password)=> handleAdminLogin(loginId,password, {redirectTo: '/admin'})}
+            onModeratorLogin={(loginId,password)=>handleModeratorLogin(loginId,password, {redirectTo: '/moderator'})}
+            authError={authError}
+            onClearAuthError={()=>setAuthError(null)}
           />
         }
       />

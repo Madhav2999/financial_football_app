@@ -306,7 +306,7 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
           </p>
 
           {/* options list → thick rounded pills with leading letter */}
-          <div className="mt-5 grid gap-3">
+          <div className="mt-5 grid lg:grid-cols-2 gap-3">
             {questionOptions.map((option, index) => (
               <div
                 key={`${optionKeyPrefix}-${index}-${option}`}

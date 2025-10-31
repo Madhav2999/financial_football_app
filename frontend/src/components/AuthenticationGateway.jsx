@@ -212,7 +212,17 @@ export default function AuthenticationGateway({
   )
 
   const RegistrationForm = (
-    <form className="space-y-3" onSubmit={handleRegistrationSubmit}>
+    <form className="space-y-2" onSubmit={handleRegistrationSubmit}>
+      {/* ── Eligibility / Info (top of form) ───────────────────────── */}
+      <div className="rounded-2xl border border-zinc-600 bg-zinc-800/50 p-4">
+        <p className="text-sm text-slate-200">
+          High school/organization is located in one of the 21 counties* in Suncoast Credit Union's geographic footprint
+        </p>
+        <p className="mt-2 text-sm text-slate-200">
+          Team of four high school students and one school/organization representative (limit 1 team per school organization)
+        </p>
+      </div>
+
       <div>
         <label className="mb-2 block text-sm font-semibold text-slate-200">School/ORG Name</label>
         <input
@@ -221,8 +231,8 @@ export default function AuthenticationGateway({
           onChange={(e) => setRegisterForm((p) => ({ ...p, teamName: e.target.value }))}
           placeholder="School/ORG Name"
           className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400
-                     px-5 py-3.5 border border-zinc-600 focus:outline-none
-                     focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
+                   px-5 py-3.5 border border-zinc-600 focus:outline-none
+                   focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
         />
       </div>
 
@@ -235,8 +245,8 @@ export default function AuthenticationGateway({
             onChange={(e) => setRegisterForm((p) => ({ ...p, organization: e.target.value }))}
             placeholder="Enter Title"
             className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400
-                       px-5 py-3.5 border border-zinc-600 focus:outline-none
-                       focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
+                     px-5 py-3.5 border border-zinc-600 focus:outline-none
+                     focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
           />
         </div>
         <div>
@@ -246,8 +256,8 @@ export default function AuthenticationGateway({
             onChange={(e) => setRegisterForm((p) => ({ ...p, notes: e.target.value }))}
             placeholder="County"
             className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400
-                       px-5 py-3.5 border border-zinc-600 focus:outline-none
-                       focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
+                     px-5 py-3.5 border border-zinc-600 focus:outline-none
+                     focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
           />
         </div>
       </div>
@@ -262,8 +272,8 @@ export default function AuthenticationGateway({
             onChange={(e) => setRegisterForm((p) => ({ ...p, contactEmail: e.target.value }))}
             placeholder="Enter Email Id"
             className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400
-                       px-5 py-3.5 border border-zinc-600 focus:outline-none
-                       focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
+                     px-5 py-3.5 border border-zinc-600 focus:outline-none
+                     focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
           />
         </div>
         <div>
@@ -273,8 +283,8 @@ export default function AuthenticationGateway({
             onChange={(e) => setRegisterForm((p) => ({ ...p, contactName: e.target.value }))}
             placeholder="Enter Phone Number"
             className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400
-                       px-5 py-3.5 border border-zinc-600 focus:outline-none
-                       focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
+                     px-5 py-3.5 border border-zinc-600 focus:outline-none
+                     focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
           />
         </div>
       </div>
@@ -286,21 +296,38 @@ export default function AuthenticationGateway({
           onChange={(e) => setRegisterForm((p) => ({ ...p, organization: e.target.value }))}
           placeholder="Address"
           className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400
-                     px-5 py-3.5 border border-zinc-600 focus:outline-none
-                     focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
+                   px-5 py-3.5 border border-zinc-600 focus:outline-none
+                   focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
         />
+      </div>
+
+      {/* ── Checkboxes (above submit) ─────────────────────────────── */}
+      <div className="rounded-2xl border border-zinc-600 bg-zinc-800/50 p-4 space-y-3">
+        <label className="flex items-start gap-3">
+          <input type="checkbox" className="mt-1 h-5 w-5 rounded-md border-zinc-600 bg-zinc-700/60 accent-orange-500" />
+          <span className="text-sm text-slate-200">I confirm our team meets the eligibility criteria.</span>
+        </label>
+        <label className="flex items-start gap-3">
+          <input type="checkbox" className="mt-1 h-5 w-5 rounded-md border-zinc-600 bg-zinc-700/60 accent-orange-500" />
+          <span className="text-sm text-slate-200">I agree to follow the event rules and code of conduct.</span>
+        </label>
+        <label className="flex items-start gap-3">
+          <input type="checkbox" className="mt-1 h-5 w-5 rounded-md border-zinc-600 bg-zinc-700/60 accent-orange-500" />
+          <span className="text-sm text-slate-200">I consent to receive event updates and notifications.</span>
+        </label>
       </div>
 
       <button
         type="submit"
         className="w-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500
-                   px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-500/30
-                   hover:from-orange-400 hover:to-amber-400 transition"
+                 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-500/30
+                 hover:from-orange-400 hover:to-amber-400 transition"
       >
         Submit
       </button>
     </form>
   )
+
 
   const RightArtPanel = (
     <aside className="hidden lg:block">
