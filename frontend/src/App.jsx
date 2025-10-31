@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BrowserRouter, Navigate, redirect, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthenticationGateway from './components/AuthenticationGateway'
 import AdminDashboard from './components/AdminDashboard'
 import LandingPage from './components/LandingPage'
@@ -17,6 +17,8 @@ import {
   STEAL_QUESTION_POINTS,
 } from './constants/matchSettings'
 import LearnToPlay from './components/LearnToPlay'
+import PublicTournamentPage from './components/PublicTournamentPage'
+
 
 const QUESTIONS_PER_TEAM = 1
 const TOURNAMENT_TEAM_LIMIT = 12
@@ -956,6 +958,18 @@ function AppShell() {
             onModeratorLogin={(loginId,password)=>handleModeratorLogin(loginId,password, {redirectTo: '/moderator'})}
             authError={authError}
             onClearAuthError={()=>setAuthError(null)}
+          />
+        }
+      />
+      <Route
+        path="/tournament"
+        element={
+          <PublicTournamentPage
+            tournament={tournament}
+            teams={teams}
+            activeMatches={activeMatches}
+            moderators={MODERATOR_ACCOUNTS}
+            history={matchHistory}
           />
         }
       />

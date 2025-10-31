@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import AuthenticationGateway from "./AuthenticationGateway";
+import { Link } from "react-router-dom";
+
 const NAV_ITEMS = [
-  { id: 'home', label: 'Home', href: '#top' },
-  { id: 'about', label: 'About us', href: 'about' },
-  { id: 'play', label: 'How to Play', href: 'howtoplay' },
-  { id: 'tournament', label: 'Tournament', href: 'tournament' },
+  { id: "home", label: "Home", href: "#top" },
+  { id: "about", label: "About us", href: "#about" },
+  { id: "play", label: "How to Play", href: "/howtoplay" },
+  { id: "bracket", label: "Tournament Bracket", href: "/tournament" },
 ]
 
 const PLAY_CARDS = [
@@ -154,11 +156,25 @@ export default function LandingPage({
               </div>
             </div>
             <div className="hidden items-center gap-9 md:flex">
-              {NAV_ITEMS.map((item) => (
-                <a key={item.id} href={item.href} className="transition hover:text-emerald-300 tracking-[0.05em]">
-                  {item.label}
-                </a>
-              ))}
+              {NAV_ITEMS.map((item) =>
+                item.href.startsWith("#") ? (
+                  <a
+                    key={item.id}
+                    href={item.href}
+                    className="tracking-[0.05em] transition hover:text-emerald-300"
+                  >
+                    {item.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={item.id}
+                    to={item.href}
+                    className="tracking-[0.05em] transition hover:text-emerald-300"
+                  >
+                    {item.label}
+                  </Link>
+                )
+              )}
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -182,6 +198,12 @@ export default function LandingPage({
               >
                 Enter Tournament
               </button>
+              <Link
+                to="/tournament"
+                className="rounded-full border border-white/50 px-4 py-2 text-xs uppercase tracking-[0.3em] text-white transition hover:border-emerald-300 hover:text-emerald-300"
+              >
+                View Bracket
+              </Link>
             </div>
           </nav>
 
@@ -216,7 +238,7 @@ export default function LandingPage({
               </div>
             </div>
             <div className="rounded-3xl border border-white/20 bg-white/10 p-6 backdrop-blur lg:ml-auto lg:w-[320px]">
-              <p className="text-xs uppercase tracking-[0.4em] text-emerald-300">Live Standings</p>
+              <p className="text-xs uppercase tracking-[0.4em] text-emerald-300">Live Status</p>
               <h2 className="mt-2 text-2xl font-semibold">Top Teams</h2>
               <div className="mt-4 space-y-3 text-sm">
                 {standings.map((team, index) => (
