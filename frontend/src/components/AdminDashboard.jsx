@@ -311,7 +311,7 @@ export default function AdminDashboard({
           absolute right-6 top-28
           hidden md:block              /* hide on small screens */
           w-full h-auto             /* <<< size */
-          opacity-32                   /* subtle so text stays readable */
+          opacity-25                   /* subtle so text stays readable */
         "
       />
       <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
@@ -373,8 +373,6 @@ export default function AdminDashboard({
             </div>
           </div>
         ) : null}
-
-
 
         <section className="grid gap-8 lg:grid-cols-[1.1fr,0.9fr]">
           <div className="space-y-6">
