@@ -301,7 +301,19 @@ export default function AdminDashboard({
   )
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="relative min-h-screen bg-slate-850 text-slate-100">
+      <img
+        src="/assets/admin-background.jpg"
+        alt=""
+        aria-hidden="true"
+        className="
+          pointer-events-none select-none
+          absolute right-6 top-28
+          hidden md:block              /* hide on small screens */
+          w-full h-auto             /* <<< size */
+          opacity-32                   /* subtle so text stays readable */
+        "
+      />
       <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>

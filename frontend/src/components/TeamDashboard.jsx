@@ -408,7 +408,7 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
       {/* FULLSCREEN BACKGROUND VIDEO (no overlay, no blur) */}
       <video
         className="fixed inset-0 -z-10 h-dvh w-screen md:h-screen object-cover object-center
-             brightness-60 contrast-120"
+             brightness-40 contrast-120"
         src="/assets/american-football.mp4"
         autoPlay
         muted
