@@ -225,7 +225,7 @@ export default function LearnToPlay({
             return (
               <div key={s.id} className="grid items-start gap-6 md:grid-cols-2">
                 {/* Left info card */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm border-l-emerald-700/90">
                   <h3 className={`mb-3 text-2xl font-semibold ${colors.accent}`}>{s.title}</h3>
                   <ul className="list-outside list-disc space-y-1 pl-5 text-slate-700">
                     {s.bullets.map((b) => (
