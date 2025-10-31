@@ -117,7 +117,6 @@ const variantColors = (variant) =>
 
 
 export default function LearnToPlay({
-  teams,
   onTeamLogin,
   onAdminLogin,
   onModeratorLogin,
