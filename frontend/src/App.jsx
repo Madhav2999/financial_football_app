@@ -990,7 +990,7 @@ function AppShell() {
         }
       />
       <Route
-        path="/admin"
+        path="/admin/*"
         element={
           <ProtectedRoute isAllowed={session.type === 'admin'} redirectTo="/login?mode=admin">
             <AdminDashboard
