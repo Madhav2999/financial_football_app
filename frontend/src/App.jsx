@@ -20,6 +20,7 @@ import LearnToPlay from './components/LearnToPlay'
 import PublicTournamentPage from './components/PublicTournamentPage'
 
 
+
 const QUESTIONS_PER_TEAM = 1
 const TOURNAMENT_TEAM_LIMIT = 12
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
@@ -953,11 +954,11 @@ function AppShell() {
         element={
           <LearnToPlay
             teams={teams}
-            onTeamLogin={(loginId,password)=> handleTeamLogin(loginId,password,{redirectTo:'/team'})}
-            onAdminLogin={(loginId,password)=> handleAdminLogin(loginId,password, {redirectTo: '/admin'})}
-            onModeratorLogin={(loginId,password)=>handleModeratorLogin(loginId,password, {redirectTo: '/moderator'})}
+            onTeamLogin={(loginId, password) => handleTeamLogin(loginId, password, { redirectTo: '/team' })}
+            onAdminLogin={(loginId, password) => handleAdminLogin(loginId, password, { redirectTo: '/admin' })}
+            onModeratorLogin={(loginId, password) => handleModeratorLogin(loginId, password, { redirectTo: '/moderator' })}
             authError={authError}
-            onClearAuthError={()=>setAuthError(null)}
+            onClearAuthError={() => setAuthError(null)}
           />
         }
       />
@@ -1016,6 +1017,7 @@ function AppShell() {
           </ProtectedRoute>
         }
       />
+      
       <Route
         path="/moderator"
         element={

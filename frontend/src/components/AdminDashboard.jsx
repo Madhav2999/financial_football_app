@@ -4,7 +4,7 @@ import ScoreboardTable from './ScoreboardTable'
 import { CoinTossPanel, LiveMatchPanel, MatchControlButtons } from './MatchPanels'
 import RosterSelectionPanel from './RosterSelectionPanel'
 
-function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, autoLaunchActive }) {
+export function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, autoLaunchActive }) {
   if (!tournament) {
     return null
   }
@@ -109,7 +109,7 @@ function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, au
 }
 
 
-function MatchHistoryList({ history, teams }) {
+export function MatchHistoryList({ history, teams }) {
   if (!history.length) {
     return (
       <div className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6 text-sm text-slate-300 shadow-lg shadow-slate-900/40">
@@ -158,7 +158,7 @@ function MatchHistoryList({ history, teams }) {
   )
 }
 
-function TeamAnalyticsPanel({ teams }) {
+export function TeamAnalyticsPanel({ teams }) {
   const activeTeams = teams.map((team) => ({
     id: team.id,
     name: team.name,
@@ -205,7 +205,7 @@ function TeamAnalyticsPanel({ teams }) {
   )
 }
 
-function SuperAdminOverview({ superAdmin, teams, moderators, activeMatches, history, tournament }) {
+export function SuperAdminOverview({ superAdmin, teams, moderators, activeMatches, history, tournament }) {
   const liveMatchCount = activeMatches.filter((match) => match.status !== 'completed').length
   const totalBracketMatches = tournament ? Object.keys(tournament.matches).length : 0
   const stageCount = tournament ? Object.keys(tournament.stages).length : 0
@@ -223,7 +223,7 @@ function SuperAdminOverview({ superAdmin, teams, moderators, activeMatches, hist
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 text-sm text-slate-200 shadow-lg shadow-slate-900/40">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
+        <div> 
           <p className="text-xs uppercase tracking-[0.35em] text-emerald-300">Super Admin</p>
           <h2 className="text-2xl font-semibold text-white">{superAdmin?.name ?? 'Super Admin'}</h2>
           <p className="mt-2 text-sm text-slate-300">
@@ -308,7 +308,7 @@ export default function AdminDashboard({
         aria-hidden="true"
         className="
           pointer-events-none select-none
-          absolute right-6 top-28
+          absolute
           hidden md:block              /* hide on small screens */
           w-full h-auto             /* <<< size */
           opacity-25                   /* subtle so text stays readable */
