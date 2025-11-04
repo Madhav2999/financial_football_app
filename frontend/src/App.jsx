@@ -1026,9 +1026,6 @@ function AppShell() {
               teams={teams}
               tournament={tournament}
               moderators={MODERATOR_ACCOUNTS}
-              selectedTeamIds={selectedTeamIds}
-              matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
-              tournamentLaunched={tournamentLaunched}
               onFlipCoin={(matchId) =>
                 handleFlipCoin(matchId, { moderatorId: activeModerator?.id })
               }
@@ -1046,7 +1043,7 @@ function AppShell() {
         }
       />
       <Route
-        path="/team"
+        path="/team/*"
         element={
           <ProtectedRoute
             isAllowed={session.type === 'team' && Boolean(activeTeam)}
@@ -1057,6 +1054,9 @@ function AppShell() {
               teams={teams}
               match={activeTeamMatch}
               history={matchHistory}
+              tournament={tournament}
+              tournamentLaunched={tournamentLaunched}
+              moderators={MODERATOR_ACCOUNTS}
               onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
               onSelectFirst={(matchId, firstTeamId) =>
                 handleSelectFirst(matchId, activeTeam.id, firstTeamId)

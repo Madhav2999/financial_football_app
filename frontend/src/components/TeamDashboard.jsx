@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
+import { Link, NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import { useMatchTimer, formatSeconds } from '../hooks/useMatchTimer'
-import { InlineCoinFlipAnimation } from './MatchPanels'
+import { InlineCoinFlipAnimation, LiveMatchPanel } from './MatchPanels'
 import ScoreboardTable from './ScoreboardTable'
 
 function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
@@ -199,7 +200,7 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
         wrongSfxRef.current.currentTime = 0;
         wrongSfxRef.current.play();
       }
-    } catch (_) {
+    } catch {
       // ignore autoplay errors silently
     }
 
@@ -392,7 +393,247 @@ function RecentResults({ history, teamId, teams }) {
   )
 }
 
-export default function TeamDashboard({ team, teams, match, history, onAnswer, onSelectFirst, onLogout }) {
+function OverviewStatCard({ label, value, detail }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4 text-sm text-slate-200 shadow shadow-slate-900/30">
+      <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{label}</p>
+      <p className="mt-2 text-2xl font-extrabold text-white">{value}</p>
+      {detail ? <p className="mt-1 text-xs text-slate-400">{detail}</p> : null}
+    </div>
+  )
+}
+
+function TeamOverviewTab({ team, teams, history, tournament, tournamentLaunched, canEnterGameRoom }) {
+  const teamHistory = history.filter((entry) => entry.teams.includes(team.id))
+  const totalMatches = teamHistory.length
+  const wins = teamHistory.filter((entry) => entry.winnerId === team.id).length
+  const losses = teamHistory.filter((entry) => entry.winnerId && entry.winnerId !== team.id).length
+  const ties = totalMatches - wins - losses
+
+  const pointsFor = teamHistory.reduce((sum, entry) => sum + (entry.scores?.[team.id] ?? 0), 0)
+  const pointsAgainst = teamHistory.reduce((sum, entry) => {
+    const opponentId = entry.teams.find((id) => id !== team.id)
+    return sum + (entry.scores?.[opponentId] ?? 0)
+  }, 0)
+  const averageScore = totalMatches ? (pointsFor / totalMatches).toFixed(1) : '0.0'
+  const winRate = totalMatches ? `${Math.round((wins / totalMatches) * 100)}%` : '—'
+  const recordPieces = []
+  recordPieces.push(`${wins}W`)
+  recordPieces.push(`${losses}L`)
+  if (ties > 0) recordPieces.push(`${ties}T`)
+  const recordLabel = totalMatches ? recordPieces.join(' · ') : 'Awaiting first match'
+
+  const tournamentStages = tournament ? Object.keys(tournament.stages ?? {}).length : 0
+  const upcomingAssignments = tournament
+    ? Object.values(tournament.matches ?? {}).filter(
+        (entry) => entry.teams.includes(team.id) && entry.status !== 'completed',
+      ).length
+    : 0
+
+  return (
+    <div className="space-y-8">
+      <section className="rounded-3xl border border-white/15 bg-slate-900/40 p-6 shadow shadow-slate-900/40">
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="max-w-2xl space-y-3">
+            <p className="text-xs uppercase tracking-[0.3em] text-sky-300">Team overview</p>
+            <h2 className="text-3xl font-extrabold text-white tracking-tight">
+              {tournamentLaunched ? 'Tournament performance snapshot' : 'Season readiness report'}
+            </h2>
+            <p className="text-sm text-slate-200">
+              {tournamentLaunched
+                ? 'Dive into your current standing, recent momentum, and bracket assignments. The game room is ready whenever you are.'
+                : 'Your team is warming up for kickoff. Track recent scrimmages, study the leaderboard, and stay ready for when the tournament launches.'}
+            </p>
+          </div>
+
+          {canEnterGameRoom ? (
+            <Link
+              to="/team/game"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-500 px-5 py-2 text-sm font-semibold text-white shadow shadow-sky-500/40 transition hover:bg-sky-400"
+            >
+              Enter live game room
+              <span aria-hidden="true" className="text-base">→</span>
+            </Link>
+          ) : (
+            <div className="inline-flex items-center gap-3 rounded-2xl border border-dashed border-white/25 px-5 py-2 text-sm text-slate-200">
+              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-amber-300/80 animate-pulse" aria-hidden="true" />
+              Game room unlocks once your tournament match goes live
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <OverviewStatCard label="Matches played" value={totalMatches} detail={recordLabel} />
+          <OverviewStatCard label="Win rate" value={winRate} detail={`${pointsFor} pts for / ${pointsAgainst} pts against`} />
+          <OverviewStatCard label="Avg. score" value={averageScore} detail={totalMatches ? 'Per completed match' : 'Awaiting first match data'} />
+          <OverviewStatCard
+            label="Bracket outlook"
+            value={tournamentLaunched ? `${upcomingAssignments} active` : 'Pending'}
+            detail={tournamentLaunched ? `${tournamentStages} stage${tournamentStages === 1 ? '' : 's'} in play` : 'Tournament not yet launched'}
+          />
+        </div>
+      </section>
+
+      <section className="grid gap-8 lg:grid-cols-[1.2fr,1fr]">
+        <div>
+          <h3 className="text-xl font-bold text-white tracking-tight">Tournament standings</h3>
+          <ScoreboardTable teams={teams} highlightTeamId={team.id} />
+        </div>
+
+        <div>
+          <h3 className="text-xl font-bold text-white tracking-tight">Recent matches</h3>
+          <RecentResults history={history} teamId={team.id} teams={teams} />
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function ModeratorPresenceCard({ match, moderators }) {
+  const assignedModerator = match ? moderators?.find((mod) => mod.id === match.moderatorId) ?? null : null
+  const watching = Boolean(match && match.status !== 'completed')
+  const statusLabels = {
+    'coin-toss': 'Coin toss underway',
+    'in-progress': 'Live round',
+    paused: 'Match paused',
+    completed: 'Completed',
+  }
+  const statusLabel = match ? statusLabels[match.status] ?? 'Awaiting assignment' : 'Awaiting assignment'
+
+  return (
+    <div className="rounded-3xl border border-white/15 bg-slate-900/50 p-6 text-sm text-slate-200 shadow shadow-slate-900/40">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.3em] text-sky-300">Moderator presence</p>
+          <h3 className="text-lg font-semibold text-white">
+            {assignedModerator ? assignedModerator.name : 'Awaiting moderator assignment'}
+          </h3>
+          <p className="text-slate-300">
+            {assignedModerator
+              ? `${assignedModerator.name} is synced to your match feed. Everything you see in the game room is mirrored for them.`
+              : 'As soon as a moderator is assigned, you will see their name and live status here.'}
+          </p>
+        </div>
+
+        <div className="flex flex-col items-end gap-2">
+          <span
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] ${
+              watching
+                ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-200'
+                : 'border-white/15 bg-slate-800/80 text-slate-200'
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`h-2.5 w-2.5 rounded-full ${watching ? 'bg-emerald-300 animate-pulse' : 'bg-slate-500'}`}
+            />
+            {watching ? 'Watching now' : 'Offline'}
+          </span>
+          <span className="text-[11px] uppercase tracking-[0.3em] text-slate-400">{statusLabel}</span>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-xs text-slate-300">
+        <p>
+          The moderator sees your coin toss choices, answer submissions, and timer status in real time. Stay coordinated and
+          communicate within your team before locking in each response.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function TeamGameRoom({ team, teams, match, moderators, onAnswer, onSelectFirst }) {
+  if (!match || !match.teams.includes(team.id)) {
+    return (
+      <div className="rounded-3xl border border-dashed border-white/25 bg-slate-900/30 p-8 text-center text-sm text-slate-200 shadow shadow-slate-900/30">
+        Your moderator will open the game room once your matchup is locked. Keep an eye on the overview tab for updates.
+      </div>
+    )
+  }
+
+  const isCoinTossPhase = match.status === 'coin-toss'
+  const isMatchComplete = match.status === 'completed'
+
+  return (
+    <div className="space-y-6">
+      <ModeratorPresenceCard match={match} moderators={moderators} />
+
+      {isCoinTossPhase ? (
+        <CoinTossStatusCard match={match} teamId={team.id} teams={teams} onSelectFirst={onSelectFirst} />
+      ) : isMatchComplete ? (
+        <div className="rounded-3xl border border-white/15 bg-slate-900/50 p-6 text-center text-slate-200 shadow shadow-slate-900/40">
+          <p className="text-lg font-semibold text-white">This match is complete.</p>
+          <p className="mt-2 text-sm">
+            Head back to the overview tab for standings updates and await your next assignment.
+          </p>
+        </div>
+      ) : (
+        <CurrentMatchCard match={match} teamId={team.id} teams={teams} onAnswer={onAnswer} />
+      )}
+
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-base font-semibold uppercase tracking-[0.3em] text-sky-300">Moderator feed mirror</h3>
+          {!isCoinTossPhase && !isMatchComplete ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-200">
+              <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" aria-hidden="true" />
+              Synced
+            </span>
+          ) : null}
+        </div>
+
+        {isCoinTossPhase ? (
+          <div className="rounded-3xl border border-dashed border-white/20 bg-slate-900/40 p-6 text-sm text-slate-200 shadow shadow-slate-900/40">
+            Once the first question goes live, this panel will mirror the moderator console so you can follow along with the match
+            pacing and timer updates.
+          </div>
+        ) : isMatchComplete ? (
+          <div className="rounded-3xl border border-white/10 bg-slate-900/40 p-6 text-sm text-slate-200 shadow shadow-slate-900/40">
+            The moderator feed is unavailable for completed matches. Review highlights from the overview tab while you wait for your
+            next pairing.
+          </div>
+        ) : (
+          <LiveMatchPanel
+            match={match}
+            teams={teams}
+            moderators={moderators}
+            actions={null}
+            description="This is a read-only mirror of the moderator view so you can follow question pacing, timer states, and scoring."
+          />
+        )}
+      </section>
+    </div>
+  )
+}
+
+export default function TeamDashboard({
+  team,
+  teams,
+  match,
+  history,
+  tournament,
+  tournamentLaunched,
+  moderators,
+  onAnswer,
+  onSelectFirst,
+  onLogout,
+}) {
+  const canEnterGameRoom = Boolean(
+    tournamentLaunched && match && match.teams && match.teams.includes(team.id),
+  )
+
+  const navItems = [
+    { key: 'overview', label: 'Overview', to: 'overview', disabled: false },
+    {
+      key: 'game',
+      label: 'Game Room',
+      to: 'game',
+      disabled: !canEnterGameRoom,
+      badge: canEnterGameRoom && match?.status !== 'completed' ? 'LIVE' : null,
+    },
+  ]
+
   return (
     <div
       className="
@@ -405,10 +646,8 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
         [&_button]:[text-shadow:0_1px_2px_rgba(0,0,0,.7)]
       "
     >
-      {/* FULLSCREEN BACKGROUND VIDEO (no overlay, no blur) */}
       <video
-        className="fixed inset-0 -z-10 h-dvh w-screen md:h-screen object-cover object-center
-             brightness-40 contrast-120"
+        className="fixed inset-0 -z-10 h-dvh w-screen md:h-screen object-cover object-center brightness-40 contrast-120"
         src="/assets/american-football.mp4"
         autoPlay
         muted
@@ -417,13 +656,14 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
         aria-hidden="true"
       />
 
-
-      {/* header: no backdrop-blur, only text emphasis */}
       <header className="border-b border-white/10 bg-transparent">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-sky-300">Team Arena</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-sky-300">Team arena</p>
             <h1 className="text-3xl font-extrabold text-white tracking-tight">Welcome, {team.name}</h1>
+            <p className="mt-2 text-xs uppercase tracking-[0.3em] text-slate-400">
+              {tournamentLaunched ? 'Tournament in progress' : 'Awaiting tournament kickoff'}
+            </p>
           </div>
           <div className="flex items-center gap-4">
             <div className="rounded-2xl border border-white/15 bg-transparent px-4 py-3 text-sm">
@@ -435,8 +675,9 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
               </div>
             </div>
             <button
+              type="button"
               onClick={onLogout}
-              className="rounded-2xl border border-white/25 bg-transparent px-4 py-2 text-sm font-semibold text-slate-100 hover:border-white/40"
+              className="rounded-2xl border border-white/25 bg-transparent px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-white/40"
             >
               Log out
             </button>
@@ -444,31 +685,80 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-8">
-        {match && match.teams.includes(team.id) ? (
-          match.status === 'coin-toss' ? (
-            <CoinTossStatusCard match={match} teamId={team.id} teams={teams} onSelectFirst={onSelectFirst} />
-          ) : (
-            <CurrentMatchCard match={match} teamId={team.id} teams={teams} onAnswer={onAnswer} />
-          )
-        ) : (
-          <div className="rounded-3xl border border-dashed border-white/25 bg-transparent p-8 text-center text-slate-100">
-            <p className="text-lg font-bold text-white">No live match right now.</p>
-            <p className="mt-2 text-sm">Your next opponent and schedule will appear here once the moderator pairs your team.</p>
-          </div>
-        )}
+      <main className="mx-auto max-w-6xl space-y-6 px-6 py-8">
+        <nav className="flex flex-wrap items-center gap-3" aria-label="Team dashboard sections">
+          {navItems.map((item) => {
+            if (item.disabled) {
+              return (
+                <span
+                  key={item.key}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-white/25 px-4 py-2 text-sm font-semibold text-slate-300"
+                  aria-disabled="true"
+                >
+                  {item.label}
+                  <span className="text-[11px] uppercase tracking-[0.3em] text-slate-400">Locked</span>
+                </span>
+              )
+            }
 
-        <section className="mt-8 grid gap-8 lg:grid-cols-[1.2fr,1fr]">
-          <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">Tournament Standings</h2>
-            <ScoreboardTable teams={teams} highlightTeamId={team.id} />
-          </div>
+            return (
+              <NavLink
+                key={item.key}
+                to={item.to}
+                className={({ isActive }) =>
+                  `inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold transition ${
+                    isActive
+                      ? 'border-sky-500 bg-sky-500 text-white shadow shadow-sky-500/40'
+                      : 'border-white/20 bg-transparent text-slate-100 hover:border-sky-400 hover:text-white'
+                  }`
+                }
+                end
+              >
+                {item.label}
+                {item.badge ? (
+                  <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.3em] text-white">
+                    {item.badge}
+                  </span>
+                ) : null}
+              </NavLink>
+            )
+          })}
+        </nav>
 
-          <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">Recent Matches</h2>
-            <RecentResults history={history} teamId={team.id} teams={teams} />
-          </div>
-        </section>
+        <Routes>
+          <Route index element={<Navigate to="overview" replace />} />
+          <Route
+            path="overview"
+            element={
+              <TeamOverviewTab
+                team={team}
+                teams={teams}
+                history={history}
+                tournament={tournament}
+                tournamentLaunched={tournamentLaunched}
+                canEnterGameRoom={canEnterGameRoom}
+              />
+            }
+          />
+          <Route
+            path="game"
+            element={
+              canEnterGameRoom ? (
+                <TeamGameRoom
+                  team={team}
+                  teams={teams}
+                  match={match}
+                  moderators={moderators}
+                  onAnswer={onAnswer}
+                  onSelectFirst={onSelectFirst}
+                />
+              ) : (
+                <Navigate to="overview" replace />
+              )
+            }
+          />
+          <Route path="*" element={<Navigate to="overview" replace />} />
+        </Routes>
       </main>
     </div>
   )
