@@ -361,7 +361,7 @@ function AppShell() {
       const unchanged = next.length === previous.length && next.every((id, index) => id === previous[index])
       return unchanged ? previous : next
     })
-  }, [teams])
+  }, [teams]) 
 
   const handleTeamLogin = (loginId, password, options = {}) => {
     const team = teams.find((item) => item.loginId === loginId)
