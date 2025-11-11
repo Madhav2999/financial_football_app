@@ -24,7 +24,7 @@ const QUESTIONS_PER_TEAM = 1
 const TOURNAMENT_TEAM_LIMIT = 12
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
 const SUPER_ADMIN_PROFILE = {
-  name: 'Jordan Maxwell',
+  name: 'SUNCOAST ADMIN',
   email: 'super@financialfootball.com',
   phone: '+1 (555) 013-3700',
 }
@@ -329,22 +329,22 @@ function AppShell() {
   const rosterSeedKeyRef = useRef('')
 
   const navigate = useNavigate()
-
+  //current logged in team 
   const activeTeam = useMemo(() => {
     if (session.type !== 'team') return null
     return teams.find((team) => team.id === session.teamId) ?? null
-  }, [session, teams])
-
+  }, [session, teams]) 
+  // that team's live match
   const activeTeamMatch = useMemo(() => {
     if (session.type !== 'team') return null
     return activeMatches.find((match) => match.teams.includes(session.teamId)) ?? null
-  }, [activeMatches, session])
-
+  }, [activeMatches, session]) 
+  //logged in moderator's profile
   const activeModerator = useMemo(() => {
     if (session.type !== 'moderator') return null
     return MODERATOR_ACCOUNTS.find((account) => account.id === session.moderatorId) ?? null
-  }, [session])
-
+  }, [session]) 
+  //sync selected teams when the roster changes
   useEffect(() => {
     setSelectedTeamIds((previous) => {
       const availableIds = teams.map((team) => team.id)
@@ -361,8 +361,9 @@ function AppShell() {
       const unchanged = next.length === previous.length && next.every((id, index) => id === previous[index])
       return unchanged ? previous : next
     })
-  }, [teams]) 
+  }, [teams])
 
+  //authentication handlers
   const handleTeamLogin = (loginId, password, options = {}) => {
     const team = teams.find((item) => item.loginId === loginId)
 
@@ -405,7 +406,7 @@ function AppShell() {
     setAuthError(null)
     navigate('/', { replace: true })
   }
-
+  // auto launch matches once the tournament is "live"
   useEffect(() => {
     if (!tournamentLaunched || !tournament) {
       return
@@ -778,7 +779,7 @@ function AppShell() {
           if (!previous) return previous
           let nextState = previous
           if (winnerId && loserId) {
-            nextState = recordMatchResult(nextState, match.tournamentMatchId, {
+              nextState = recordMatchResult(nextState, match.tournamentMatchId, {
               winnerId,
               loserId,
               scores: match.scores,
