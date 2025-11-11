@@ -199,7 +199,7 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
         wrongSfxRef.current.currentTime = 0;
         wrongSfxRef.current.play();
       }
-    } catch (_) {
+    } catch {
       // ignore autoplay errors silently
     }
 
