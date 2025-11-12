@@ -148,28 +148,67 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   const [flashKey, setFlashKey] = useState(null)     // e.g. "q123-2"
   const [flashType, setFlashType] = useState(null)   // 'correct' | 'wrong' | null
   const flashTimerRef = useRef(null)
-  const correctSfxRef = useRef(null);
-  const wrongSfxRef = useRef(null);
+  const correctSfxRef = useRef(null)
+  const wrongSfxRef = useRef(null)
+  const correctVideoRef = useRef(null)
+  const wrongVideoRef = useRef(null)
+  const videoTimeoutRef = useRef(null)
+  const [activeVideo, setActiveVideo] = useState(null)
+  const VIDEO_FALLBACK_MS = 2000
 
   useEffect(() => {
-    const ok = new Audio('/assets/correct.mp3'); // <-- put your path
-    ok.preload = 'auto';
-    ok.volume = 0.9;         // tweak as you like
-    ok.playbackRate = 1.0;
+    const ok = new Audio('/assets/correct.mp3')
+    ok.preload = 'auto'
+    ok.volume = 0.9        // tweak as you like
+    ok.playbackRate = 1.0
 
-    const bad = new Audio('/assets/wrong.mp3');  // <-- put your path
-    bad.preload = 'auto';
-    bad.volume = 0.9;
-    bad.playbackRate = 1.0;
+    const bad = new Audio('/assets/wrong.mp3')  // <-- put your path
+    bad.preload = 'auto'
+    bad.volume = 0.9
+    bad.playbackRate = 1.0
 
-    correctSfxRef.current = ok;
-    wrongSfxRef.current = bad;
+    correctSfxRef.current = ok
+    wrongSfxRef.current = bad
 
-    return () => {          // cleanup
-      ok.pause(); bad.pause();
-    };
-  }, []);
+    return () => {
+      ok.pause()
+      bad.pause()
+    }
+  }, [])
 
+  useEffect(() => {
+    const successVideo = correctVideoRef.current
+    const failVideo = wrongVideoRef.current
+
+    if (successVideo) {
+      successVideo.muted = true
+      successVideo.loop = false
+      successVideo.preload = 'auto'
+    }
+
+    if (failVideo) {
+      failVideo.muted = true
+      failVideo.loop = false
+      failVideo.preload = 'auto'
+    }
+
+    return () => {
+      if (videoTimeoutRef.current) {
+        clearTimeout(videoTimeoutRef.current)
+        videoTimeoutRef.current = null
+      }
+
+      if (successVideo) {
+        successVideo.pause()
+        successVideo.onended = null
+      }
+
+      if (failVideo) {
+        failVideo.pause()
+        failVideo.onended = null
+      }
+    }
+  }, [])
 
   useEffect(() => {
     setSelectedOption(null)
@@ -180,6 +219,51 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
       flashTimerRef.current = null
     }
   }, [match.questionIndex, match.awaitingSteal, match.activeTeamId])
+
+  const playCelebrationVideo = (type) => {
+    const videoEl = type === 'correct' ? correctVideoRef.current : wrongVideoRef.current
+    if (!videoEl) return
+
+    const audioSource = type === 'correct' ? correctSfxRef.current : wrongSfxRef.current
+    const audioDuration = audioSource?.duration
+    const playbackMs = Number.isFinite(audioDuration) && audioDuration > 0
+      ? Math.max(VIDEO_FALLBACK_MS, audioDuration * 1000)
+      : VIDEO_FALLBACK_MS
+
+    try {
+      if (videoTimeoutRef.current) {
+        clearTimeout(videoTimeoutRef.current)
+        videoTimeoutRef.current = null
+      }
+
+      videoEl.pause()
+      videoEl.currentTime = 0
+      videoEl.onended = () => {
+        if (videoTimeoutRef.current) {
+          clearTimeout(videoTimeoutRef.current)
+          videoTimeoutRef.current = null
+        }
+        videoEl.pause()
+        videoEl.currentTime = 0
+        setActiveVideo((current) => (current === type ? null : current))
+      }
+
+      setActiveVideo(type)
+      const playPromise = videoEl.play()
+      if (playPromise?.catch) {
+        playPromise.catch(() => {})
+      }
+
+      videoTimeoutRef.current = setTimeout(() => {
+        videoEl.pause()
+        videoEl.currentTime = 0
+        setActiveVideo((current) => (current === type ? null : current))
+        videoTimeoutRef.current = null
+      }, playbackMs)
+    } catch {
+      setActiveVideo(null)
+    }
+  }
 
   const handleClick = (option, index, optionKey) => {
     if (!isActive || selectedOption !== null) return
@@ -193,11 +277,13 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
 
     try {
       if (isCorrect === true && correctSfxRef.current) {
-        correctSfxRef.current.currentTime = 0;
-        correctSfxRef.current.play();
+        correctSfxRef.current.currentTime = 0
+        correctSfxRef.current.play()
+        playCelebrationVideo('correct')
       } else if (isCorrect === false && wrongSfxRef.current) {
-        wrongSfxRef.current.currentTime = 0;
-        wrongSfxRef.current.play();
+        wrongSfxRef.current.currentTime = 0
+        wrongSfxRef.current.play()
+        playCelebrationVideo('wrong')
       }
     } catch {
       // ignore autoplay errors silently
@@ -218,7 +304,35 @@ function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
   }
 
   return (
-    <div className="rounded-3xl p-6 border border-slate-800 bg-slate-900/70 [--txtshadow:0_1px_2px_rgba(0,0,0,.85)] [--headshadow:0_2px_8px_rgba(0,0,0,.9)] [&_*:where(h2)]:[text-shadow:var(--headshadow)] [&_*:where(p,span,small,button)]:[text-shadow:var(--txtshadow)]">
+    <div className="relative overflow-hidden rounded-3xl p-6 border border-slate-800 bg-slate-900/70 [--txtshadow:0_1px_2px_rgba(0,0,0,.85)] [--headshadow:0_2px_8px_rgba(0,0,0,.9)] [&_*:where(h2)]:[text-shadow:var(--headshadow)] [&_*:where(p,span,small,button)]:[text-shadow:var(--txtshadow)]">
+      <div
+        className={`pointer-events-none absolute inset-0 z-30 flex items-center justify-center transition-opacity duration-300 ${
+          activeVideo ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        <video
+          ref={correctVideoRef}
+          src="/assets/success-4.mp4"
+          playsInline
+          muted
+          preload="auto"
+          aria-hidden="true"
+          className={`absolute left-1/2 top-1/2 max-h-56 w-auto -translate-x-1/2 -translate-y-1/2 transform rounded-3xl shadow-2xl shadow-emerald-500/40 transition-all duration-300 ${
+            activeVideo === 'correct' ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
+          }`}
+        />
+        <video
+          ref={wrongVideoRef}
+          src="/assets/fail.mp4"
+          playsInline
+          muted
+          preload="auto"
+          aria-hidden="true"
+          className={`absolute left-1/2 top-1/2 max-h-56 w-auto -translate-x-1/2 -translate-y-1/2 transform rounded-3xl shadow-2xl shadow-rose-500/40 transition-all duration-300 ${
+            activeVideo === 'wrong' ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
+          }`}
+        />
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-sky-300">Live Match</p>
