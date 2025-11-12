@@ -711,6 +711,7 @@ export function grantMatchBye(state, matchId, teamId) {
         ...nextState.matches,
         [matchId]: {
           ...updatedMatch,
+          matchRefId: null,
           meta: { ...(updatedMatch.meta ?? {}), byeAwarded: true },
         },
       },
