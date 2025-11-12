@@ -212,7 +212,7 @@ export default function AuthenticationGateway({
   )
 
   const RegistrationForm = (
-    <form className="space-y-2" onSubmit={handleRegistrationSubmit}>
+    <form className="space-y-4 pb-8" onSubmit={handleRegistrationSubmit}>
       {/* ── Eligibility / Info (top of form) ───────────────────────── */}
       <div className="rounded-2xl border border-zinc-600 bg-zinc-800/50 p-4">
         <p className="text-sm text-slate-200">
@@ -305,15 +305,15 @@ export default function AuthenticationGateway({
       <div className="rounded-2xl border border-zinc-600 bg-zinc-800/50 p-4 space-y-3">
         <label className="flex items-start gap-3">
           <input type="checkbox" className="mt-1 h-5 w-5 rounded-md border-zinc-600 bg-zinc-700/60 accent-orange-500" />
-          <span className="text-sm text-slate-200">I confirm our team meets the eligibility criteria.</span>
+          <span className="text-sm text-slate-200">I have the authorization to register the team above to participate in the Financial Football Competetion</span>
         </label>
         <label className="flex items-start gap-3">
           <input type="checkbox" className="mt-1 h-5 w-5 rounded-md border-zinc-600 bg-zinc-700/60 accent-orange-500" />
-          <span className="text-sm text-slate-200">I agree to follow the event rules and code of conduct.</span>
+          <span className="text-sm text-slate-200">I understand that registeration does NOT guarantee automatic entry into the Financial Football Competetion</span>
         </label>
         <label className="flex items-start gap-3">
           <input type="checkbox" className="mt-1 h-5 w-5 rounded-md border-zinc-600 bg-zinc-700/60 accent-orange-500" />
-          <span className="text-sm text-slate-200">I consent to receive event updates and notifications.</span>
+          <span className="text-sm text-slate-200">I understand that the school will provide its own transportation and/or hotel accomodations to participate in the Financial Football Competetion.</span>
         </label>
       </div>
 
@@ -353,7 +353,7 @@ export default function AuthenticationGateway({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full border border-slate-600 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-slate-300 transition hover:border-sky-500 hover:text-sky-300"
+              className="rounded-full border border-slate-600 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-slate-300 transition hover:border-sky-500 hover:text-sky-300 cursor-pointer"
             >
               Close
             </button>
@@ -392,10 +392,8 @@ export default function AuthenticationGateway({
           aria-label="Close authentication"
           tabIndex={-1}
         />
-        <div className="relative w-full max-w-6xl">
-          <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/90 p-6 text-slate-100 shadow-2xl shadow-sky-500/20">
-            {innerContent}
-          </div>
+        <div className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-800 bg-slate-950/90 p-6 text-slate-100 shadow-2xl shadow-sky-500/20">
+          {innerContent}
         </div>
       </div>
     )
