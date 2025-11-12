@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMatchTimer, formatSeconds } from '../hooks/useMatchTimer'
-import { InlineCoinFlipAnimation } from './MatchPanels'
+import { InlineCoinFlipAnimation, LiveMatchPanel } from './MatchPanels'
 import ScoreboardTable from './ScoreboardTable'
 
 function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
@@ -392,7 +392,267 @@ function RecentResults({ history, teamId, teams }) {
   )
 }
 
-export default function TeamDashboard({ team, teams, match, history, onAnswer, onSelectFirst, onLogout }) {
+function ModeratorPresenceCard({ match, moderators }) {
+  const moderator = match ? moderators?.find((item) => item.id === match.moderatorId) ?? null : null
+  const status = match?.status ?? 'pending'
+  const isLive = ['coin-toss', 'in-progress', 'paused'].includes(status)
+  const indicatorClass = isLive
+    ? 'bg-emerald-400 text-emerald-950'
+    : 'bg-amber-300/90 text-amber-900'
+  const indicatorLabel = isLive ? 'Connected' : 'Standby'
+  const moderatorName = moderator ? moderator.name : 'Awaiting assignment'
+
+  return (
+    <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-sm text-slate-200 shadow shadow-slate-900/40">
+      <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Control Room</p>
+      <h3 className="mt-2 text-xl font-semibold text-white">Moderator on deck</h3>
+
+      <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Assigned moderator</p>
+          <p className="text-base font-semibold text-white">{moderatorName}</p>
+        </div>
+        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider ${indicatorClass}`}>
+          {indicatorLabel}
+        </span>
+      </div>
+
+      <p className="mt-4 text-xs uppercase tracking-[0.2em] text-slate-400">What they are monitoring</p>
+      <ul className="mt-2 space-y-2 text-sm leading-relaxed text-slate-200">
+        <li>Real-time question feed, timers, and answer submissions.</li>
+        <li>Score updates, steal attempts, and pause/resume controls.</li>
+        <li>Coin toss flow to keep both teams aligned before kickoff.</li>
+      </ul>
+
+      <p className="mt-4 text-xs text-slate-400">
+        This matches the moderator&apos;s control view shown below so you always know what they see while supervising the game.
+      </p>
+    </div>
+  )
+}
+
+function GameRoomPlaceholder({ tournamentLaunched, upcomingMatch, team, moderators, teams }) {
+  const rotationSummary = moderators?.length
+    ? `${moderators.length} moderator${moderators.length === 1 ? '' : 's'} on rotation`
+    : 'Moderator roster will appear here'
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr),minmax(280px,0.85fr)]">
+      <div className="rounded-3xl border border-dashed border-white/25 bg-slate-900/40 p-8 text-center text-slate-100">
+        <p className="text-lg font-bold text-white">
+          {tournamentLaunched
+            ? 'You are queued for your next showdown.'
+            : 'The game room opens once the tournament kicks off.'}
+        </p>
+        <p className="mt-2 text-sm text-slate-300">
+          {tournamentLaunched
+            ? upcomingMatch
+              ? 'Your next bracket match is listed on the right. Keep an eye on notifications from the moderator.'
+              : 'We will summon you here as soon as the bracket schedules your next opponent.'
+            : 'Review your scouting reports and tournament analytics until the launch announcement.'}
+        </p>
+      </div>
+
+      <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-6 text-sm text-slate-200 shadow shadow-slate-900/30">
+        <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Next assignment</p>
+        {upcomingMatch ? (
+          <div className="mt-3 space-y-2">
+            <h3 className="text-lg font-semibold text-white">{upcomingMatch.label}</h3>
+            <p className="text-sm text-slate-200">
+              Opponent: <UpcomingOpponentLine match={upcomingMatch} teamId={team.id} teams={teams} />
+            </p>
+            <p className="text-sm text-slate-300">
+              We&apos;ll ping your locker room the moment the moderator spins up this match.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-3 space-y-2">
+            <h3 className="text-lg font-semibold text-white">Awaiting bracket pairing</h3>
+            <p className="text-sm text-slate-300">Your next opponent will drop here once the bracket advances.</p>
+          </div>
+        )}
+
+        <div className="mt-6 rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-xs uppercase tracking-[0.2em] text-slate-400">
+          {rotationSummary}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function UpcomingOpponentLine({ match, teamId, teams }) {
+  if (!match) {
+    return <span className="text-sm text-slate-300">TBD</span>
+  }
+
+  const roster = Array.isArray(teams) ? teams : []
+  const opponentNames = match.teams
+    .filter((id) => id && id !== teamId)
+    .map((id) => roster.find((team) => team.id === id)?.name ?? 'TBD')
+
+  return <span className="text-sm text-slate-200">{opponentNames.length ? opponentNames.join(' vs ') : 'TBD'}</span>
+}
+
+function OverviewPanel({ team, tournamentLaunched, upcomingMatch, teams, moderators }) {
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr),minmax(260px,0.8fr)]">
+      <div className="space-y-6">
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 text-slate-200 shadow shadow-slate-900/30">
+          <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Team profile</p>
+          <h2 className="mt-2 text-2xl font-semibold text-white">{team.name}</h2>
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Wins</p>
+              <p className="text-xl font-bold text-white">{team.wins}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Losses</p>
+              <p className="text-xl font-bold text-white">{team.losses}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Total points</p>
+              <p className="text-xl font-bold text-white">{team.totalScore}</p>
+            </div>
+          </div>
+
+          <p className="mt-4 text-sm text-slate-300">
+            Stay sharp—leaderboards refresh automatically as matches conclude, so your seeding may shift between rounds.
+          </p>
+        </div>
+
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 text-slate-200 shadow shadow-slate-900/30">
+          <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Tournament status</p>
+          <h3 className="mt-2 text-xl font-semibold text-white">
+            {tournamentLaunched ? 'Tournament in progress' : 'Tournament pending'}
+          </h3>
+
+          <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Next opponent</p>
+            <UpcomingOpponentLine match={upcomingMatch} teamId={team.id} teams={teams} />
+          </div>
+
+          <p className="mt-4 text-sm text-slate-300">
+            {tournamentLaunched
+              ? 'Once the moderator activates your match, you can enter the Game Room to follow the toss and answer live.'
+              : 'We will announce the official start shortly. Use this time to review practice questions and coordinate your lineup.'}
+          </p>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.2em] text-slate-400">
+            <span className="rounded-full border border-white/10 bg-slate-950/50 px-3 py-1">
+              {moderators.length ? `${moderators.length} moderators on duty` : 'Moderator roster pending'}
+            </span>
+            <span className="rounded-full border border-white/10 bg-slate-950/50 px-3 py-1">
+              Double elimination format
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 text-slate-200 shadow shadow-slate-900/30">
+        <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Locker room briefing</p>
+        <ul className="mt-3 space-y-3 text-sm leading-relaxed text-slate-200">
+          <li>Review the last five matches below to study opponent tendencies.</li>
+          <li>Keep a captain assigned to coin-toss decisions—they arrive quickly once moderators connect.</li>
+          <li>Use the Game Room when live prompts begin so your answers lock in immediately.</li>
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+function AnalyticsSection({ team, teams, history }) {
+  return (
+    <section className="mt-8 grid gap-8 lg:grid-cols-[1.2fr,1fr]">
+      <div>
+        <h2 className="text-xl font-bold text-white tracking-tight">Tournament Standings</h2>
+        <ScoreboardTable teams={teams} highlightTeamId={team.id} />
+      </div>
+
+      <div>
+        <h2 className="text-xl font-bold text-white tracking-tight">Recent Matches</h2>
+        <RecentResults history={history} teamId={team.id} teams={teams} />
+      </div>
+    </section>
+  )
+}
+
+export default function TeamDashboard({
+  team,
+  teams,
+  match,
+  history,
+  tournament,
+  tournamentLaunched,
+  moderators = [],
+  onAnswer,
+  onSelectFirst,
+  onLogout,
+}) {
+  const [viewMode, setViewMode] = useState('overview')
+  const safeModerators = useMemo(
+    () => (Array.isArray(moderators) ? moderators : []),
+    [moderators],
+  )
+  const tournamentActive = Boolean(tournamentLaunched && tournament)
+  const isInLiveMatch = Boolean(match && match.teams.includes(team.id))
+
+  useEffect(() => {
+    if (!tournamentActive && viewMode !== 'overview') {
+      setViewMode('overview')
+    }
+  }, [tournamentActive, viewMode])
+
+  useEffect(() => {
+    if (tournamentActive && isInLiveMatch) {
+      setViewMode('game-room')
+    }
+  }, [tournamentActive, isInLiveMatch])
+
+  const upcomingMatch = useMemo(() => {
+    if (match?.tournamentMatchId && tournament?.matches?.[match.tournamentMatchId]) {
+      return tournament.matches[match.tournamentMatchId]
+    }
+
+    if (!tournament?.matches) return null
+
+    const candidateMatches = Object.values(tournament.matches).filter((item) => {
+      if (!Array.isArray(item?.teams)) return false
+      if (item.status === 'completed') return false
+      return item.teams.includes(team.id)
+    })
+
+    if (!candidateMatches.length) return null
+
+    const stageOrder = (item) => tournament.stages?.[item.stageId]?.order ?? Number.MAX_SAFE_INTEGER
+
+    return candidateMatches.sort((left, right) => {
+      const orderDiff = stageOrder(left) - stageOrder(right)
+      if (orderDiff !== 0) return orderDiff
+      return (left.label ?? left.id).localeCompare(right.label ?? right.id)
+    })[0]
+  }, [match?.tournamentMatchId, team.id, tournament])
+
+  const assignedModerator = useMemo(() => {
+    if (!match) return null
+    return safeModerators.find((item) => item.id === match.moderatorId) ?? null
+  }, [match, safeModerators])
+
+  const showGameRoom = tournamentActive && viewMode === 'game-room'
+  const tournamentStatusLabel = tournamentActive
+    ? 'Tournament Live'
+    : tournamentLaunched
+    ? 'Tournament syncing'
+    : 'Awaiting kickoff'
+
+  const handleSelectFirstTeam = (matchId, firstTeamId) => {
+    onSelectFirst?.(matchId, firstTeamId)
+  }
+
+  const handleAnswer = (matchId, option) => {
+    onAnswer?.(matchId, option)
+  }
+
   return (
     <div
       className="
@@ -405,10 +665,8 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
         [&_button]:[text-shadow:0_1px_2px_rgba(0,0,0,.7)]
       "
     >
-      {/* FULLSCREEN BACKGROUND VIDEO (no overlay, no blur) */}
       <video
-        className="fixed inset-0 -z-10 h-dvh w-screen md:h-screen object-cover object-center
-             brightness-40 contrast-120"
+        className="fixed inset-0 -z-10 h-dvh w-screen md:h-screen object-cover object-center brightness-40 contrast-120"
         src="/assets/american-football.mp4"
         autoPlay
         muted
@@ -417,15 +675,17 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
         aria-hidden="true"
       />
 
-
-      {/* header: no backdrop-blur, only text emphasis */}
       <header className="border-b border-white/10 bg-transparent">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-sky-300">Team Arena</p>
             <h1 className="text-3xl font-extrabold text-white tracking-tight">Welcome, {team.name}</h1>
           </div>
-          <div className="flex items-center gap-4">
+
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full border border-white/20 bg-slate-900/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-200">
+              {tournamentStatusLabel}
+            </span>
             <div className="rounded-2xl border border-white/15 bg-transparent px-4 py-3 text-sm">
               <div className="flex items-center gap-3 text-slate-100">
                 <span className="font-semibold text-white">Wins:</span>
@@ -434,9 +694,37 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
                 <span>{team.losses}</span>
               </div>
             </div>
+            <div className="flex items-center gap-2 rounded-2xl border border-white/20 bg-slate-900/40 p-1 text-sm">
+              <button
+                type="button"
+                onClick={() => setViewMode('overview')}
+                className={`rounded-xl px-4 py-2 font-semibold transition ${
+                  viewMode === 'overview'
+                    ? 'bg-sky-500 text-white shadow shadow-sky-500/40'
+                    : 'text-slate-200 hover:text-white'
+                }`}
+              >
+                Overview
+              </button>
+              <button
+                type="button"
+                onClick={() => tournamentActive && setViewMode('game-room')}
+                disabled={!tournamentActive}
+                className={`rounded-xl px-4 py-2 font-semibold transition ${
+                  showGameRoom
+                    ? 'bg-emerald-500 text-white shadow shadow-emerald-500/40'
+                    : tournamentActive
+                    ? 'text-slate-200 hover:text-white'
+                    : 'cursor-not-allowed text-slate-500'
+                }`}
+              >
+                Game Room
+              </button>
+            </div>
             <button
               onClick={onLogout}
-              className="rounded-2xl border border-white/25 bg-transparent px-4 py-2 text-sm font-semibold text-slate-100 hover:border-white/40"
+              className="rounded-2xl border border-white/25 bg-transparent px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-white/40"
+              type="button"
             >
               Log out
             </button>
@@ -445,30 +733,96 @@ export default function TeamDashboard({ team, teams, match, history, onAnswer, o
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-8">
-        {match && match.teams.includes(team.id) ? (
-          match.status === 'coin-toss' ? (
-            <CoinTossStatusCard match={match} teamId={team.id} teams={teams} onSelectFirst={onSelectFirst} />
-          ) : (
-            <CurrentMatchCard match={match} teamId={team.id} teams={teams} onAnswer={onAnswer} />
-          )
-        ) : (
-          <div className="rounded-3xl border border-dashed border-white/25 bg-transparent p-8 text-center text-slate-100">
-            <p className="text-lg font-bold text-white">No live match right now.</p>
-            <p className="mt-2 text-sm">Your next opponent and schedule will appear here once the moderator pairs your team.</p>
+        {showGameRoom ? (
+          <div className="space-y-8">
+            {isInLiveMatch ? (
+              <>
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr),minmax(260px,0.85fr)]">
+                  <div>
+                    {match.status === 'coin-toss' ? (
+                      <CoinTossStatusCard
+                        match={match}
+                        teamId={team.id}
+                        teams={teams}
+                        onSelectFirst={handleSelectFirstTeam}
+                      />
+                    ) : (
+                      <CurrentMatchCard match={match} teamId={team.id} teams={teams} onAnswer={handleAnswer} />
+                    )}
+                  </div>
+
+                  <div className="space-y-6">
+                    <ModeratorPresenceCard match={match} moderators={safeModerators} />
+
+                    <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-sm text-slate-200 shadow shadow-slate-900/40">
+                      <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Match briefing</p>
+                      <h3 className="mt-2 text-xl font-semibold text-white">{match.label ?? 'Live match'}</h3>
+                      <p className="mt-3 text-sm text-slate-300">
+                        {assignedModerator
+                          ? `${assignedModerator.name} is supervising from the control booth. Keep your communications clear and be ready for quick rulings.`
+                          : 'A moderator will connect shortly to supervise this matchup. Stay prepared for the toss and opening prompt.'}
+                      </p>
+                      <div className="mt-4 grid gap-3">
+                        <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3">
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Format</p>
+                          <p className="text-sm font-semibold text-white">Double elimination — second loss knocks you out.</p>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3">
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Your record</p>
+                          <p className="text-sm font-semibold text-white">{team.wins}W / {team.losses}L</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {match.status === 'coin-toss' ? (
+                  <div className="rounded-3xl border border-dashed border-white/20 bg-slate-900/40 p-6 text-sm text-slate-200">
+                    <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Moderator feed</p>
+                    <p className="mt-2 text-sm text-slate-300">
+                      Once the first question is live, you&apos;ll see the moderator&apos;s control-room view here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Moderator feed</p>
+                      <h2 className="mt-2 text-xl font-bold text-white">What the moderator sees</h2>
+                      <p className="mt-2 text-sm text-slate-300">
+                        This mirrored panel shows the same scoreboard, timers, and prompts the moderator uses to officiate your match in real time.
+                      </p>
+                    </div>
+                    <LiveMatchPanel
+                      match={match}
+                      teams={teams}
+                      moderators={safeModerators}
+                      actions={null}
+                      description="Mirrored from the moderator console for transparency."
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <GameRoomPlaceholder
+                tournamentLaunched={tournamentLaunched}
+                upcomingMatch={upcomingMatch}
+                team={team}
+                moderators={safeModerators}
+                teams={teams}
+              />
+            )}
           </div>
+        ) : (
+          <OverviewPanel
+            team={team}
+            teams={teams}
+            tournamentLaunched={tournamentLaunched}
+            upcomingMatch={upcomingMatch}
+            moderators={safeModerators}
+          />
         )}
 
-        <section className="mt-8 grid gap-8 lg:grid-cols-[1.2fr,1fr]">
-          <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">Tournament Standings</h2>
-            <ScoreboardTable teams={teams} highlightTeamId={team.id} />
-          </div>
-
-          <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">Recent Matches</h2>
-            <RecentResults history={history} teamId={team.id} teams={teams} />
-          </div>
-        </section>
+        <AnalyticsSection team={team} teams={teams} history={history} />
       </main>
     </div>
   )
