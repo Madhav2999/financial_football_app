@@ -9,7 +9,13 @@ import { initialTeams } from './data/teams'
 import { questionBank } from './data/questions'
 import { moderatorAccounts } from './data/moderators'
 import TeamDashboard from './components/TeamDashboard'
-import { initializeTournament, recordMatchResult, attachLiveMatch, detachLiveMatch } from './tournament/engine'
+import {
+  initializeTournament,
+  recordMatchResult,
+  attachLiveMatch,
+  detachLiveMatch,
+  grantMatchBye,
+} from './tournament/engine'
 import {
   PRIMARY_QUESTION_DURATION_MS,
   PRIMARY_QUESTION_POINTS,
@@ -18,11 +24,13 @@ import {
 } from './constants/matchSettings'
 import LearnToPlay from './components/LearnToPlay'
 import PublicTournamentPage from './components/PublicTournamentPage'
+import PublicMatchViewer from './components/PublicMatchViewer'
 
 
 
 const QUESTIONS_PER_TEAM = 1
-const TOURNAMENT_TEAM_LIMIT = 12
+const TOURNAMENT_TEAM_LIMIT = Number.POSITIVE_INFINITY
+const MIN_TOURNAMENT_TEAM_COUNT = 2
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
 const SUPER_ADMIN_PROFILE = {
   name: 'Jordan Maxwell',
@@ -336,6 +344,32 @@ function AppShell() {
     return teams.find((team) => team.id === session.teamId) ?? null
   }, [session, teams])
 
+  useEffect(() => {
+    setSelectedTeamIds((previous) => {
+      const availableIds = teams.map((team) => team.id)
+      const rosterOrder = teams.map((team) => team.id)
+      const limit = Math.min(TOURNAMENT_TEAM_LIMIT, availableIds.length)
+      const filtered = rosterOrder.filter((id) => previous.includes(id)).slice(0, limit)
+
+      const minimumRequired = Math.min(limit, MIN_TOURNAMENT_TEAM_COUNT)
+      const canMeetMinimum = availableIds.length >= MIN_TOURNAMENT_TEAM_COUNT
+      let nextSelection = filtered
+
+      if (canMeetMinimum && filtered.length < minimumRequired) {
+        const toAdd = rosterOrder
+          .filter((id) => !filtered.includes(id))
+          .slice(0, minimumRequired - filtered.length)
+        nextSelection = [...filtered, ...toAdd]
+      }
+
+      const unchanged =
+        nextSelection.length === previous.length &&
+        nextSelection.every((id, index) => id === previous[index])
+
+      return unchanged ? previous : nextSelection
+    })
+  }, [teams])
+
   const activeTeamMatch = useMemo(() => {
     if (session.type !== 'team') return null
     return activeMatches.find((match) => match.teams.includes(session.teamId)) ?? null
@@ -345,24 +379,6 @@ function AppShell() {
     if (session.type !== 'moderator') return null
     return MODERATOR_ACCOUNTS.find((account) => account.id === session.moderatorId) ?? null
   }, [session])
-
-  useEffect(() => {
-    setSelectedTeamIds((previous) => {
-      const availableIds = teams.map((team) => team.id)
-      const requiredCount = Math.min(TOURNAMENT_TEAM_LIMIT, availableIds.length)
-      const filtered = previous.filter((id) => availableIds.includes(id))
-      if (filtered.length >= requiredCount) {
-        const limited = filtered.slice(0, requiredCount)
-        const unchanged = limited.length === previous.length && limited.every((id, index) => id === previous[index])
-        return unchanged ? previous : limited
-      }
-
-      const toAdd = availableIds.filter((id) => !filtered.includes(id))
-      const next = [...filtered, ...toAdd].slice(0, requiredCount)
-      const unchanged = next.length === previous.length && next.every((id, index) => id === previous[index])
-      return unchanged ? previous : next
-    })
-  }, [teams])
 
   const handleTeamLogin = (loginId, password, options = {}) => {
     const team = teams.find((item) => item.loginId === loginId)
@@ -501,8 +517,12 @@ function AppShell() {
     }
 
     const availableIds = teams.map((team) => team.id)
-    const requiredCount = Math.min(TOURNAMENT_TEAM_LIMIT, availableIds.length)
-    if (selectedTeamIds.length < requiredCount) {
+    if (availableIds.length < MIN_TOURNAMENT_TEAM_COUNT) {
+      return
+    }
+
+    const minimumRequired = Math.min(MIN_TOURNAMENT_TEAM_COUNT, availableIds.length)
+    if (selectedTeamIds.length < minimumRequired) {
       return
     }
 
@@ -510,7 +530,7 @@ function AppShell() {
     const seededIds = [...selectedTeamIds]
       .filter((id) => orderedRoster.has(id))
       .sort((left, right) => (orderedRoster.get(left) ?? 0) - (orderedRoster.get(right) ?? 0))
-      .slice(0, requiredCount)
+      .slice(0, Math.min(TOURNAMENT_TEAM_LIMIT, selectedTeamIds.length))
     const seededSet = new Set(seededIds)
     const seededTeams = teams.filter((team) => seededSet.has(team.id))
 
@@ -537,6 +557,98 @@ function AppShell() {
     )
     setTournament(nextTournament)
   }, [selectedTeamIds, teams, tournamentLaunched])
+
+  const handleGrantMatchBye = useCallback(
+    (matchId, teamId) => {
+      if (!matchId || !teamId) {
+        return
+      }
+
+      let result = null
+
+      setTournament((previous) => {
+        if (!previous) return previous
+        const match = previous.matches?.[matchId]
+        if (!match || match.status === 'completed') {
+          return previous
+        }
+
+        const [teamAId, teamBId] = match.teams
+        if (!teamAId || !teamBId) {
+          return previous
+        }
+
+        if (teamId !== teamAId && teamId !== teamBId) {
+          return previous
+        }
+
+        const opponentId = teamId === teamAId ? teamBId : teamAId
+        result = {
+          matchId,
+          winnerId: teamId,
+          loserId: opponentId,
+          teams: match.teams,
+        }
+
+        return grantMatchBye(previous, matchId, teamId)
+      })
+
+      if (!result) {
+        return
+      }
+
+      const { matchId: completedMatchId, winnerId, loserId, teams: matchTeams } = result
+
+      setTeams((previous) =>
+        previous.map((team) => {
+          if (team.id === winnerId) {
+            return { ...team, wins: team.wins + 1 }
+          }
+
+          if (team.id === loserId) {
+            const losses = team.losses + 1
+            return { ...team, losses, eliminated: losses >= 2 }
+          }
+
+          return team
+        }),
+      )
+
+      setActiveMatches((previous) =>
+        previous.filter((liveMatch) => liveMatch.tournamentMatchId !== completedMatchId),
+      )
+
+      setMatchHistory((previous) => {
+        if (previous.some((item) => item.id === completedMatchId)) {
+          return previous
+        }
+
+        const scores = { [winnerId]: 0, [loserId]: 0 }
+        return [
+          {
+            id: completedMatchId,
+            teams: matchTeams,
+            scores,
+            winnerId,
+            loserId,
+            completedAt: new Date().toISOString(),
+            note: 'bye-awarded',
+          },
+          ...previous,
+        ]
+      })
+
+      const winnerName = teams.find((team) => team.id === winnerId)?.name ?? 'Team'
+      const loserName = teams.find((team) => team.id === loserId)?.name ?? 'opponent'
+
+      setRecentResult({
+        matchId: completedMatchId,
+        winnerId,
+        summary: `${winnerName} advanced by bye over ${loserName}.`,
+      })
+    },
+    [teams],
+  )
 
   const handleFlipCoin = (matchId, options = {}) => {
     const { moderatorId } = options
@@ -975,6 +1087,12 @@ function AppShell() {
         }
       />
       <Route
+        path="/tournament/match/:matchId"
+        element={
+          <PublicMatchViewer matches={activeMatches} teams={teams} moderators={MODERATOR_ACCOUNTS} />
+        }
+      />
+      <Route
         path="/login"
         element={
           <LoginPage
@@ -1011,6 +1129,7 @@ function AppShell() {
               onPauseMatch={(matchId) => handlePauseMatch(matchId, { isAdmin: true })}
               onResumeMatch={(matchId) => handleResumeMatch(matchId, { isAdmin: true })}
               onResetMatch={(matchId) => handleResetMatch(matchId, { isAdmin: true })}
+              onGrantBye={handleGrantMatchBye}
               onDismissRecent={handleDismissRecent}
               onLogout={handleLogout}
             />
@@ -1059,6 +1178,9 @@ function AppShell() {
               teams={teams}
               match={activeTeamMatch}
               history={matchHistory}
+              tournament={tournament}
+              tournamentLaunched={tournamentLaunched}
+              moderators={MODERATOR_ACCOUNTS}
               onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
               onSelectFirst={(matchId, firstTeamId) =>
                 handleSelectFirst(matchId, activeTeam.id, firstTeamId)

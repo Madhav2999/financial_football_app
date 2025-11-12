@@ -46,11 +46,14 @@ function StageColumn({ title, matches }) {
         <h3 className="mt-1 text-lg font-semibold text-white/90">{title}</h3>
       </div>
       <div className="space-y-4">
-        {matches.map((match) => (
-          <article
-            key={match.id}
-            className="rounded-3xl border border-white/10 bg-slate-900/60 p-5 shadow-xl shadow-black/30 backdrop-blur"
-          >
+        {matches.map((match) => {
+          const isWatchable = Boolean(match.isActive && match.liveMatchId);
+          const baseClasses = 'rounded-3xl border border-white/10 bg-slate-900/60 p-5 shadow-xl shadow-black/30 backdrop-blur transition';
+          const watchableClasses = isWatchable
+            ? ' group-hover:border-emerald-400/60 group-hover:shadow-emerald-500/30'
+            : '';
+
+          const body = (
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.4em] text-slate-300">
                 <span>{match.label}</span>
@@ -60,19 +63,24 @@ function StageColumn({ title, matches }) {
               </div>
               <div className="space-y-3 text-sm">
                 <div className="flex items-center justify-between gap-3 text-white">
-                  <span>{match.teamA?.name ?? "TBD"}</span>
+                  <span>{match.teamA?.name ?? 'TBD'}</span>
                   <span className="text-xs text-slate-300">vs</span>
-                  <span>{match.teamB?.name ?? "TBD"}</span>
+                  <span>{match.teamB?.name ?? 'TBD'}</span>
                 </div>
                 <div className="text-[11px] uppercase tracking-[0.35em] text-slate-400">
                   Moderator: {match.moderatorName}
                 </div>
               </div>
+              {match.byeAwarded ? (
+                <div className="text-[11px] uppercase tracking-[0.45em] text-emerald-300">
+                  Advanced by bye
+                </div>
+              ) : null}
               <div className="flex items-center justify-between text-[11px] uppercase">
                 <span
                   className={`rounded-full border px-3 py-1 tracking-[0.45em] ${match.queueState.classes}`}
                 >
-                  {match.queueState.label}
+                  {isWatchable ? `${match.queueState.label} • Watch` : match.queueState.label}
                 </span>
                 {match.winner ? (
                   <span className="rounded-full border border-amber-400/50 bg-amber-400/10 px-3 py-1 tracking-[0.45em] text-amber-100">
@@ -81,8 +89,27 @@ function StageColumn({ title, matches }) {
                 ) : null}
               </div>
             </div>
-          </article>
-        ))}
+          );
+
+          if (isWatchable) {
+            return (
+              <Link
+                key={match.id}
+                to={`/tournament/match/${match.liveMatchId}`}
+                className="group block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-400"
+                aria-label={`Watch ${match.teamA?.name ?? 'Team A'} vs ${match.teamB?.name ?? 'Team B'} live`}
+              >
+                <article className={`${baseClasses}${watchableClasses}`}>{body}</article>
+              </Link>
+            );
+          }
+
+          return (
+            <article key={match.id} className={baseClasses}>
+              {body}
+            </article>
+          );
+        })}
       </div>
     </div>
   );
@@ -109,9 +136,8 @@ export default function PublicTournamentPage({
             const [teamAId, teamBId] = match.teams;
             const teamA = teams.find((team) => team.id === teamAId) ?? null;
             const teamB = teams.find((team) => team.id === teamBId) ?? null;
-            const isActive = activeMatches?.some(
-              (liveMatch) => liveMatch.tournamentMatchId === match.id
-            );
+            const liveMatch = activeMatches?.find((item) => item.tournamentMatchId === match.id) ?? null;
+            const isActive = Boolean(liveMatch);
             const moderatorName =
               moderators.find((mod) => mod.id === match.moderatorId)?.name ?? "Unassigned";
             const queueState = resolveStatus(match, { teamA, teamB, isActive });
@@ -125,6 +151,8 @@ export default function PublicTournamentPage({
               isActive,
               moderatorName,
               queueState,
+              liveMatchId: liveMatch?.id ?? null,
+              byeAwarded: Boolean(match.meta?.byeAwarded),
               winner,
             };
           });
