@@ -33,8 +33,8 @@ const TOURNAMENT_TEAM_LIMIT = Number.POSITIVE_INFINITY
 const MIN_TOURNAMENT_TEAM_COUNT = 2
 const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
 const SUPER_ADMIN_PROFILE = {
-  name: 'Jordan Maxwell',
-  email: 'super@financialfootball.com',
+  name: 'SUNCOAST ADMIN',
+  email: 'admin@financialfootball.com',
   phone: '+1 (555) 013-3700',
 }
 const MODERATOR_ACCOUNTS = moderatorAccounts

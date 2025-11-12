@@ -37,8 +37,8 @@ function SuperAdminOverview({ superAdmin, teams, moderators, activeMatches, hist
             key={item.label}
             className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-center shadow-inner shadow-slate-900/20"
           >
-            <p className="text-[10px] uppercase tracking-[0.35em] text-slate-400">{item.label}</p>
             <p className="mt-3 text-2xl font-semibold text-white">{item.value}</p>
+            <p className="text-[10px] uppercase tracking-[0.35em] text-slate-400">{item.label}</p>
           </div>
         ))}
       </div>
