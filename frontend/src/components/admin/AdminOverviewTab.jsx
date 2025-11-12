@@ -6,6 +6,8 @@ function SuperAdminOverview({ superAdmin, teams, moderators, activeMatches, hist
   const totalBracketMatches = tournament ? Object.keys(tournament.matches).length : 0
   const stageCount = tournament ? Object.keys(tournament.stages).length : 0
   const contactDetails = [superAdmin?.email, superAdmin?.phone].filter(Boolean).join(' • ')
+  const initialByeTeamId = tournament?.initialByeTeamId ?? null
+  const initialByeTeam = initialByeTeamId ? teams.find((team) => team.id === initialByeTeamId) ?? null : null
 
   const stats = [
     { label: 'Registered Teams', value: teams.length },
@@ -40,6 +42,16 @@ function SuperAdminOverview({ superAdmin, teams, moderators, activeMatches, hist
           </div>
         ))}
       </div>
+
+      {initialByeTeam ? (
+        <div className="mt-6 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+          <p className="text-[11px] uppercase tracking-[0.35em] text-emerald-300">System bye awarded</p>
+          <p className="mt-2 text-base font-semibold text-white">{initialByeTeam.name}</p>
+          <p className="mt-1 text-xs text-emerald-200/80">
+            Automatically advanced past the opening round because the initial bracket had an odd number of teams.
+          </p>
+        </div>
+      ) : null}
     </section>
   )
 }

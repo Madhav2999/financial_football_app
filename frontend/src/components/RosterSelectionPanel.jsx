@@ -29,20 +29,26 @@ export default function RosterSelectionPanel({
       .sort((left, right) => left.name.localeCompare(right.name))
   }, [teams, selectedTeamIds])
 
-  const requiredCount = Math.min(limit, teams.length)
+  const maxSelectable = Math.min(limit, teams.length)
+  const minRequired = Math.min(teams.length, 2)
+  const enoughTeams = teams.length >= 2
   const selectedCount = roster.filter((team) => team.selected).length
-  const remainingSlots = Math.max(0, requiredCount - selectedCount)
+  const remainingSlots = Math.max(0, maxSelectable - selectedCount)
   const selectionLocked = tournamentLaunched || !canEdit
 
   const matchMakingDisabled =
-    !canEdit || selectionLocked || selectedCount !== requiredCount || !teams.length
+    !canEdit ||
+    selectionLocked ||
+    !enoughTeams ||
+    selectedCount < minRequired ||
+    selectedCount > maxSelectable
 
   const launchButtonLabel = tournamentLaunched
     ? 'Tournament live'
     : launchActionLabel || 'Launch tournament'
 
   const launchButtonDisabled =
-    !onLaunch || tournamentLaunched || !tournamentSeeded || launchReadyCount === 0
+    !onLaunch || tournamentLaunched || !tournamentSeeded || launchReadyCount === 0 || !enoughTeams
 
   const launchStatusMessage = (() => {
     if (!onLaunch) {
@@ -55,6 +61,10 @@ export default function RosterSelectionPanel({
 
     if (!tournamentSeeded) {
       return 'Run match making to enable the tournament launch button.'
+    }
+
+    if (!enoughTeams) {
+      return 'At least two teams are required to open the bracket.'
     }
 
     if (launchReadyCount === 0) {
@@ -89,11 +99,17 @@ export default function RosterSelectionPanel({
   const headerDescription = (() => {
     if (canEdit) {
       if (description) return description
-      return `Choose ${requiredCount} teams for the first round, then lock in their pairings with the match making button.`
+      if (!enoughTeams) {
+        return 'Register at least two teams to kick off the tournament.'
+      }
+      return `Choose at least ${minRequired} team${minRequired === 1 ? '' : 's'} (up to ${maxSelectable}) for the first round, then lock in their pairings with the match making button.`
     }
 
     if (readOnlyDescription) return readOnlyDescription
-    return `The admin will choose ${requiredCount} teams for the first round before the tournament begins.`
+    if (!enoughTeams) {
+      return 'Waiting for enough teams to register before the admin can seed the bracket.'
+    }
+    return `The admin will choose at least ${minRequired} team${minRequired === 1 ? '' : 's'} (up to ${maxSelectable}) for the first round before the tournament begins.`
   })()
 
   const footerMessage = (() => {
@@ -102,6 +118,9 @@ export default function RosterSelectionPanel({
     }
 
     if (canEdit) {
+      if (!enoughTeams) {
+        return 'Match making will unlock once two or more teams are selected.'
+      }
       if (footerNote) return footerNote
       return 'Press Match making to randomize the opening round with the chosen teams.'
     }
@@ -121,7 +140,7 @@ export default function RosterSelectionPanel({
           <h2 className="text-2xl font-semibold text-white">{headerTitle}</h2>
           <p className="mt-2 text-sm text-slate-300">{headerDescription}</p>
           <p className="mt-2 text-xs uppercase tracking-[0.3em] text-slate-400">
-            {selectedCount} selected • {remainingSlots} slot{remainingSlots === 1 ? '' : 's'} remaining
+            {selectedCount} selected • {remainingSlots} slot{remainingSlots === 1 ? '' : 's'} available
           </p>
         </div>
         <span

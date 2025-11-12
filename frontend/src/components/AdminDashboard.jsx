@@ -29,6 +29,7 @@ export default function AdminDashboard(props) {
     onPauseMatch,
     onResumeMatch,
     onResetMatch,
+    onGrantBye,
     onDismissRecent,
     onLogout,
   } = props
@@ -115,6 +116,7 @@ export default function AdminDashboard(props) {
                   onPauseMatch={onPauseMatch}
                   onResumeMatch={onResumeMatch}
                   onResetMatch={onResetMatch}
+                  onGrantBye={onGrantBye}
                 />
               }
             />

@@ -1,38 +1,24 @@
-const STAGE_DEFINITIONS = [
-  { id: 'winners-r1', label: 'Winners Round 1', bracket: 'winners', order: 1 },
-  { id: 'losers-r1', label: 'Losers Round 1', bracket: 'losers', order: 2 },
-  { id: 'winners-r2', label: 'Winners Round 2', bracket: 'winners', order: 3 },
-  { id: 'losers-r2', label: 'Losers Round 2', bracket: 'losers', order: 4 },
-  { id: 'winners-r3-playoff', label: 'Winners Round 3 Playoff', bracket: 'winners', order: 5 },
-  { id: 'winners-r3-final', label: 'Winners Final', bracket: 'winners', order: 6 },
-  { id: 'losers-r3', label: 'Losers Round 3', bracket: 'losers', order: 7 },
-  { id: 'losers-r4-playoff', label: 'Losers Round 4 Playoff', bracket: 'losers', order: 8 },
-  { id: 'losers-r4-final', label: 'Losers Round 4 Final', bracket: 'losers', order: 9 },
-  { id: 'final-1', label: 'Grand Final', bracket: 'finals', order: 10 },
-  { id: 'final-2', label: 'Grand Final Reset', bracket: 'finals', order: 11 },
-]
-
-const EMPTY_PROGRESS = {
-  winnersRound1: { winners: [], losers: [] },
-  losersRound1: { winners: [] },
-  winnersRound2: { winners: [], losers: [] },
-  losersRound2: { winners: [] },
-  winnersRound3: {
-    finalist: null,
-    playoffLoser: null,
-    finalLoser: null,
-    champion: null,
-  },
-  losersRound3: { winners: [] },
-  losersRound4: { champion: null },
-  finals: { resetScheduled: false },
+const BRACKET_BASE_ORDER = {
+  winners: 0,
+  losers: 1000,
+  finals: 2000,
 }
 
-function buildStageMap() {
-  return STAGE_DEFINITIONS.reduce((map, stage) => {
-    map[stage.id] = { ...stage, matchIds: [] }
-    return map
-  }, {})
+const DEFAULT_RECORD = { wins: 0, losses: 0, points: 0, eliminated: false, initialBye: false }
+
+function cloneProgress() {
+  return {
+    winners: {},
+    losers: {},
+    finals: { resetScheduled: false },
+  }
+}
+
+function ensureUnique(array, value) {
+  if (!value) {
+    return array
+  }
+  return array.includes(value) ? array : [...array, value]
 }
 
 function pairTeams(teamIds) {
@@ -63,6 +49,33 @@ function sortByPoints(records, teamIds) {
     }
     return rightPoints - leftPoints
   })
+}
+
+function ensureStage(state, stageId, label, bracket, order, meta = {}) {
+  const existing = state.stages[stageId]
+  if (existing) {
+    return {
+      ...state,
+      stages: {
+        ...state.stages,
+        [stageId]: {
+          ...existing,
+          label,
+          bracket,
+          order,
+          meta: { ...(existing.meta ?? {}), ...meta },
+        },
+      },
+    }
+  }
+
+  return {
+    ...state,
+    stages: {
+      ...state.stages,
+      [stageId]: { id: stageId, label, bracket, order, matchIds: [], meta },
+    },
+  }
 }
 
 function createMatch(state, stageId, teams, meta = {}) {
@@ -110,37 +123,6 @@ function createMatch(state, stageId, teams, meta = {}) {
   }
 }
 
-function updateMatchTeams(state, matchId, teams) {
-  const match = state.matches[matchId]
-  if (!match) return state
-
-  const nextTeams = teams.map((teamId) => teamId ?? null)
-  const hasBothSides = nextTeams.every((teamId) => Boolean(teamId))
-
-  const nextMatch = {
-    ...match,
-    teams: nextTeams,
-    status:
-      match.status === 'completed'
-        ? match.status
-        : hasBothSides
-        ? 'scheduled'
-        : 'pending',
-  }
-
-  return {
-    ...state,
-    matches: {
-      ...state.matches,
-      [matchId]: nextMatch,
-    },
-  }
-}
-
-function ensureUnique(array, value) {
-  return array.includes(value) ? array : [...array, value]
-}
-
 function applyMatchCompletion(state, matchId, payload) {
   const match = state.matches[matchId]
   if (!match) {
@@ -158,8 +140,8 @@ function applyMatchCompletion(state, matchId, payload) {
     history: [...match.history, { winnerId, loserId, scores, timestamp }],
   }
 
-  const winnerRecord = state.records[winnerId] ?? { wins: 0, losses: 0, points: 0, eliminated: false }
-  const loserRecord = state.records[loserId] ?? { wins: 0, losses: 0, points: 0, eliminated: false }
+  const winnerRecord = state.records[winnerId] ?? { ...DEFAULT_RECORD }
+  const loserRecord = state.records[loserId] ?? { ...DEFAULT_RECORD }
 
   const nextRecords = {
     ...state.records,
@@ -186,310 +168,449 @@ function applyMatchCompletion(state, matchId, payload) {
   }
 }
 
-function scheduleWinnersRound2(state) {
-  const stage = state.stages['winners-r2']
-  if (!stage || stage.matchIds.length) return state
-  const winners = state.progress.winnersRound1.winners
-  if (winners.length !== 6) return state
-
-  return pairTeams(winners).reduce((nextState, teams) => createMatch(nextState, 'winners-r2', teams), state)
-}
-
-function scheduleLosersRound1(state) {
-  const stage = state.stages['losers-r1']
-  if (!stage || stage.matchIds.length) return state
-  const losers = state.progress.winnersRound1.losers
-  if (losers.length !== 6) return state
-
-  return pairTeams(losers).reduce((nextState, teams) => createMatch(nextState, 'losers-r1', teams), state)
-}
-
-function scheduleLosersRound2(state) {
-  const stage = state.stages['losers-r2']
-  if (!stage || stage.matchIds.length) return state
-  const lowerBracketWinners = state.progress.losersRound1.winners
-  const upperBracketLosers = state.progress.winnersRound2.losers
-  if (lowerBracketWinners.length !== 3 || upperBracketLosers.length !== 3) return state
-
-  let nextState = state
-  for (let index = 0; index < 3; index += 1) {
-    nextState = createMatch(nextState, 'losers-r2', [lowerBracketWinners[index], upperBracketLosers[index]])
-  }
-  return nextState
-}
-
-function scheduleWinnersRound3(state) {
-  const playoffStage = state.stages['winners-r3-playoff']
-  if (!playoffStage || playoffStage.matchIds.length) return state
-  const winners = state.progress.winnersRound2.winners
-  if (winners.length !== 3) return state
-
-  const ordered = sortByPoints(state.records, winners)
-  const topSeed = ordered[0]
-  const playoffTeams = ordered.slice(1)
-
-  let nextState = state
-
-  if (playoffTeams.length === 2) {
-    nextState = createMatch(nextState, 'winners-r3-playoff', playoffTeams)
+function createRoundMetadata(state, bracket, roundNumber, entrants, byes, matchIds) {
+  const rounds = state.rounds?.[bracket] ?? []
+  const existingIndex = rounds.findIndex((round) => round.roundNumber === roundNumber)
+  const entry = {
+    roundNumber,
+    stageId: `${bracket}-r${roundNumber}`,
+    entrants,
+    byes,
+    matches: matchIds,
+    results: { winners: [], losers: [] },
+    completed: false,
   }
 
-  const finalStage = nextState.stages['winners-r3-final']
-  if (!finalStage.matchIds.length) {
-    nextState = createMatch(nextState, 'winners-r3-final', [topSeed, null], { topSeed })
+  let updatedRounds
+  if (existingIndex >= 0) {
+    updatedRounds = rounds.map((round, index) => (index === existingIndex ? { ...round, ...entry } : round))
   } else {
-    const finalMatchId = finalStage.matchIds[0]
-    const existingTeams = nextState.matches[finalMatchId]?.teams ?? [topSeed, null]
-    nextState = updateMatchTeams(nextState, finalMatchId, [topSeed, existingTeams[1]])
+    updatedRounds = [...rounds, entry]
   }
 
-  return {
-    ...nextState,
-    progress: {
-      ...nextState.progress,
-      winnersRound3: {
-        ...nextState.progress.winnersRound3,
-        finalist: topSeed,
+  const nextRounds = {
+    ...state.rounds,
+    [bracket]: updatedRounds,
+  }
+
+  const nextProgress = {
+    ...state.progress,
+    [bracket]: {
+      ...(state.progress?.[bracket] ?? {}),
+      [roundNumber]: {
+        entrants,
+        byes,
+        winners: [],
+        losers: [],
       },
     },
   }
+
+  return {
+    ...state,
+    rounds: nextRounds,
+    progress: nextProgress,
+  }
 }
 
-function scheduleLosersRound3(state) {
-  const stage = state.stages['losers-r3']
-  if (!stage || stage.matchIds.length) return state
-  const round2Winners = state.progress.losersRound2.winners
-  const playoffLoser = state.progress.winnersRound3.playoffLoser
-  if (round2Winners.length !== 3 || !playoffLoser) return state
+function selectBye(records, entrants, strategy, preferredTeamId = null) {
+  if (entrants.length % 2 === 0) {
+    return { byeTeamId: null, remaining: entrants }
+  }
 
-  const entrants = [...round2Winners, playoffLoser]
-  return pairTeams(entrants).reduce((nextState, teams) => createMatch(nextState, 'losers-r3', teams), state)
+  if (preferredTeamId && entrants.includes(preferredTeamId)) {
+    return {
+      byeTeamId: preferredTeamId,
+      remaining: entrants.filter((id) => id !== preferredTeamId),
+    }
+  }
+
+  if (!entrants.length) {
+    return { byeTeamId: null, remaining: entrants }
+  }
+
+  if (strategy === 'random') {
+    const byeTeamId = entrants[Math.floor(Math.random() * entrants.length)]
+    return {
+      byeTeamId,
+      remaining: entrants.filter((id) => id !== byeTeamId),
+    }
+  }
+
+  const ordered = sortByPoints(records, entrants)
+  const byeTeamId = ordered[0]
+  return {
+    byeTeamId,
+    remaining: entrants.filter((id) => id !== byeTeamId),
+  }
 }
 
-function scheduleLosersRound4(state) {
-  const playoffStage = state.stages['losers-r4-playoff']
-  if (!playoffStage || playoffStage.matchIds.length) return state
-  const round3Winners = state.progress.losersRound3.winners
-  const winnersFinalLoser = state.progress.winnersRound3.finalLoser
-  if (round3Winners.length !== 2 || !winnersFinalLoser) return state
+function createBracketRound(state, bracket, roundNumber, entrants, byes) {
+  const stageId = `${bracket}-r${roundNumber}`
+  const labelPrefix = bracket === 'winners' ? 'Winners' : 'Losers'
+  const label = `${labelPrefix} Round ${roundNumber}`
+  const order = BRACKET_BASE_ORDER[bracket] + roundNumber
 
-  const entrants = [...round3Winners, winnersFinalLoser]
-  const ordered = sortByPoints(state.records, entrants)
-  const topSeed = ordered[0]
-  const challengers = ordered.slice(1)
+  let nextState = ensureStage(state, stageId, label, bracket, order, { roundNumber })
 
-  let nextState = createMatch(state, 'losers-r4-playoff', challengers, { topSeed })
-  const finalStage = nextState.stages['losers-r4-final']
-  if (!finalStage.matchIds.length) {
-    nextState = createMatch(nextState, 'losers-r4-final', [topSeed, null])
-  } else {
-    const finalMatchId = finalStage.matchIds[0]
-    nextState = updateMatchTeams(nextState, finalMatchId, [topSeed, nextState.matches[finalMatchId].teams[1]])
+  const scheduledTeams = entrants.filter((teamId) => !byes.includes(teamId))
+  const pairs = pairTeams(scheduledTeams)
+
+  pairs.forEach((pair, index) => {
+    nextState = createMatch(nextState, stageId, pair, { roundNumber, bracket, matchIndex: index })
+  })
+
+  const matchIds = nextState.stages[stageId]?.matchIds ?? []
+  nextState = createRoundMetadata(nextState, bracket, roundNumber, entrants, byes, matchIds)
+
+  return nextState
+}
+
+function parseRoundStageId(stageId) {
+  if (!stageId) return null
+  const match = stageId.match(/^(winners|losers)-r(\d+)$/)
+  if (!match) return null
+  return { bracket: match[1], roundNumber: Number(match[2]) }
+}
+
+function scheduleWinnersRounds(state) {
+  const rounds = state.rounds.winners ?? []
+  const lastRound = rounds.length ? rounds[rounds.length - 1] : null
+
+  const activeRound = lastRound?.stageId
+    ? lastRound.matches.some((matchId) => state.matches[matchId]?.status !== 'completed')
+    : false
+
+  if (activeRound) {
+    return state
+  }
+
+  const queue = Array.from(new Set((state.bracketQueues?.winners ?? []).filter(Boolean)))
+  const eligibleQueue = queue.filter((teamId) => !(state.records[teamId]?.eliminated))
+
+  if (eligibleQueue.length <= 1) {
+    if (eligibleQueue.length === 1) {
+      const championId = eligibleQueue[0]
+      if (state.champions.winners !== championId) {
+        return {
+          ...state,
+          champions: { ...state.champions, winners: championId },
+        }
+      }
+    }
+    return state
+  }
+
+  const nextRoundNumber = lastRound ? lastRound.roundNumber + 1 : 1
+  const alreadyExists = rounds.some((round) => round.roundNumber === nextRoundNumber)
+  if (alreadyExists && (lastRound?.roundNumber ?? 0) >= nextRoundNumber) {
+    return state
+  }
+
+  const strategy = nextRoundNumber === 1 && state.initialByeTeamId ? 'random' : 'points'
+  const queueForSelection = strategy === 'random' ? [...eligibleQueue] : sortByPoints(state.records, eligibleQueue)
+  const { byeTeamId, remaining } = selectBye(
+    state.records,
+    queueForSelection,
+    strategy,
+    nextRoundNumber === 1 ? state.initialByeTeamId : null,
+  )
+  const byes = byeTeamId ? [byeTeamId] : []
+  const sortedRemaining = sortByPoints(state.records, remaining)
+  const entrants = byeTeamId ? [byeTeamId, ...sortedRemaining] : [...sortedRemaining]
+
+  let nextState = {
+    ...state,
+    champions: { ...state.champions, winners: null },
+    bracketQueues: {
+      ...state.bracketQueues,
+      winners: byes,
+    },
+  }
+
+  nextState = createBracketRound(nextState, 'winners', nextRoundNumber, entrants, byes)
+
+  if (nextRoundNumber === 1 && byeTeamId) {
+    nextState = {
+      ...nextState,
+      records: {
+        ...nextState.records,
+        [byeTeamId]: {
+          ...(nextState.records[byeTeamId] ?? { ...DEFAULT_RECORD }),
+          initialBye: true,
+        },
+      },
+      initialByeTeamId: byeTeamId,
+    }
   }
 
   return nextState
 }
 
-function scheduleGrandFinal(state) {
-  const finalStage = state.stages['final-1']
-  if (!finalStage || finalStage.matchIds.length) return state
-  const winnersChampion = state.progress.winnersRound3.champion
-  const losersChampion = state.progress.losersRound4.champion
-  if (!winnersChampion || !losersChampion) return state
+function scheduleLosersRounds(state) {
+  const rounds = state.rounds.losers ?? []
+  const lastRound = rounds.length ? rounds[rounds.length - 1] : null
 
-  return createMatch(state, 'final-1', [winnersChampion, losersChampion])
+  const activeRound = lastRound?.stageId
+    ? lastRound.matches.some((matchId) => state.matches[matchId]?.status !== 'completed')
+    : false
+
+  if (activeRound) {
+    return state
+  }
+
+  const queue = Array.from(new Set((state.bracketQueues?.losers ?? []).filter(Boolean)))
+  const eligibleQueue = queue.filter((teamId) => !(state.records[teamId]?.eliminated))
+
+  if (eligibleQueue.length === 0) {
+    return state
+  }
+
+  if (eligibleQueue.length === 1) {
+    if (!state.champions.winners) {
+      return state
+    }
+
+    const championId = eligibleQueue[0]
+    if (state.champions.losers !== championId) {
+      return {
+        ...state,
+        champions: { ...state.champions, losers: championId },
+      }
+    }
+    return state
+  }
+
+  const nextRoundNumber = lastRound ? lastRound.roundNumber + 1 : 1
+  const alreadyExists = rounds.some((round) => round.roundNumber === nextRoundNumber)
+  if (alreadyExists && (lastRound?.roundNumber ?? 0) >= nextRoundNumber) {
+    return state
+  }
+
+  const orderedQueue = sortByPoints(state.records, eligibleQueue)
+  const { byeTeamId, remaining } = selectBye(state.records, orderedQueue, 'points')
+  const byes = byeTeamId ? [byeTeamId] : []
+  const sortedRemaining = sortByPoints(state.records, remaining)
+  const entrants = byeTeamId ? [byeTeamId, ...sortedRemaining] : [...sortedRemaining]
+
+  let nextState = {
+    ...state,
+    champions: { ...state.champions, losers: null },
+    bracketQueues: {
+      ...state.bracketQueues,
+      losers: byes,
+    },
+  }
+
+  nextState = createBracketRound(nextState, 'losers', nextRoundNumber, entrants, byes)
+  return nextState
+}
+
+function scheduleFinals(state) {
+  const winnersChampion = state.champions.winners
+  const losersChampion = state.champions.losers
+  if (!winnersChampion || !losersChampion) {
+    return state
+  }
+
+  const finalStageId = 'final-1'
+  const resetStageId = 'final-2'
+
+  let nextState = ensureStage(state, finalStageId, 'Grand Final', 'finals', BRACKET_BASE_ORDER.finals + 1)
+
+  const finalStage = nextState.stages[finalStageId]
+  if (!finalStage.matchIds.length) {
+    nextState = createMatch(nextState, finalStageId, [winnersChampion, losersChampion], {
+      bracket: 'finals',
+      roundNumber: 1,
+    })
+  }
+
+  const finalMatchId = nextState.stages[finalStageId].matchIds[0]
+  nextState = {
+    ...nextState,
+    finals: {
+      ...nextState.finals,
+      finalMatchId,
+      resetMatchId: nextState.finals?.resetMatchId ?? null,
+    },
+  }
+
+  const resetStage = nextState.stages[resetStageId]
+  if (nextState.progress.finals.resetScheduled && !resetStage) {
+    nextState = ensureStage(nextState, resetStageId, 'Grand Final Reset', 'finals', BRACKET_BASE_ORDER.finals + 2)
+    const scheduledResetStage = nextState.stages[resetStageId]
+    if (!scheduledResetStage.matchIds.length) {
+      nextState = createMatch(nextState, resetStageId, [winnersChampion, losersChampion], {
+        bracket: 'finals',
+        roundNumber: 2,
+      })
+    }
+  }
+
+  const resetMatchId = nextState.stages[resetStageId]?.matchIds?.[0] ?? null
+  if (resetMatchId) {
+    nextState = {
+      ...nextState,
+      finals: {
+        ...nextState.finals,
+        finalMatchId,
+        resetMatchId,
+      },
+    }
+  }
+
+  return nextState
 }
 
 function scheduleDependentStages(state) {
   let nextState = state
-  nextState = scheduleWinnersRound2(nextState)
-  nextState = scheduleLosersRound1(nextState)
-  nextState = scheduleLosersRound2(nextState)
-  nextState = scheduleWinnersRound3(nextState)
-  nextState = scheduleLosersRound3(nextState)
-  nextState = scheduleLosersRound4(nextState)
-  nextState = scheduleGrandFinal(nextState)
+  nextState = scheduleWinnersRounds(nextState)
+  nextState = scheduleLosersRounds(nextState)
+  nextState = scheduleFinals(nextState)
   return nextState
+}
+
+function updateRoundResults(state, bracket, roundNumber, winnerId, loserId) {
+  const rounds = state.rounds?.[bracket] ?? []
+  const roundIndex = rounds.findIndex((round) => round.roundNumber === roundNumber)
+  if (roundIndex === -1) return state
+
+  const round = rounds[roundIndex]
+  const results = round.results ?? { winners: [], losers: [] }
+  const nextRound = {
+    ...round,
+    results: {
+      winners: ensureUnique(results.winners, winnerId),
+      losers: ensureUnique(results.losers, loserId),
+    },
+  }
+
+  if (nextRound.results.winners.length === nextRound.matches.length) {
+    nextRound.completed = true
+  }
+
+  const updatedRounds = rounds.map((item, index) => (index === roundIndex ? nextRound : item))
+  const nextRounds = {
+    ...state.rounds,
+    [bracket]: updatedRounds,
+  }
+
+  const progressEntry = state.progress?.[bracket]?.[roundNumber] ?? { entrants: [], byes: [], winners: [], losers: [] }
+  const nextProgress = {
+    ...state.progress,
+    [bracket]: {
+      ...(state.progress?.[bracket] ?? {}),
+      [roundNumber]: {
+        ...progressEntry,
+        winners: ensureUnique(progressEntry.winners ?? [], winnerId),
+        losers: ensureUnique(progressEntry.losers ?? [], loserId),
+      },
+    },
+  }
+
+  return {
+    ...state,
+    rounds: nextRounds,
+    progress: nextProgress,
+  }
 }
 
 function updateProgress(state, matchId, winnerId, loserId) {
   const match = state.matches[matchId]
   if (!match) return state
 
-  const progress = state.progress
+  const roundMeta = parseRoundStageId(match.stageId)
   let nextState = state
 
-  switch (match.stageId) {
-    case 'winners-r1': {
+  if (roundMeta) {
+    const { bracket, roundNumber } = roundMeta
+    nextState = updateRoundResults(nextState, bracket, roundNumber, winnerId, loserId)
+
+    if (bracket === 'winners') {
+      const queueWinners = Array.from(
+        new Set([...(nextState.bracketQueues?.winners ?? []), winnerId].filter(Boolean)),
+      )
+      const queueLosers = Array.from(new Set([...(nextState.bracketQueues?.losers ?? []), loserId].filter(Boolean)))
+
+      nextState = {
+        ...nextState,
+        bracketQueues: {
+          winners: queueWinners,
+          losers: queueLosers,
+        },
+        champions: {
+          winners: queueWinners.length > 1 ? null : nextState.champions.winners,
+          losers: queueLosers.length > 1 ? null : nextState.champions.losers,
+        },
+      }
+    } else if (bracket === 'losers') {
+      const queueLosers = Array.from(new Set([...(nextState.bracketQueues?.losers ?? []), winnerId].filter(Boolean)))
+      nextState = {
+        ...nextState,
+        bracketQueues: {
+          winners: nextState.bracketQueues?.winners ?? [],
+          losers: queueLosers,
+        },
+        champions: {
+          winners: nextState.champions.winners,
+          losers: queueLosers.length > 1 ? null : nextState.champions.losers,
+        },
+      }
+    }
+
+    return nextState
+  }
+
+  if (match.stageId === 'final-1') {
+    const winnersChampion = nextState.champions.winners
+    const losersChampion = nextState.champions.losers
+    const loserWasInitialBye = nextState.initialByeTeamId && loserId === nextState.initialByeTeamId
+    const resetNeeded = winnerId === losersChampion && loserId === winnersChampion && !loserWasInitialBye
+
+    if (resetNeeded) {
       nextState = {
         ...nextState,
         progress: {
-          ...progress,
-          winnersRound1: {
-            winners: ensureUnique(progress.winnersRound1.winners, winnerId),
-            losers: ensureUnique(progress.winnersRound1.losers, loserId),
-          },
+          ...nextState.progress,
+          finals: { resetScheduled: true },
         },
       }
-      break
-    }
-    case 'losers-r1': {
-      nextState = {
-        ...nextState,
-        progress: {
-          ...progress,
-          losersRound1: {
-            winners: ensureUnique(progress.losersRound1.winners, winnerId),
-          },
-        },
-      }
-      break
-    }
-    case 'winners-r2': {
-      nextState = {
-        ...nextState,
-        progress: {
-          ...progress,
-          winnersRound2: {
-            winners: ensureUnique(progress.winnersRound2.winners, winnerId),
-            losers: ensureUnique(progress.winnersRound2.losers, loserId),
-          },
-        },
-      }
-      break
-    }
-    case 'losers-r2': {
-      nextState = {
-        ...nextState,
-        progress: {
-          ...progress,
-          losersRound2: {
-            winners: ensureUnique(progress.losersRound2.winners, winnerId),
-          },
-        },
-      }
-      break
-    }
-    case 'winners-r3-playoff': {
-      const finalStage = nextState.stages['winners-r3-final']
-      if (finalStage.matchIds.length) {
-        const finalMatchId = finalStage.matchIds[0]
-        const finalist = progress.winnersRound3.finalist
-        nextState = updateMatchTeams(nextState, finalMatchId, [finalist, winnerId])
-      }
-      nextState = {
-        ...nextState,
-        progress: {
-          ...progress,
-          winnersRound3: {
-            ...progress.winnersRound3,
-            playoffLoser: loserId,
-          },
-        },
-      }
-      break
-    }
-    case 'winners-r3-final': {
-      nextState = {
-        ...nextState,
-        progress: {
-          ...progress,
-          winnersRound3: {
-            ...progress.winnersRound3,
-            finalLoser: loserId,
-            champion: winnerId,
-          },
-        },
-      }
-      break
-    }
-    case 'losers-r3': {
-      nextState = {
-        ...nextState,
-        progress: {
-          ...progress,
-          losersRound3: {
-            winners: ensureUnique(progress.losersRound3.winners, winnerId),
-          },
-        },
-      }
-      break
-    }
-    case 'losers-r4-playoff': {
-      const finalStage = nextState.stages['losers-r4-final']
-      if (finalStage.matchIds.length) {
-        const finalMatchId = finalStage.matchIds[0]
-        const current = nextState.matches[finalMatchId]
-        nextState = updateMatchTeams(nextState, finalMatchId, [current.teams[0], winnerId])
-      }
-      break
-    }
-    case 'losers-r4-final': {
-      nextState = {
-        ...nextState,
-        progress: {
-          ...progress,
-          losersRound4: {
-            champion: winnerId,
-          },
-        },
-      }
-      break
-    }
-    case 'final-1': {
-      const winnersChampion = progress.winnersRound3.champion
-      const losersChampion = progress.losersRound4.champion
-      const resetNeeded = winnerId === losersChampion && loserId === winnersChampion
-      if (resetNeeded) {
-        const resetStage = nextState.stages['final-2']
-        if (!resetStage.matchIds.length) {
-          nextState = createMatch(nextState, 'final-2', [winnerId, loserId])
-        }
-        nextState = {
-          ...nextState,
-          progress: {
-            ...progress,
-            finals: { resetScheduled: true },
-          },
-        }
-      } else {
-        nextState = {
-          ...nextState,
-          status: 'completed',
-          completedAt: Date.now(),
-          championId: winnerId,
-          progress: {
-            ...progress,
-            finals: { resetScheduled: false },
-          },
-        }
-      }
-      break
-    }
-    case 'final-2': {
+    } else {
       nextState = {
         ...nextState,
         status: 'completed',
         completedAt: Date.now(),
         championId: winnerId,
         progress: {
-          ...progress,
+          ...nextState.progress,
           finals: { resetScheduled: false },
         },
       }
-      break
     }
-    default:
-      break
+
+    return nextState
+  }
+
+  if (match.stageId === 'final-2') {
+    return {
+      ...nextState,
+      status: 'completed',
+      completedAt: Date.now(),
+      championId: winnerId,
+      progress: {
+        ...nextState.progress,
+        finals: { resetScheduled: false },
+      },
+    }
   }
 
   return nextState
 }
 
 export function initializeTournament(teams, moderators) {
-  const stageMap = buildStageMap()
   const records = teams.reduce((accumulator, team) => {
-    accumulator[team.id] = { wins: 0, losses: 0, points: 0, eliminated: false }
+    accumulator[team.id] = { ...DEFAULT_RECORD }
     return accumulator
   }, {})
 
@@ -501,18 +622,48 @@ export function initializeTournament(teams, moderators) {
     completedAt: null,
     championId: null,
     matches: {},
-    stages: stageMap,
+    stages: {},
     moderatorRoster: moderators ?? [],
     moderatorCursor: 0,
     records,
-    progress: JSON.parse(JSON.stringify(EMPTY_PROGRESS)),
+    progress: cloneProgress(),
+    rounds: { winners: [], losers: [] },
+    bracketQueues: { winners: [], losers: [] },
+    champions: { winners: null, losers: null },
+    finals: { finalMatchId: null, resetMatchId: null },
+    initialByeTeamId: null,
   }
 
   const shuffledTeamIds = shuffleTeamIds(teams.map((team) => team.id))
-  const initialPairs = pairTeams(shuffledTeamIds)
-  initialPairs.forEach((teamsForMatch, index) => {
-    state = createMatch(state, 'winners-r1', teamsForMatch, { seedIndex: index })
-  })
+  const entrants = [...shuffledTeamIds]
+  const strategy = entrants.length % 2 === 0 ? 'points' : 'random'
+  const { byeTeamId, remaining } = selectBye(state.records, entrants, strategy)
+  const byes = byeTeamId ? [byeTeamId] : []
+  const roundEntrants = byeTeamId ? [byeTeamId, ...remaining] : [...remaining]
+
+  state = {
+    ...state,
+    bracketQueues: {
+      winners: byes,
+      losers: [],
+    },
+  }
+
+  state = createBracketRound(state, 'winners', 1, roundEntrants, byes)
+
+  if (byeTeamId) {
+    state = {
+      ...state,
+      records: {
+        ...state.records,
+        [byeTeamId]: {
+          ...(state.records[byeTeamId] ?? { ...DEFAULT_RECORD }),
+          initialBye: true,
+        },
+      },
+      initialByeTeamId: byeTeamId,
+    }
+  }
 
   return state
 }
@@ -533,8 +684,47 @@ export function recordMatchResult(state, matchId, payload) {
   return nextState
 }
 
+export function grantMatchBye(state, matchId, teamId) {
+  const match = state.matches[matchId]
+  if (!match) return state
+  const [teamAId, teamBId] = match.teams
+  if (teamId !== teamAId && teamId !== teamBId) {
+    return state
+  }
+  const opponentId = teamId === teamAId ? teamBId : teamAId
+  if (!opponentId) {
+    return state
+  }
+
+  const payload = {
+    winnerId: teamId,
+    loserId: opponentId,
+    scores: { [teamId]: 0, [opponentId]: 0 },
+  }
+
+  let nextState = recordMatchResult(state, matchId, payload)
+  const updatedMatch = nextState.matches[matchId]
+  if (updatedMatch) {
+    nextState = {
+      ...nextState,
+      matches: {
+        ...nextState.matches,
+        [matchId]: {
+          ...updatedMatch,
+          matchRefId: null,
+          meta: { ...(updatedMatch.meta ?? {}), byeAwarded: true },
+        },
+      },
+    }
+  }
+
+  return nextState
+}
+
 export function listStages(state) {
-  return STAGE_DEFINITIONS.map((stage) => state.stages[stage.id])
+  return Object.values(state.stages)
+    .filter(Boolean)
+    .sort((left, right) => left.order - right.order)
 }
 
 export function listMatchesForStage(state, stageId) {
