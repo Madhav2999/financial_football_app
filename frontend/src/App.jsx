@@ -336,16 +336,6 @@ function AppShell() {
     return teams.find((team) => team.id === session.teamId) ?? null
   }, [session, teams])
 
-  const activeTeamMatch = useMemo(() => {
-    if (session.type !== 'team') return null
-    return activeMatches.find((match) => match.teams.includes(session.teamId)) ?? null
-  }, [activeMatches, session])
-
-  const activeModerator = useMemo(() => {
-    if (session.type !== 'moderator') return null
-    return MODERATOR_ACCOUNTS.find((account) => account.id === session.moderatorId) ?? null
-  }, [session])
-
   useEffect(() => {
     setSelectedTeamIds((previous) => {
       const availableIds = teams.map((team) => team.id)
@@ -363,6 +353,16 @@ function AppShell() {
       return unchanged ? previous : next
     })
   }, [teams])
+
+  const activeTeamMatch = useMemo(() => {
+    if (session.type !== 'team') return null
+    return activeMatches.find((match) => match.teams.includes(session.teamId)) ?? null
+  }, [activeMatches, session])
+
+  const activeModerator = useMemo(() => {
+    if (session.type !== 'moderator') return null
+    return MODERATOR_ACCOUNTS.find((account) => account.id === session.moderatorId) ?? null
+  }, [session])
 
   const handleTeamLogin = (loginId, password, options = {}) => {
     const team = teams.find((item) => item.loginId === loginId)
@@ -1059,6 +1059,9 @@ function AppShell() {
               teams={teams}
               match={activeTeamMatch}
               history={matchHistory}
+              tournament={tournament}
+              tournamentLaunched={tournamentLaunched}
+              moderators={MODERATOR_ACCOUNTS}
               onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
               onSelectFirst={(matchId, firstTeamId) =>
                 handleSelectFirst(matchId, activeTeam.id, firstTeamId)
