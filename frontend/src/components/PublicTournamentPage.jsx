@@ -201,7 +201,7 @@ export default function PublicTournamentPage({
         <header className="border-b border-white/10 bg-black/40 backdrop-blur">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
             <Link to="/" className="flex items-center gap-4">
-              <img src="/assets/ff-logo.svg" alt="Financial Football" className="h-12 w-12" />
+              <img src="/assets/ff-logo-2.png" alt="Financial Football" className="h-12 w-12 bg-amber-50 rounded-full" />
               <div>
                 <p className="text-xs uppercase tracking-[0.4em] text-emerald-300">Financial Football</p>
                 <p className="text-lg font-semibold text-white">Championship Bracket</p>

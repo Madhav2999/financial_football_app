@@ -6,7 +6,7 @@ const NAV_ITEMS = [
   { id: "home", label: "Home", href: "#top" },
   { id: "about", label: "About us", href: "#about" },
   { id: "play", label: "How to Play", href: "/howtoplay" },
-  { id: "bracket", label: "Tournament Bracket", href: "/tournament" },
+  // { id: "bracket", label: "Tournament Bracket", href: "/tournament" },
 ]
 
 const PLAY_CARDS = [
@@ -147,15 +147,15 @@ export default function LandingPage({
           }}
         />
         <div className="relative z-10">
-          <nav className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-6 text-sm font-semibold text-white">
+          <nav className="mx-auto flex max-w-6xl items-center justify-between gap-5 px-4 py-6 text-sm font-semibold text-white">
             <div className="flex items-center gap-4">
-              <img src="/assets/ff-logo.svg" alt="Financial Football" className="h-12 w-12" />
+              <a href="/"><img src="/assets/ff-logo-2.png" alt="Financial Football" className="h-25 w-25 bg-amber-50 rounded-full" /></a>
               <div>
-                <p className="text-xs uppercase tracking-[0.4em] text-emerald-300">Financial Football</p>
-                <p className="text-lg font-semibold">Powered by Suncoast Credit Union</p>
+                <p className="text-lg uppercase tracking-[0.2em] text-emerald-300">Financial Football</p>
+                <p className="text-xs font-semibold">Powered by Suncoast Credit Union</p>
               </div>
             </div>
-            <div className="hidden items-center gap-9 md:flex">
+            <div className="hidden items-center gap-5 md:flex">
               {NAV_ITEMS.map((item) =>
                 item.href.startsWith("#") ? (
                   <a
@@ -177,7 +177,7 @@ export default function LandingPage({
               )}
             </div>
             <div className="flex items-center gap-3">
-              <button
+              {/* <button
                 type="button"
                 onClick={() => openAuth('register')}
                 className="rounded-full border border-white/50 px-4 py-2 text-xs uppercase tracking-widest text-white transition hover:border-emerald-300 hover:text-emerald-300 cursor-pointer"
@@ -190,11 +190,11 @@ export default function LandingPage({
                 className="rounded-full border border-white/50 px-4 py-2 text-xs uppercase tracking-widest transition hover:border-emerald-300 hover:text-emerald-300 cursor-pointer"
               >
                 Moderator Login
-              </button>
+              </button> */}
               <button
                 type="button"
                 onClick={() => openAuth('team')}
-                className="rounded-full bg-emerald-400 px-5 py-2 text-xs uppercase tracking-[0.3em] text-slate-900 transition hover:bg-emerald-300 cursor-pointer"
+                className="rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 px-5 py-2 text-xs uppercase tracking-[0.3em] text-slate-900 transition hover:bg-emerald-300 cursor-pointer"
               >
                 Enter Tournament
               </button>
@@ -207,7 +207,7 @@ export default function LandingPage({
             </div>
           </nav>
 
-          <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 pb-24 pt-12 text-white lg:flex-row lg:items-end">
+          <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 pb-30 pt-12 text-white lg:flex-row lg:items-end">
             <div className="max-w-2xl space-y-6">
               <p className="text-sm uppercase tracking-[0.5em] text-emerald-300">Join the Ultimate</p>
               <h1 className="text-5xl font-semibold leading-tight lg:text-6xl">Financial Football Quiz Showdown</h1>
@@ -237,7 +237,7 @@ export default function LandingPage({
                 </a>
               </div>
             </div>
-            <div className="rounded-3xl border border-white/20 bg-white/10 p-6 backdrop-blur lg:ml-auto lg:w-[320px]">
+            <div className="rounded-3xl border border-white/60 bg-white/10 p-6 backdrop-blur lg:ml-auto lg:w-[320px]">
               <p className="text-xs uppercase tracking-[0.4em] text-emerald-300">Live Status</p>
               <h2 className="mt-2 text-2xl font-semibold">Top Teams</h2>
               <div className="mt-4 space-y-3 text-sm">
@@ -247,8 +247,10 @@ export default function LandingPage({
                       <p className="font-semibold">{team.name}</p>
                       <p className="text-xs text-slate-300">W {team.wins} • L {team.losses}</p>
                     </div>
-                    <span className="text-lg font-bold text-emerald-300">{team.totalScore}</span>
-                    <span className="text-xs text-slate-400">#{index + 1}</span>
+                    <div>
+                      <span className="text-lg font-bold text-emerald-300">{team.totalScore}</span>
+                      <span className="text-xs text-slate-400">#{index + 1}</span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -293,14 +295,14 @@ export default function LandingPage({
 
         </section>
 
-        <section className="bg-amber-50 py-12 relative">
+        <section className="bg-amber-20 py-12 relative">
           <div className="max-w-8xl">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
 
               {/* LEFT: Curved Image */}
               <div className="relative overflow-hidden h-[280px] md:h-[340px]">
                 {/* The amber background behind the curve */}
-                <div className="absolute inset-0 bg-amber-50 z-0" />
+                <div className="absolute inset-0 bg-amber-40 z-0" />
 
                 {/* The clipped image */}
                 <img
@@ -404,12 +406,24 @@ export default function LandingPage({
 
         <section id="how-to-play" className="bg-white py-16">
           <div className="mx-auto max-w-6xl px-6">
-            <p className="text-center text-sm uppercase tracking-[0.4em] text-emerald-500">How to Play</p>
-            <h2 className="mt-2 text-center text-3xl font-semibold text-slate-900">Game day logistics made simple</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-base text-slate-600">
-              Launch matches from the moderator console, animate coin tosses, and keep everyone aligned on the bracket format.
-              These pillars help new teams ramp quickly and keep veterans sharp.
-            </p>
+            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+              <div>
+                <p className="text-sm uppercase tracking-[0.4em] text-emerald-500">How to Play</p>
+                <h2 className="mt-2 text-3xl font-semibold text-slate-900">Game day logistics made simple</h2>
+                <p className="mt-4 text-base text-slate-600 max-w-2xl">
+                  Launch matches from the moderator console, animate coin tosses, and keep everyone aligned on the bracket format.
+                  These pillars help new teams ramp quickly and keep veterans sharp.
+                </p>
+              </div>
+
+              {/* ── Learn in Detail Button ─────────────────────────── */}
+              <Link
+                to="/howtoplay"              
+                className="cursor-pointer rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 px-6 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-600 hover:shadow-lg"
+              >
+                Read In Detail
+              </Link>
+            </div>
             <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               {PLAY_CARDS.map((card) => (
                 <div key={card.id} className={`rounded-3xl border border-slate-200 p-6 shadow-sm transition hover:translate-y-[-4px] hover:shadow-lg ${card.color}`}>
@@ -431,7 +445,7 @@ export default function LandingPage({
               backgroundPosition: 'center',
             }}
           />
-          <div className="relative z-10 mx-auto max-w-6xl px-6 text-white">
+          <div className="relative z-10 mx-auto max-w-4xl px-6 text-white">
             <div className="rounded-3xl border border-white/10 bg-white/10 p-10 backdrop-blur">
               <h2 className="text-2xl font-semibold">What can we help you with?</h2>
               <p className="mt-3 text-sm text-slate-200">
@@ -450,15 +464,15 @@ export default function LandingPage({
                 />
                 <button
                   type="button"
-                  className="rounded-full bg-emerald-400 px-6 py-3 text-sm font-semibold text-slate-900 shadow shadow-emerald-500/30 transition hover:bg-emerald-300"
+                  className="rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 cursor-pointer px-6 py-3 text-sm font-semibold text-slate-900 shadow shadow-emerald-500/30 transition hover:bg-emerald-300"
                 >
                   Send
                 </button>
               </form>
             </div>
-            <div className="mt-8 flex flex-wrap items-center justify-between gap-4 text-xs uppercase tracking-[0.3em] text-slate-300">
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-6 text-xs uppercase tracking-[0.3em] text-slate-300">
               <div className="flex items-center gap-2 text-slate-200">
-                <img src="/assets/ff-logo.svg" alt="FF" className="h-10 w-10" />
+                <img src="/assets/ff-logo-2.png" alt="FF" className="h-10 w-10 bg-amber-50 rounded-full cursor-pointer" />
                 <span>Financial Football</span>
               </div>
               <div className="flex gap-6">
@@ -467,7 +481,7 @@ export default function LandingPage({
                 <a href="#how-to-play" className="transition hover:text-emerald-300">How to Play</a>
                 <a href="#contact" className="transition hover:text-emerald-300">Contact us</a>
               </div>
-              <p>� {new Date().getFullYear()} Financial Football League � Design inspired by provided mockups</p>
+              <p className="px-10">� {new Date().getFullYear()} © Copyright 2025 – Arete Consultants Pvt. Ltd. All rights reserved.</p>
             </div>
           </div>
         </section>
