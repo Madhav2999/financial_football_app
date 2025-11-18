@@ -1,6 +1,7 @@
 import React from 'react'
 import { useState } from 'react'
 import AuthenticationGateway from './AuthenticationGateway'
+import { NavLink } from 'react-router-dom'
 
 const NAV_ITEMS = [
   { id: 'home', label: 'Home', href: '/' },
@@ -162,13 +163,15 @@ export default function LearnToPlay({
         <div className="relative z-10">
           <nav className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-6 text-sm font-semibold text-white">
             <div className="flex items-center gap-4">
-              <img src="/assets/ff-logo.svg" alt="Financial Football" className="h-12 w-12" />
+              <NavLink to="/">
+                <img src="/assets/ff-logo-2.png" alt="Financial Football" className="h-20 w-20 bg-amber-50 rounded-full" />
+              </NavLink>
               <div>
-                <p className="text-xs uppercase tracking-[0.4em] text-emerald-300">Financial Football</p>
-                <p className="text-lg font-semibold">Powered by Suncoast Credit Union</p>
+                <p className="text-lg uppercase tracking-[0.4em] text-emerald-300">Financial Football</p>
+                <p className="text-xs font-semibold">Powered by Suncoast Credit Union</p>
               </div>
             </div>
-            <div className="hidden items-center gap-9 md:flex">
+            <div className="hidden items-center gap-10">
               {NAV_ITEMS.map((item) => (
                 <a key={item.id} href={item.href} className="tracking-[0.05em] transition hover:text-emerald-300">
                   {item.label}
@@ -261,7 +264,7 @@ export default function LearnToPlay({
               backgroundPosition: 'center',
             }}
           />
-          <div className="relative z-10 mx-auto max-w-6xl px-6 text-white">
+          <div className="relative z-10 mx-auto max-w-4xl px-6 text-white">
             <div className="rounded-3xl border border-white/10 bg-white/10 p-10 backdrop-blur">
               <h2 className="text-2xl font-semibold">What can we help you with?</h2>
               <p className="mt-3 text-sm text-slate-200">
@@ -280,15 +283,15 @@ export default function LearnToPlay({
                 />
                 <button
                   type="button"
-                  className="rounded-full bg-emerald-400 px-6 py-3 text-sm font-semibold text-slate-900 shadow shadow-emerald-500/30 transition hover:bg-emerald-300"
+                  className="rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 cursor-pointer px-6 py-3 text-sm font-semibold text-slate-900 shadow shadow-emerald-500/30 transition hover:bg-emerald-300"
                 >
                   Send
                 </button>
               </form>
             </div>
-            <div className="mt-8 flex flex-wrap items-center justify-between gap-4 text-xs uppercase tracking-[0.3em] text-slate-300">
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-6 text-xs uppercase tracking-[0.3em] text-slate-300">
               <div className="flex items-center gap-2 text-slate-200">
-                <img src="/assets/ff-logo.svg" alt="FF" className="h-10 w-10" />
+                <img src="/assets/ff-logo-2.png" alt="FF" className="h-10 w-10 bg-amber-50 rounded-full cursor-pointer" />
                 <span>Financial Football</span>
               </div>
               <div className="flex gap-6">
@@ -297,7 +300,7 @@ export default function LearnToPlay({
                 <a href="#how-to-play" className="transition hover:text-emerald-300">How to Play</a>
                 <a href="#contact" className="transition hover:text-emerald-300">Contact us</a>
               </div>
-              <p>� {new Date().getFullYear()} Financial Football League � Design inspired by provided mockups</p>
+              <p className="px-10">� {new Date().getFullYear()} © Copyright 2025 – Arete Consultants Pvt. Ltd. All rights reserved.</p>
             </div>
           </div>
         </section>

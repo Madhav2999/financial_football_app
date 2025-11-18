@@ -619,7 +619,7 @@ export function initializeTournament(teams, moderators) {
     status: 'pending',
     createdAt: Date.now(),
     startedAt: null,
-    completedAt: null,
+    completedAt: null,  
     championId: null,
     matches: {},
     stages: {},

@@ -427,7 +427,7 @@ function AppShell() {
     if (!tournamentLaunched || !tournament) {
       return
     }
-
+    //already has live match ids
     const activeTournamentMatches = new Set(
       activeMatches
         .filter((match) => match.status !== 'completed' && match.tournamentMatchId)

@@ -35,14 +35,11 @@ export default function AdminDashboard(props) {
   } = props
 
   return (
-    <div className="relative min-h-screen bg-slate-850 text-slate-100">
-      <img
-        src="/assets/admin-background.jpg"
-        alt=""
-        aria-hidden="true"
-        className="pointer-events-none select-none absolute right-6 top-28 hidden h-auto w-full opacity-25 md:block"
-      />
-
+    <div className="absolute inset-0 min-h-screen bg-slate-850 text-slate-100" style={{
+          backgroundImage: 'url(/assets/admin-background.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}>
       <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>
@@ -51,7 +48,7 @@ export default function AdminDashboard(props) {
           </div>
           <button
             onClick={onLogout}
-            className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+            className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 cursor-pointer"
           >
             Log out
           </button>
@@ -66,10 +63,9 @@ export default function AdminDashboard(props) {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `block rounded-2xl px-4 py-3 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 ${
-                    isActive
-                      ? 'bg-slate-800 text-white shadow-inner shadow-slate-900/40'
-                      : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+                  `block rounded-2xl px-4 py-3 text-sm font-medium transition focus-visible:outline  focus-visible:outline-offset-2 focus-visible:outline-sky-400 ${isActive
+                    ? 'bg-slate-800 text-white shadow-inner shadow-slate-900/40'
+                    : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
                   }`
                 }
                 end

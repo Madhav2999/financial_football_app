@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import AuthenticationGateway from "./AuthenticationGateway";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 
 const NAV_ITEMS = [
   { id: "home", label: "Home", href: "#top" },
-  { id: "about", label: "About us", href: "#about" },
-  { id: "play", label: "How to Play", href: "/howtoplay" },
+  { id: "about", label: "About Us", href: "#about" },
+  { id: "play", label: "How To Play", href: "/howtoplay" },
   // { id: "bracket", label: "Tournament Bracket", href: "/tournament" },
 ]
 
@@ -404,7 +404,7 @@ export default function LandingPage({
 
 
 
-        <section id="how-to-play" className="bg-white py-16">
+        <section id="how-to-play" className="bg-white py-16 mb-10">
           <div className="mx-auto max-w-6xl px-6">
             <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
               <div>
@@ -417,12 +417,12 @@ export default function LandingPage({
               </div>
 
               {/* ── Learn in Detail Button ─────────────────────────── */}
-              <Link
-                to="/howtoplay"              
+              <NavLink
+                to="/howtoplay"
                 className="cursor-pointer rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 px-6 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-600 hover:shadow-lg"
               >
                 Read In Detail
-              </Link>
+              </NavLink>
             </div>
             <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               {PLAY_CARDS.map((card) => (
@@ -436,55 +436,128 @@ export default function LandingPage({
           </div>
         </section>
 
-        <section id="contact" className="relative overflow-hidden py-16">
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: 'linear-gradient(180deg, rgba(15, 20, 40, 0.75), rgba(15, 20, 40, 0.65)), url(/assets/match-schedule.jpg)',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-          />
-          <div className="relative z-10 mx-auto max-w-4xl px-6 text-white">
-            <div className="rounded-3xl border border-white/10 bg-white/10 p-10 backdrop-blur">
-              <h2 className="text-2xl font-semibold">What can we help you with?</h2>
-              <p className="mt-3 text-sm text-slate-200">
-                Join the mailing list, request sponsorship kits, or ask about custom question packs tailored to your community.
-              </p>
-              <form className="mt-8 grid gap-4 md:grid-cols-[1fr,1fr,auto]">
-                <input
-                  type="email"
-                  placeholder="Enter email"
-                  className="rounded-full border border-white/40 bg-slate-900/40 px-5 py-3 text-sm text-white placeholder:text-slate-300 focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-300/40"
+        <section id="contact" className="relative overflow-hidden bg-orange-50">
+          <div className="relative bg-deep-purple-accent-400">
+
+            {/* --- FOOTBALL FIELD IMAGE WITH CURVED BOTTOM --- */}
+            <div className="absolute top-0 left-0 w-full overflow-hidden z-10">
+              <div className="relative w-full h-64 sm:h-72 md:h-80">
+
+                {/* FOOTBALL FIELD IMAGE (full visible) */}
+                <img
+                  src="/assets/american_football_background.jpeg"
+                  alt="Football Field"
+                  className="w-full h-full object-cover object-[50%_60%]"
                 />
-                <input
-                  type="text"
-                  placeholder="Type message"
-                  className="rounded-full border border-white/40 bg-slate-900/40 px-5 py-3 text-sm text-white placeholder:text-slate-300 focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-300/40"
+
+                {/* SCRATCH BANNER OVERLAY */}
+                <img
+                  src="/assets/banner-screch-top.png"
+                  alt="Banner Overlay"
+                  className="absolute top-0 left-0 w-full h-20 object-fill pointer-events-none"
                 />
-                <button
-                  type="button"
-                  className="rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 cursor-pointer px-6 py-3 text-sm font-semibold text-slate-900 shadow shadow-emerald-500/30 transition hover:bg-emerald-300"
-                >
-                  Send
-                </button>
-              </form>
+
+              </div>
             </div>
-            <div className="mt-8 flex flex-wrap items-center justify-between gap-6 text-xs uppercase tracking-[0.3em] text-slate-300">
-              <div className="flex items-center gap-2 text-slate-200">
-                <img src="/assets/ff-logo-2.png" alt="FF" className="h-10 w-10 bg-amber-50 rounded-full cursor-pointer" />
-                <span>Financial Football</span>
+
+            {/* Shift footer content downward so it doesn't overlap the image */}
+            <div className="relative px-4 pt-[22rem] sm:pt-[24rem] md:pt-[26rem] mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 z-20">
+
+              {/* ================= FOOTER CONTENT ================= */}
+              <div className="grid gap-16 row-gap-10 mb-8 lg:grid-cols-6 pl-5">
+                <div className="md:max-w-md lg:col-span-2">
+                  <a href="/" aria-label="Go home" title="Company" className="inline-flex items-center">
+                    <img src="/assets/ff-logo-2.png" alt="Logo" className="h-20 w-20" />
+                    <span className="ml-2 text-xl font-bold tracking-wide text-orange-500 uppercase">
+                      Suncoast Credit Union
+                    </span>
+                  </a>
+                  <div className="mt-4 lg:max-w-sm">
+                    <p className="text-sm text-deep-purple-50">
+                      Financial Football is a fast-paced quiz tournament where teams compete in double-elimination brackets, answering timed financial questions to gain the advantage. Moderators drive the action with coin tosses, live scoring, and dynamic highlights that keep the audience engaged throughout every round.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-5 row-gap-8 lg:col-span-4 md:grid-cols-4 py-7 px-7">
+                  <div>
+                    <p className="font-semibold tracking-wide text-teal-accent-400">Category</p>
+                    <ul className="mt-2 space-y-2">
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">News</a></li>
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">World</a></li>
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">Games</a></li>
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">References</a></li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold tracking-wide text-teal-accent-400">Cherry</p>
+                    <ul className="mt-2 space-y-2">
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">Web</a></li>
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">eCommerce</a></li>
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">Business</a></li>
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">Entertainment</a></li>
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">Portfolio</a></li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold tracking-wide text-teal-accent-400">Apples</p>
+                    <ul className="mt-2 space-y-2">
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">Media</a></li>
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">Brochure</a></li>
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">Nonprofit</a></li>
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">Educational</a></li>
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">Projects</a></li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold tracking-wide text-teal-accent-400">Business</p>
+                    <ul className="mt-2 space-y-2">
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">Infopreneur</a></li>
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">Personal</a></li>
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">Wiki</a></li>
+                      <li><a href="/" className="text-deep-purple-50 hover:text-orange-300">Forum</a></li>
+                    </ul>
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-6">
-                <a href="#home" className="transition hover:text-emerald-300">Home</a>
-                <a href="#about" className="transition hover:text-emerald-300">About us</a>
-                <a href="#how-to-play" className="transition hover:text-emerald-300">How to Play</a>
-                <a href="#contact" className="transition hover:text-emerald-300">Contact us</a>
+
+              <div className="flex flex-col justify-between pt-5 pb-10 border-t border-deep-purple-accent-200 sm:flex-row">
+                <p className="text-sm text-gray-100">© Copyright 2020 Lorem Inc. All rights reserved.</p>
+
+                <div className="flex items-center mt-4 space-x-4 sm:mt-0">
+
+                  <a href="/" className="text-deep-purple-100 hover:text-gray-50">
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="h-5">
+                      <path d="M24,4.6c-0.9,0.4-1.8,0.7-2.8,0.8c..." />
+                    </svg>
+                  </a>
+
+                  <a href="/" className="text-deep-purple-100 hover:text-gray-50">
+                    <svg viewBox="0 0 30 30" fill="currentColor" className="h-6">
+                      <circle cx="15" cy="15" r="4" />
+                      <path d="M19.999,3h-10C6.14,3,3,6.141..." />
+                    </svg>
+                  </a>
+
+                  <a href="/" className="text-deep-purple-100 hover:text-gray-50">
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="h-5">
+                      <path d="M22,0H2C0.895,0,0,0.895,0,2v20..." />
+                    </svg>
+                  </a>
+
+                </div>
               </div>
-              <p className="px-10">� {new Date().getFullYear()} © Copyright 2025 – Arete Consultants Pvt. Ltd. All rights reserved.</p>
+
             </div>
           </div>
         </section>
+
+
+
+
       </main>
     </div>
   )
