@@ -2,7 +2,14 @@ import { useMemo } from 'react'
 import { listMatchesForStage, listStages } from '../../tournament/engine'
 import { CoinTossPanel, LiveMatchPanel, MatchControlButtons } from '../MatchPanels'
 
-function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, autoLaunchActive }) {
+function TournamentMatchQueue({
+  tournament,
+  teams,
+  activeMatches,
+  moderators,
+  autoLaunchActive,
+  onGrantBye,
+}) {
   if (!tournament) {
     return null
   }
@@ -39,11 +46,19 @@ function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, au
           const isReady = Boolean(teamA && teamB)
           const isLinked = Boolean(match.matchRefId)
           const moderatorName = moderators?.find((mod) => mod.id === match.moderatorId)?.name ?? 'Unassigned'
+          const byeAwarded = Boolean(match.meta?.byeAwarded)
           const queueState = (() => {
             if (isActive) {
               return {
                 label: 'Live match',
                 classes: 'border-emerald-500/60 bg-emerald-500/10 text-emerald-200',
+              }
+            }
+
+            if (byeAwarded) {
+              return {
+                label: 'Bye awarded',
+                classes: 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100',
               }
             }
 
@@ -74,6 +89,26 @@ function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, au
             }
           })()
 
+          const winner = match.winnerId ? teams.find((team) => team.id === match.winnerId) ?? null : null
+          const canGrantBye =
+            Boolean(onGrantBye) &&
+            !byeAwarded &&
+            !isActive &&
+            isReady &&
+            match.status !== 'completed'
+
+          const handleByeClick = (teamId, teamName) => {
+            if (!teamId) return
+            const confirmed =
+              !teamName ||
+              window.confirm(
+                `Grant a bye to ${teamName}? ${teamName} will advance and their opponent will receive a loss.`,
+              )
+            if (confirmed) {
+              onGrantBye?.(match.id, teamId)
+            }
+          }
+
           return (
             <div key={match.id} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm text-slate-200">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -96,6 +131,29 @@ function TournamentMatchQueue({ tournament, teams, activeMatches, moderators, au
                   </span>
                 </div>
               </div>
+              {winner ? (
+                <p className="mt-3 text-xs uppercase tracking-[0.3em] text-emerald-300">
+                  {winner.name} advanced by bye
+                </p>
+              ) : null}
+              {canGrantBye ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleByeClick(teamAId, teamA?.name)}
+                    className="rounded-2xl border border-emerald-500/60 bg-emerald-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200 transition hover:border-emerald-400 hover:text-white"
+                  >
+                    Bye {teamA?.name ?? 'Team A'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleByeClick(teamBId, teamB?.name)}
+                    className="rounded-2xl border border-emerald-500/60 bg-emerald-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200 transition hover:border-emerald-400 hover:text-white"
+                  >
+                    Bye {teamB?.name ?? 'Team B'}
+                  </button>
+                </div>
+              ) : null}
             </div>
           )
         })}
@@ -113,6 +171,7 @@ export default function AdminMatchesTab({
   onPauseMatch,
   onResumeMatch,
   onResetMatch,
+  onGrantBye,
 }) {
   const orderedMatches = useMemo(
     () =>
@@ -142,6 +201,7 @@ export default function AdminMatchesTab({
         activeMatches={activeMatches}
         moderators={moderators}
         autoLaunchActive={tournamentLaunched}
+        onGrantBye={onGrantBye}
       />
 
       <div className="space-y-4">
