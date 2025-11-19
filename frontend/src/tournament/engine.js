@@ -651,7 +651,7 @@ export function initializeTournament(teams, moderators) {
 
   state = createBracketRound(state, 'winners', 1, roundEntrants, byes)
 
-  if (byeTeamId) {
+  if (byeTeamId) {  
     state = {
       ...state,
       records: {
@@ -659,7 +659,7 @@ export function initializeTournament(teams, moderators) {
         [byeTeamId]: {
           ...(state.records[byeTeamId] ?? { ...DEFAULT_RECORD }),
           initialBye: true,
-        },
+        },    
       },
       initialByeTeamId: byeTeamId,
     }

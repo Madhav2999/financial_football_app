@@ -433,7 +433,7 @@ function AppShell() {
         .filter((match) => match.status !== 'completed' && match.tournamentMatchId)
         .map((match) => match.tournamentMatchId),
     )
-
+    //scans every match defined on the current tournament and keeps only those that are ready to spin up a live matches .
     const matchesToLaunch = Object.values(tournament.matches ?? {}).filter((match) => {
       if (match.status === 'completed') return false
       if (!match.teams?.every((teamId) => Boolean(teamId))) return false
