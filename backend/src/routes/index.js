@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { accounts, constants } from '../config/index.js'
+import adminRouter from './admin.js'
 
 const router = Router()
 
@@ -20,5 +21,7 @@ router.get('/accounts/seed', (req, res) => {
     admins: accounts.adminAccounts.map(({ email }) => ({ email })),
   })
 })
+
+router.use('/admin', adminRouter)
 
 export default router
