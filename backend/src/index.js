@@ -1,20 +1,49 @@
-import express from "express";
-import dotenv from "dotenv";
-import connectDB from "./config/db/connection.js";
+import 'dotenv/config'
+import http from 'http'
+import express from 'express'
+import cors from 'cors'
+import mongoose from 'mongoose'
+import { Server as SocketIOServer } from 'socket.io'
+import { database, security } from './config/index.js'
+import authMiddleware from './middleware/auth.js'
+import apiRouter from './routes/index.js'
+import registerSocketHandlers from './sockets/index.js'
 
-dotenv.config();
+const app = express()
 
-const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }))
+app.use(cors({ origin: security.allowedOrigins, credentials: true }))
+app.use(authMiddleware)
+app.use('/api', apiRouter)
 
-// connect to MongoDB
-connectDB();
+app.use((err, req, res, _next) => {
+  const status = err.statusCode || 500
+  res.status(status).json({ message: err.message || 'Unexpected error' })
+})
 
-// Example route
-app.get("/", (req, res) => {
-  res.send("API running...");
-});
+const server = http.createServer(app)
+const io = new SocketIOServer(server, {
+  cors: { origin: security.allowedOrigins, credentials: true },
+})
 
-app.listen(process.env.PORT, () => {
-  console.log(`Server running on port ${process.env.PORT}`);
-});
+registerSocketHandlers(io)
+
+const PORT = Number(process.env.PORT || 4000)
+
+const start = async () => {
+  try {
+    await mongoose.connect(database.uri, database.options)
+    console.log(`MongoDB connected: ${mongoose.connection.host}`)
+
+    server.listen(PORT, () => {
+      console.log(`HTTP and WebSocket server ready on port ${PORT}`)
+    })
+  } catch (error) {
+    console.error('Failed to start backend server', error)
+    process.exit(1)
+  }
+}
+
+start()
+
+export { app, io }
