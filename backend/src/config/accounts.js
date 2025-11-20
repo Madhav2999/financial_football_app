@@ -4,7 +4,7 @@ const moderatorAccounts = [
     password: process.env.MODERATOR_PASSWORD || 'moderator123',
   },
 ]
-
+  
 const adminAccounts = [
   {
     email: 'admin@financialfootball.test',

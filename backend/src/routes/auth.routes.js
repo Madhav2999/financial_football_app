@@ -166,6 +166,7 @@ authRouter.post('/register', async (req, res, next) => {
   }
 })
 
+
 authRouter.post('/logout', (req, res) => {
   const authHeader = req.headers.authorization
 
