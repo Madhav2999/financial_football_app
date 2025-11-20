@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
-import { Moderator, Team } from '../db/models/index.js'
+import { Moderator, Team, TeamRegistration } from '../db/models/index.js'
 import { security } from '../config/index.js'
 import { addTokenToBlacklist } from '../middleware/auth.js'
 
@@ -32,6 +32,17 @@ const sanitizeModerator = (moderatorDoc) => ({
   displayName: moderatorDoc.displayName,
   role: moderatorDoc.role,
   permissions: moderatorDoc.permissions,
+})
+
+const sanitizeTeamRegistration = (registrationDoc) => ({
+  id: registrationDoc._id.toString(),
+  teamName: registrationDoc.teamName,
+  organization: registrationDoc.organization,
+  contactName: registrationDoc.contactName,
+  contactEmail: registrationDoc.contactEmail,
+  county: registrationDoc.county,
+  status: registrationDoc.status,
+  createdAt: registrationDoc.createdAt,
 })
 
 const validateCredentials = (req, res) => {
@@ -115,6 +126,46 @@ authRouter.post('/admin', async (req, res, next) => {
     next(error)
   }
 })
+
+authRouter.post('/register', async (req, res, next) => {
+  const { teamName, organization, contactName, contactEmail, notes } = req.body || {}
+
+  const trimmedTeamName = teamName?.trim()
+  const trimmedOrganization = organization?.trim()
+  const trimmedContactEmail = contactEmail?.trim().toLowerCase()
+  const trimmedContactName = contactName?.trim()
+  const trimmedCounty = notes?.trim()
+
+  if (!trimmedTeamName || !trimmedOrganization || !trimmedContactEmail) {
+    return res
+      .status(400)
+      .json({ message: 'teamName, organization, and contactEmail are required for registration' })
+  }
+
+  try {
+    const duplicate = await TeamRegistration.findOne({
+      teamName: trimmedTeamName,
+      contactEmail: trimmedContactEmail,
+    })
+
+    if (duplicate) {
+      return res.status(409).json({ message: 'A registration for this team and contact already exists.' })
+    }
+
+    const registration = await TeamRegistration.create({
+      teamName: trimmedTeamName,
+      organization: trimmedOrganization,
+      contactName: trimmedContactName,
+      contactEmail: trimmedContactEmail,
+      county: trimmedCounty,
+    })
+
+    return res.status(201).json({ message: 'Registration received', registration: sanitizeTeamRegistration(registration) })
+  } catch (error) {
+    return next(error)
+  }
+})
+
 
 authRouter.post('/logout', (req, res) => {
   const authHeader = req.headers.authorization
