@@ -14,6 +14,7 @@ const INITIAL_REGISTER_FORM = {
   contactName: '',
   contactEmail: '',
   notes: '',
+  password:'',
 }
 
 export default function AuthenticationGateway({
@@ -277,6 +278,15 @@ export default function AuthenticationGateway({
           />
         </div>
         <div>
+          <label className='mb-2 block text-sm font-semibold text-slate-200'>Password</label>
+          <input
+            value={registerForm.password}
+            onChange={(e) => setRegisterForm((p) => ({ ...p, password: e.target.value }))}
+            placeholder='Password'
+            className='w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400 px-5 py-3.5 border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner'
+          />
+        </div>
+        <div>
           <label className="mb-2 block text-sm font-semibold text-slate-200">Phone Number</label>
           <input
             value={registerForm.contactName}
@@ -300,6 +310,7 @@ export default function AuthenticationGateway({
                    focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
         />
       </div>
+
 
       {/* ── Checkboxes (above submit) ─────────────────────────────── */}
       <div className="rounded-2xl border border-zinc-600 bg-zinc-800/50 p-4 space-y-3">
