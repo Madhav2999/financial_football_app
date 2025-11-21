@@ -7,9 +7,12 @@ import {
   Team,
   TeamRegistration,
 } from '../db/models/index.js'
+import { requireAdmin } from '../middleware/auth.js'
 import { seedModerators, seedQuestions, seedTeams } from '../seeds/initialData.js'
 
 const adminRouter = Router()
+
+adminRouter.use(requireAdmin)
 
 const sanitizeTeam = (teamDoc) => ({
   id: teamDoc._id.toString(),
@@ -211,6 +214,66 @@ adminRouter.post('/registrations/moderators/:id/approve', async (req, res, next)
       moderator: sanitizeModerator(moderator),
       registration: sanitizeModeratorRegistration(registration),
     })
+  } catch (error) {
+    return next(error)
+  }
+})
+
+adminRouter.delete('/teams/:id', async (req, res, next) => {
+  try {
+    const team = await Team.findById(req.params.id)
+
+    if (!team) {
+      return res.status(404).json({ message: 'Team not found' })
+    }
+
+    await TeamRegistration.updateMany(
+      { linkedTeamId: team._id },
+      {
+        $set: {
+          status: 'rejected',
+          'metadata.deletedAt': new Date(),
+          'metadata.deletionReason': 'Team account removed by admin',
+        },
+        $unset: { linkedTeamId: '' },
+      },
+    )
+
+    await team.deleteOne()
+
+    return res.json({ message: 'Team deleted', team: sanitizeTeam(team) })
+  } catch (error) {
+    return next(error)
+  }
+})
+
+adminRouter.delete('/moderators/:id', async (req, res, next) => {
+  try {
+    const moderator = await Moderator.findById(req.params.id)
+
+    if (!moderator) {
+      return res.status(404).json({ message: 'Moderator not found' })
+    }
+
+    if (moderator.role === 'admin') {
+      return res.status(403).json({ message: 'Admin accounts cannot be deleted via this endpoint' })
+    }
+
+    await ModeratorRegistration.updateMany(
+      { linkedModeratorId: moderator._id },
+      {
+        $set: {
+          status: 'rejected',
+          'metadata.deletedAt': new Date(),
+          'metadata.deletionReason': 'Moderator account removed by admin',
+        },
+        $unset: { linkedModeratorId: '' },
+      },
+    )
+
+    await moderator.deleteOne()
+
+    return res.json({ message: 'Moderator deleted', moderator: sanitizeModerator(moderator) })
   } catch (error) {
     return next(error)
   }

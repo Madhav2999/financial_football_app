@@ -8,6 +8,8 @@ const moderatorAccounts = [
 const adminAccounts = [
   {
     email: 'admin@financialfootball.test',
+    loginId: process.env.ADMIN_LOGIN_ID || 'admin-root',
+    displayName: 'Administrator',
     password: process.env.ADMIN_PASSWORD || 'admin123',
   },
 ]
