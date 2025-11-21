@@ -1,7 +1,7 @@
 export const seedTeams = [
-  { name: 'North City Bulls', loginId: 'team-north-bulls', region: 'North', seed: 1 },
-  { name: 'East Harbor Jets', loginId: 'team-east-jets', region: 'East', seed: 2 },
-  { name: 'South Bay Guardians', loginId: 'team-south-guardians', region: 'South', seed: 3 },
+  { name: 'North City Bulls', loginId: 'team-north-bulls', password: 'north-pass-123', region: 'North', seed: 1 },
+  { name: 'East Harbor Jets', loginId: 'team-east-jets', password: 'east-pass-123', region: 'East', seed: 2 },
+  { name: 'South Bay Guardians', loginId: 'team-south-guardians', password: 'south-pass-123', region: 'South', seed: 3 },
 ]
 
 export const seedModerators = [
@@ -9,13 +9,22 @@ export const seedModerators = [
     loginId: 'mod-avery',
     email: 'avery.moderator@financialfootball.test',
     displayName: 'Avery',
+    password: 'moderator123',
     role: 'moderator',
   },
   {
     loginId: 'mod-river',
     email: 'river.moderator@financialfootball.test',
     displayName: 'River',
+    password: 'moderator123',
     role: 'moderator',
+  },
+  {
+    loginId: 'admin-root',
+    email: 'admin@financialfootball.test',
+    displayName: 'Administrator',
+    password: process.env.ADMIN_PASSWORD || 'admin123',
+    role: 'admin',
   },
 ]
 

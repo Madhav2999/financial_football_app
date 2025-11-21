@@ -6,6 +6,7 @@ const moderatorSchema = new Schema(
   {
     loginId: { type: String, required: true, trim: true, unique: true },
     email: { type: String, required: true, lowercase: true, trim: true },
+    passwordHash: { type: String, required: true, select: false },
     displayName: { type: String, trim: true },
     role: { type: String, enum: ['moderator', 'admin'], default: 'moderator' },
     active: { type: Boolean, default: true },

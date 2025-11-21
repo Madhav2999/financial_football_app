@@ -7,6 +7,7 @@ import { Server as SocketIOServer } from 'socket.io'
 import { database, security } from './config/index.js'
 import authMiddleware from './middleware/auth.js'
 import apiRouter from './routes/index.js'
+import { ensureAdminAccount } from './seeds/bootstrapAdmin.js'
 import registerSocketHandlers from './sockets/index.js'
 
 const app = express()
@@ -34,6 +35,8 @@ const start = async () => {
   try {
     await mongoose.connect(database.uri, database.options)
     console.log(`MongoDB connected: ${mongoose.connection.host}`)
+
+    await ensureAdminAccount()
 
     server.listen(PORT, () => {
       console.log(`HTTP and WebSocket server ready on port ${PORT}`)
