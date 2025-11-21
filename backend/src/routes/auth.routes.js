@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
-import { Moderator, Team, TeamRegistration } from '../db/models/index.js'
+import { Moderator, ModeratorRegistration, Team, TeamRegistration } from '../db/models/index.js'
 import { security } from '../config/index.js'
 import { addTokenToBlacklist } from '../middleware/auth.js'
 
@@ -44,6 +44,17 @@ const sanitizeTeamRegistration = (registrationDoc) => ({
   county: registrationDoc.county,
   status: registrationDoc.status,
   linkedTeamId: registrationDoc.linkedTeamId,
+  createdAt: registrationDoc.createdAt,
+})
+
+const sanitizeModeratorRegistration = (registrationDoc) => ({
+  id: registrationDoc._id.toString(),
+  loginId: registrationDoc.loginId,
+  email: registrationDoc.email,
+  displayName: registrationDoc.displayName,
+  permissions: registrationDoc.permissions,
+  status: registrationDoc.status,
+  linkedModeratorId: registrationDoc.linkedModeratorId,
   createdAt: registrationDoc.createdAt,
 })
 
@@ -197,20 +208,86 @@ authRouter.post('/register/moderator', async (req, res, next) => {
       $or: [{ loginId: trimmedLoginId }, { email: trimmedEmail }],
     })
 
-    if (existingModerator) {
+    const existingRegistration = await ModeratorRegistration.findOne({
+      $or: [{ loginId: trimmedLoginId }, { email: trimmedEmail }],
+    })
+
+    if (existingModerator || existingRegistration) {
       return res.status(409).json({ message: 'A moderator with that loginId or email already exists.' })
     }
 
     const passwordHash = await bcrypt.hash(trimmedPassword, 10)
-    const moderator = await Moderator.create({
-      loginId: trimmedLoginId,
+    const registration = await ModeratorRegistration.create({
+      loginId: trimmedLoginId.toLowerCase(),
       email: trimmedEmail,
       passwordHash,
       displayName: trimmedDisplayName,
       permissions: Array.isArray(permissions) ? permissions : undefined,
     })
 
-    return res.status(201).json({ message: 'Moderator registered', user: sanitizeModerator(moderator) })
+    return res
+      .status(201)
+      .json({ message: 'Moderator registration received', registration: sanitizeModeratorRegistration(registration) })
+  } catch (error) {
+    return next(error)
+  }
+})
+
+authRouter.post('/forgot-password/team', async (req, res, next) => {
+  const { loginId, contactEmail, newPassword } = req.body || {}
+
+  const trimmedLoginId = loginId?.trim()
+  const trimmedContactEmail = contactEmail?.trim().toLowerCase()
+  const trimmedPassword = newPassword?.trim()
+
+  if (!isNonEmptyString(trimmedLoginId) || !isNonEmptyString(trimmedPassword)) {
+    return res.status(400).json({ message: 'loginId and newPassword are required' })
+  }
+
+  try {
+    const team = await Team.findOne({ loginId: trimmedLoginId }).select('+passwordHash')
+
+    if (!team) {
+      return res.status(404).json({ message: 'Team not found' })
+    }
+
+    const storedContactEmail = team.metadata?.get?.('contactEmail') || team.metadata?.contactEmail
+
+    if (trimmedContactEmail && storedContactEmail && trimmedContactEmail !== storedContactEmail.toLowerCase()) {
+      return res.status(403).json({ message: 'Contact email does not match' })
+    }
+
+    team.passwordHash = await bcrypt.hash(trimmedPassword, 10)
+    await team.save()
+
+    return res.json({ message: 'Password updated', user: sanitizeTeam(team) })
+  } catch (error) {
+    return next(error)
+  }
+})
+
+authRouter.post('/forgot-password/moderator', async (req, res, next) => {
+  const { loginId, email, newPassword } = req.body || {}
+
+  const trimmedLoginId = loginId?.trim()
+  const trimmedEmail = email?.trim().toLowerCase()
+  const trimmedPassword = newPassword?.trim()
+
+  if (!isNonEmptyString(trimmedLoginId) || !isNonEmptyString(trimmedEmail) || !isNonEmptyString(trimmedPassword)) {
+    return res.status(400).json({ message: 'loginId, email, and newPassword are required' })
+  }
+
+  try {
+    const moderator = await Moderator.findOne({ loginId: trimmedLoginId, email: trimmedEmail }).select('+passwordHash')
+
+    if (!moderator) {
+      return res.status(404).json({ message: 'Moderator not found' })
+    }
+
+    moderator.passwordHash = await bcrypt.hash(trimmedPassword, 10)
+    await moderator.save()
+
+    return res.json({ message: 'Password updated', user: sanitizeModerator(moderator) })
   } catch (error) {
     return next(error)
   }

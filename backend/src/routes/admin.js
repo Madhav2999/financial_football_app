@@ -1,6 +1,12 @@
 import { Router } from 'express'
 import bcrypt from 'bcrypt'
-import { Moderator, Question, Team, TeamRegistration } from '../db/models/index.js'
+import {
+  Moderator,
+  ModeratorRegistration,
+  Question,
+  Team,
+  TeamRegistration,
+} from '../db/models/index.js'
 import { seedModerators, seedQuestions, seedTeams } from '../seeds/initialData.js'
 
 const adminRouter = Router()
@@ -25,6 +31,26 @@ const sanitizeTeamRegistration = (registrationDoc) => ({
   county: registrationDoc.county,
   status: registrationDoc.status,
   linkedTeamId: registrationDoc.linkedTeamId,
+  createdAt: registrationDoc.createdAt,
+})
+
+const sanitizeModerator = (moderatorDoc) => ({
+  id: moderatorDoc._id.toString(),
+  loginId: moderatorDoc.loginId,
+  email: moderatorDoc.email,
+  displayName: moderatorDoc.displayName,
+  role: moderatorDoc.role,
+  permissions: moderatorDoc.permissions,
+})
+
+const sanitizeModeratorRegistration = (registrationDoc) => ({
+  id: registrationDoc._id.toString(),
+  loginId: registrationDoc.loginId,
+  email: registrationDoc.email,
+  displayName: registrationDoc.displayName,
+  permissions: registrationDoc.permissions,
+  status: registrationDoc.status,
+  linkedModeratorId: registrationDoc.linkedModeratorId,
   createdAt: registrationDoc.createdAt,
 })
 
@@ -139,6 +165,51 @@ adminRouter.post('/registrations/:id/approve', async (req, res, next) => {
       message: 'Registration approved and team created',
       team: sanitizeTeam(team),
       registration: sanitizeTeamRegistration(registration),
+    })
+  } catch (error) {
+    return next(error)
+  }
+})
+
+adminRouter.post('/registrations/moderators/:id/approve', async (req, res, next) => {
+  try {
+    const registration = await ModeratorRegistration.findById(req.params.id).select('+passwordHash')
+
+    if (!registration) {
+      return res.status(404).json({ message: 'Moderator registration not found' })
+    }
+
+    if (registration.status === 'approved' && registration.linkedModeratorId) {
+      return res.json({
+        message: 'Registration already approved',
+        registration: sanitizeModeratorRegistration(registration),
+      })
+    }
+
+    const existingModerator = await Moderator.findOne({
+      $or: [{ loginId: registration.loginId }, { email: registration.email }],
+    })
+
+    if (existingModerator) {
+      return res.status(409).json({ message: 'A moderator with this loginId or email already exists.' })
+    }
+
+    const moderator = await Moderator.create({
+      loginId: registration.loginId,
+      email: registration.email,
+      passwordHash: registration.passwordHash,
+      displayName: registration.displayName,
+      permissions: registration.permissions,
+    })
+
+    registration.status = 'approved'
+    registration.linkedModeratorId = moderator._id
+    await registration.save()
+
+    return res.json({
+      message: 'Moderator registration approved and account created',
+      moderator: sanitizeModerator(moderator),
+      registration: sanitizeModeratorRegistration(registration),
     })
   } catch (error) {
     return next(error)
