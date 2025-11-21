@@ -45,6 +45,8 @@ const sanitizeTeamRegistration = (registrationDoc) => ({
   createdAt: registrationDoc.createdAt,
 })
 
+const isNonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0
+
 const validateCredentials = (req, res) => {
   const { loginId, password } = req.body || {}
   if (!loginId || !password) {
@@ -161,6 +163,43 @@ authRouter.post('/register', async (req, res, next) => {
     })
 
     return res.status(201).json({ message: 'Registration received', registration: sanitizeTeamRegistration(registration) })
+  } catch (error) {
+    return next(error)
+  }
+})
+
+
+authRouter.post('/register/moderator', async (req, res, next) => {
+  const { loginId, email, password, displayName, permissions } = req.body || {}
+
+  const trimmedLoginId = loginId?.trim()
+  const trimmedEmail = email?.trim().toLowerCase()
+  const trimmedPassword = password?.trim()
+  const trimmedDisplayName = displayName?.trim()
+
+  if (!isNonEmptyString(trimmedLoginId) || !isNonEmptyString(trimmedEmail) || !isNonEmptyString(trimmedPassword)) {
+    return res.status(400).json({ message: 'loginId, email, and password are required' })
+  }
+
+  try {
+    const existingModerator = await Moderator.findOne({
+      $or: [{ loginId: trimmedLoginId }, { email: trimmedEmail }],
+    })
+
+    if (existingModerator) {
+      return res.status(409).json({ message: 'A moderator with that loginId or email already exists.' })
+    }
+
+    const passwordHash = await bcrypt.hash(trimmedPassword, 10)
+    const moderator = await Moderator.create({
+      loginId: trimmedLoginId,
+      email: trimmedEmail,
+      passwordHash,
+      displayName: trimmedDisplayName,
+      permissions: Array.isArray(permissions) ? permissions : undefined,
+    })
+
+    return res.status(201).json({ message: 'Moderator registered', user: sanitizeModerator(moderator) })
   } catch (error) {
     return next(error)
   }

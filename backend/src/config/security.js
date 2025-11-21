@@ -15,11 +15,13 @@ const security = {
     '/auth/moderator',
     '/auth/admin',
     '/auth/register',
+    '/auth/register/moderator',
     '/auth/logout',
     '/api/auth/team',
     '/api/auth/moderator',
     '/api/auth/admin',
     '/api/auth/register',
+    '/api/auth/register/moderator',
     '/api/auth/logout',
   ],
   allowedOrigins: process.env.CORS_ORIGIN
