@@ -36,12 +36,14 @@ const sanitizeModerator = (moderatorDoc) => ({
 
 const sanitizeTeamRegistration = (registrationDoc) => ({
   id: registrationDoc._id.toString(),
+  loginId: registrationDoc.loginId,
   teamName: registrationDoc.teamName,
   organization: registrationDoc.organization,
   contactName: registrationDoc.contactName,
   contactEmail: registrationDoc.contactEmail,
   county: registrationDoc.county,
   status: registrationDoc.status,
+  linkedTeamId: registrationDoc.linkedTeamId,
   createdAt: registrationDoc.createdAt,
 })
 
@@ -130,36 +132,46 @@ authRouter.post('/admin', async (req, res, next) => {
 })
 
 authRouter.post('/register', async (req, res, next) => {
-  const { teamName, organization, contactName, contactEmail, notes } = req.body || {}
+  const { teamName, organization, contactName, contactEmail, notes, password, loginId } = req.body || {}
 
   const trimmedTeamName = teamName?.trim()
   const trimmedOrganization = organization?.trim()
   const trimmedContactEmail = contactEmail?.trim().toLowerCase()
   const trimmedContactName = contactName?.trim()
   const trimmedCounty = notes?.trim()
+  const trimmedPassword = password?.trim()
+  const trimmedLoginId = loginId?.trim().toLowerCase() || trimmedContactEmail
 
-  if (!trimmedTeamName || !trimmedOrganization || !trimmedContactEmail) {
+  if (!trimmedTeamName || !trimmedOrganization || !trimmedContactEmail || !trimmedPassword) {
     return res
       .status(400)
-      .json({ message: 'teamName, organization, and contactEmail are required for registration' })
+      .json({ message: 'teamName, organization, contactEmail, and password are required for registration' })
   }
 
   try {
     const duplicate = await TeamRegistration.findOne({
-      teamName: trimmedTeamName,
-      contactEmail: trimmedContactEmail,
+      $or: [
+        { teamName: trimmedTeamName, contactEmail: trimmedContactEmail },
+        { loginId: trimmedLoginId },
+      ],
     })
 
     if (duplicate) {
-      return res.status(409).json({ message: 'A registration for this team and contact already exists.' })
+      return res
+        .status(409)
+        .json({ message: 'A registration for this team, contact, or loginId already exists.' })
     }
 
+    const passwordHash = await bcrypt.hash(trimmedPassword, 10)
     const registration = await TeamRegistration.create({
       teamName: trimmedTeamName,
       organization: trimmedOrganization,
+      loginId: trimmedLoginId,
+      passwordHash,
       contactName: trimmedContactName,
       contactEmail: trimmedContactEmail,
       county: trimmedCounty,
+      metadata: { notes: trimmedCounty },
     })
 
     return res.status(201).json({ message: 'Registration received', registration: sanitizeTeamRegistration(registration) })
@@ -167,7 +179,6 @@ authRouter.post('/register', async (req, res, next) => {
     return next(error)
   }
 })
-
 
 authRouter.post('/register/moderator', async (req, res, next) => {
   const { loginId, email, password, displayName, permissions } = req.body || {}
@@ -204,7 +215,6 @@ authRouter.post('/register/moderator', async (req, res, next) => {
     return next(error)
   }
 })
-
 
 authRouter.post('/logout', (req, res) => {
   const authHeader = req.headers.authorization
