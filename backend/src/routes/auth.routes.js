@@ -168,6 +168,7 @@ authRouter.post('/register', async (req, res, next) => {
   }
 })
 
+
 authRouter.post('/register/moderator', async (req, res, next) => {
   const { loginId, email, password, displayName, permissions } = req.body || {}
 
@@ -203,6 +204,7 @@ authRouter.post('/register/moderator', async (req, res, next) => {
     return next(error)
   }
 })
+
 
 authRouter.post('/logout', (req, res) => {
   const authHeader = req.headers.authorization
