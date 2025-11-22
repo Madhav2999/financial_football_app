@@ -78,6 +78,10 @@ export default function LandingPage({
   onModeratorLogin,
   authError,
   onClearAuthError,
+  onTeamRegister,
+  onModeratorRegister,
+  onTeamForgotPassword,
+  onModeratorForgotPassword,
 }) {
   const standings = [...teams]
     .sort((a, b) => b.wins - a.wins || b.totalScore - a.totalScore)
@@ -131,6 +135,10 @@ export default function LandingPage({
           onTeamLogin={onTeamLogin}
           onAdminLogin={onAdminLogin}
           onModeratorLogin={onModeratorLogin}
+          onTeamRegister={onTeamRegister}
+          onModeratorRegister={onModeratorRegister}
+          onTeamForgotPassword={onTeamForgotPassword}
+          onModeratorForgotPassword={onModeratorForgotPassword}
           error={authError}
           displayVariant="modal"
           showRegistrationTab
