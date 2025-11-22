@@ -59,6 +59,7 @@ function AppShell() {
   const [moderatorRegistrations, setModeratorRegistrations] = useState([])
   const finalizedMatchesRef = useRef(new Set())
   const rosterSeedKeyRef = useRef('')
+  const rosterHydratedRef = useRef(false)
   const hydratingSessionRef = useRef(false)
 
   const navigate = useNavigate()
@@ -363,6 +364,47 @@ function AppShell() {
     return true
   }, [requestJson, session.type])
 
+  const hydrateApprovedRosters = useCallback(async () => {
+    const [teamResult, moderatorResult] = await Promise.all([
+      requestJson('/public/teams').catch(() => null),
+      requestJson('/public/moderators').catch(() => null),
+    ])
+
+    if (Array.isArray(teamResult?.teams) && teamResult.teams.length > 0) {
+      setTeams((previous) => {
+        const previousMap = new Map(previous.map((team) => [team.id, team]))
+        return teamResult.teams
+          .map((team) => normalizeTeamRecord(team))
+          .filter(Boolean)
+          .map((team) => {
+            const existing = previousMap.get(team.id)
+            return existing
+              ? {
+                  ...team,
+                  wins: existing.wins ?? team.wins,
+                  losses: existing.losses ?? team.losses,
+                  totalScore: existing.totalScore ?? team.totalScore,
+                  eliminated: existing.eliminated ?? team.eliminated,
+                }
+              : team
+          })
+      })
+    }
+
+    if (Array.isArray(moderatorResult?.moderators) && moderatorResult.moderators.length > 0) {
+      setModerators((previous) => {
+        const previousMap = new Map(previous.map((record) => [record.id, record]))
+        return moderatorResult.moderators
+          .map((record) => normalizeModeratorRecord(record))
+          .filter(Boolean)
+          .map((record) => {
+            const existing = previousMap.get(record.id)
+            return existing ? { ...existing, ...record } : record
+          })
+      })
+    }
+  }, [requestJson])
+
   const approveTeamRegistration = useCallback(
     async (registrationId) => {
       const result = await requestJson(`/admin/registrations/${registrationId}/approve`, {
@@ -448,6 +490,15 @@ function AppShell() {
     clearStoredSession()
     navigate('/', { replace: true })
   }, [clearStoredSession, navigate, requestJson, session?.token])
+
+  useEffect(() => {
+    if (rosterHydratedRef.current) return
+    rosterHydratedRef.current = true
+
+    hydrateApprovedRosters().catch((error) => {
+      console.error('Failed to hydrate approved rosters', error)
+    })
+  }, [hydrateApprovedRosters])
 
   useEffect(() => {
     if (session.type !== 'admin') return
