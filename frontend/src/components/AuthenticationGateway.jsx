@@ -271,7 +271,7 @@ export default function AuthenticationGateway({
         >
           Close
         </button>
-        <div className="grid gap-0 lg:grid-cols-[1.05fr,0.95fr]">
+        <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
           <section className="p-6 sm:p-8">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-400">Financial Football</p>
             <h2 className="text-3xl sm:text-4xl font-bold text-white">{isRegistrationMode ? 'Register your team' : 'Login to your account'}</h2>
@@ -363,7 +363,7 @@ export default function AuthenticationGateway({
         </div>
 
         <div className="rounded-3xl border border-slate-800 bg-slate-950/60 shadow-2xl shadow-orange-500/5 backdrop-blur">
-          <div className="grid gap-0 lg:grid-cols-[1.1fr,0.9fr]">
+          <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
             <section className="p-6 sm:p-8 lg:p-10">
               <AuthHeader
                 isRegistrationMode={isRegistrationMode}
