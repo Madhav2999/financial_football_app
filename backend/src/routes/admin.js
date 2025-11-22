@@ -100,6 +100,29 @@ adminRouter.post('/seed/teams', async (req, res, next) => {
   }
 })
 
+adminRouter.get('/teams', async (req, res, next) => {
+  try {
+    const teams = await Team.find().sort({ createdAt: -1 })
+    res.json({ teams: teams.map(sanitizeTeam) })
+  } catch (error) {
+    next(error)
+  }
+})
+
+adminRouter.get('/teams/:id', async (req, res, next) => {
+  try {
+    const team = await Team.findById(req.params.id)
+
+    if (!team) {
+      return res.status(404).json({ message: 'Team not found' })
+    }
+
+    return res.json({ team: sanitizeTeam(team) })
+  } catch (error) {
+    return next(error)
+  }
+})
+
 adminRouter.post('/seed/moderators', async (req, res, next) => {
   try {
     const records = req.body?.moderators ?? seedModerators
@@ -107,6 +130,29 @@ adminRouter.post('/seed/moderators', async (req, res, next) => {
     res.json({ message: 'Moderators seeded', ...summary })
   } catch (error) {
     next(error)
+  }
+})
+
+adminRouter.get('/moderators', async (req, res, next) => {
+  try {
+    const moderators = await Moderator.find().sort({ createdAt: -1 })
+    res.json({ moderators: moderators.map(sanitizeModerator) })
+  } catch (error) {
+    next(error)
+  }
+})
+
+adminRouter.get('/moderators/:id', async (req, res, next) => {
+  try {
+    const moderator = await Moderator.findById(req.params.id)
+
+    if (!moderator) {
+      return res.status(404).json({ message: 'Moderator not found' })
+    }
+
+    return res.json({ moderator: sanitizeModerator(moderator) })
+  } catch (error) {
+    return next(error)
   }
 })
 
@@ -174,6 +220,17 @@ adminRouter.post('/registrations/:id/approve', async (req, res, next) => {
   }
 })
 
+adminRouter.get('/registrations/teams', async (req, res, next) => {
+  try {
+    const statusFilter = req.query.status
+    const query = statusFilter ? { status: statusFilter } : {}
+    const registrations = await TeamRegistration.find(query).sort({ createdAt: -1 })
+    return res.json({ registrations: registrations.map(sanitizeTeamRegistration) })
+  } catch (error) {
+    return next(error)
+  }
+})
+
 adminRouter.post('/registrations/moderators/:id/approve', async (req, res, next) => {
   try {
     const registration = await ModeratorRegistration.findById(req.params.id).select('+passwordHash')
@@ -214,6 +271,17 @@ adminRouter.post('/registrations/moderators/:id/approve', async (req, res, next)
       moderator: sanitizeModerator(moderator),
       registration: sanitizeModeratorRegistration(registration),
     })
+  } catch (error) {
+    return next(error)
+  }
+})
+
+adminRouter.get('/registrations/moderators', async (req, res, next) => {
+  try {
+    const statusFilter = req.query.status
+    const query = statusFilter ? { status: statusFilter } : {}
+    const registrations = await ModeratorRegistration.find(query).sort({ createdAt: -1 })
+    return res.json({ registrations: registrations.map(sanitizeModeratorRegistration) })
   } catch (error) {
     return next(error)
   }
