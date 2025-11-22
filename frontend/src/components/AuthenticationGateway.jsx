@@ -340,7 +340,7 @@ export default function AuthenticationGateway({
 
   const pageContent = (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 text-slate-100">
-      <div className="px-4 py-10 sm:px-6 sm:py-12 lg:px-10">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12 lg:px-10">
         <div className="mb-8 flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Financial Football</p>
