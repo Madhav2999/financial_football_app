@@ -416,7 +416,7 @@ function AppShell() {
     return moderators.find((account) => account.id === session.moderatorId) ?? null
   }, [session, moderators])
 
-  const API_BASE = '/api'
+  const API_BASE = 'http://localhost:5000/api'
 
   const withApiBase = (path) => {
     if (!path) return API_BASE
