@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 
+const MIN_PASSWORD_LENGTH = 6
+const isValidEmail = (value) => /\S+@\S+\.\S+/.test(value?.trim() ?? '')
+
 const BASE_MODES = [
   { id: 'team', label: 'User Login' }, // label to match screenshot
   { id: 'admin', label: 'Admin Login' },
@@ -100,6 +103,11 @@ export default function AuthenticationGateway({
       return
     }
 
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setLocalError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`)
+      return
+    }
+
     try {
       setLoginSubmitting(true)
       if (mode === 'team') await onTeamLogin(loginId, password)
@@ -172,10 +180,30 @@ export default function AuthenticationGateway({
         setRegisterError('Please complete all required team registration fields.')
         return
       }
+
+      if (!isValidEmail(contactEmail)) {
+        setRegisterError('Please provide a valid contact email address.')
+        return
+      }
+
+      if (password.trim().length < MIN_PASSWORD_LENGTH) {
+        setRegisterError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`)
+        return
+      }
     } else {
       const { loginId, email, password } = moderatorRegisterForm
       if (!loginId.trim() || !email.trim() || !password.trim()) {
         setRegisterError('Please complete all required moderator registration fields.')
+        return
+      }
+
+      if (!isValidEmail(email)) {
+        setRegisterError('Please provide a valid moderator email address.')
+        return
+      }
+
+      if (password.trim().length < MIN_PASSWORD_LENGTH) {
+        setRegisterError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`)
         return
       }
     }
@@ -231,6 +259,16 @@ export default function AuthenticationGateway({
 
     if (!loginId || !newPassword || (forgotMode === 'moderator' && !emailField)) {
       setForgotError('Please provide the required details to reset your password.')
+      return
+    }
+
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setForgotError(`New password must be at least ${MIN_PASSWORD_LENGTH} characters.`)
+      return
+    }
+
+    if (emailField && !isValidEmail(emailField)) {
+      setForgotError('Please enter a valid email address for verification.')
       return
     }
 

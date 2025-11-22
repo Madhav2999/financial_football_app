@@ -25,6 +25,18 @@ import {
 import LearnToPlay from './components/LearnToPlay'
 import PublicTournamentPage from './components/PublicTournamentPage'
 import PublicMatchViewer from './components/PublicMatchViewer'
+import {
+  clearStoredToken,
+  createSessionFromAuthResponse,
+  loginAdmin,
+  loginModerator,
+  loginTeam,
+  registerModerator,
+  registerTeam,
+  requestModeratorPasswordReset,
+  requestTeamPasswordReset,
+  restoreSessionFromStorage,
+} from './api/auth'
 
 
 
@@ -325,6 +337,7 @@ export default function App() {
 function AppShell() {
   const [teams, setTeams] = useState(INITIAL_TEAM_STATE)
   const [session, setSession] = useState({ type: 'guest' })
+  const [sessionReady, setSessionReady] = useState(false)
   const [activeMatches, setActiveMatches] = useState([])
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
@@ -380,33 +393,36 @@ function AppShell() {
     return MODERATOR_ACCOUNTS.find((account) => account.id === session.moderatorId) ?? null
   }, [session])
 
-  const postJson = async (url, body) => {
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body ?? {}),
-      })
+  useEffect(() => {
+    let cancelled = false
 
-      const data = await response.json().catch(() => ({}))
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Request failed')
+    const restoreSession = async () => {
+      try {
+        const restored = await restoreSessionFromStorage()
+        if (!cancelled && restored) {
+          setSession(restored)
+        }
+      } catch (error) {
+        console.warn('Unable to restore previous session', error)
+        clearStoredToken()
+      } finally {
+        if (!cancelled) {
+          setSessionReady(true)
+        }
       }
-
-      return data
-    } catch (error) {
-      const message = error?.message || 'Request failed'
-      const err = new Error(message)
-      err.cause = error
-      throw err
     }
-  }
+
+    restoreSession()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleTeamLogin = async (loginId, password, options = {}) => {
     setAuthError(null)
     try {
-      const result = await postJson('/auth/team', { loginId, password })
+      const result = await loginTeam({ loginId, password })
       const team = result.user
 
       if (team) {
@@ -436,7 +452,8 @@ function AppShell() {
         })
       }
 
-      setSession({ type: 'team', teamId: team?.id ?? loginId, token: result.token, profile: team })
+      setSession(createSessionFromAuthResponse(result, 'team'))
+      setSessionReady(true)
       navigate(options.redirectTo ?? '/team', { replace: true })
       return result
     } catch (error) {
@@ -449,8 +466,9 @@ function AppShell() {
   const handleAdminLogin = async (loginId, password, options = {}) => {
     setAuthError(null)
     try {
-      const result = await postJson('/auth/admin', { loginId, password })
-      setSession({ type: 'admin', token: result.token, profile: result.user })
+      const result = await loginAdmin({ loginId, password })
+      setSession(createSessionFromAuthResponse(result, 'admin'))
+      setSessionReady(true)
       navigate(options.redirectTo ?? '/admin', { replace: true })
       return result
     } catch (error) {
@@ -463,10 +481,9 @@ function AppShell() {
   const handleModeratorLogin = async (loginId, password, options = {}) => {
     setAuthError(null)
     try {
-      const result = await postJson('/auth/moderator', { loginId, password })
-      const moderator = result.user
-
-      setSession({ type: 'moderator', moderatorId: moderator?.id, token: result.token, profile: moderator })
+      const result = await loginModerator({ loginId, password })
+      setSession(createSessionFromAuthResponse(result, 'moderator'))
+      setSessionReady(true)
       navigate(options.redirectTo ?? '/moderator', { replace: true })
       return result
     } catch (error) {
@@ -477,22 +494,23 @@ function AppShell() {
   }
 
   const handleTeamRegistration = async (payload) => {
-    return postJson('/auth/register', payload)
+    return registerTeam(payload)
   }
 
   const handleModeratorRegistration = async (payload) => {
-    return postJson('/auth/register/moderator', payload)
+    return registerModerator(payload)
   }
 
   const handleTeamForgotPassword = async (payload) => {
-    return postJson('/auth/forgot-password/team', payload)
+    return requestTeamPasswordReset(payload)
   }
 
   const handleModeratorForgotPassword = async (payload) => {
-    return postJson('/auth/forgot-password/moderator', payload)
+    return requestModeratorPasswordReset(payload)
   }
 
   const handleLogout = () => {
+    clearStoredToken()
     setSession({ type: 'guest' })
     setAuthError(null)
     navigate('/', { replace: true })
@@ -1192,13 +1210,18 @@ function AppShell() {
               navigate('/')
             }}
             session={session}
+            sessionReady={sessionReady}
           />
         }
       />
       <Route
         path="/admin/*"
         element={
-          <ProtectedRoute isAllowed={session.type === 'admin'} redirectTo="/login?mode=admin">
+          <ProtectedRoute
+            isAllowed={session.type === 'admin' && Boolean(session.token)}
+            isLoading={!sessionReady}
+            redirectTo="/login?mode=admin"
+          >
             <AdminDashboard
               teams={teams}
               activeMatches={activeMatches}
@@ -1227,7 +1250,11 @@ function AppShell() {
       <Route
         path="/moderator"
         element={
-          <ProtectedRoute isAllowed={session.type === 'moderator'} redirectTo="/login?mode=moderator">
+          <ProtectedRoute
+            isAllowed={session.type === 'moderator' && Boolean(session.token)}
+            isLoading={!sessionReady}
+            redirectTo="/login?mode=moderator"
+          >
             <ModeratorDashboard
               moderator={activeModerator}
               matches={activeMatches}
@@ -1257,7 +1284,10 @@ function AppShell() {
         path="/team"
         element={
           <ProtectedRoute
-            isAllowed={session.type === 'team' && Boolean(activeTeam)}
+            isAllowed={
+              session.type === 'team' && Boolean(activeTeam) && Boolean(session.token)
+            }
+            isLoading={!sessionReady}
             redirectTo="/login"
           >
             <TeamDashboard
@@ -1293,6 +1323,7 @@ function LoginPage({
   onModeratorForgotPassword,
   onBack,
   session,
+  sessionReady,
 }) {
   const location = useLocation()
   const [searchParams] = useSearchParams()
@@ -1319,6 +1350,10 @@ function LoginPage({
   const redirectTarget = fromLocation
     ? `${fromLocation.pathname}${fromLocation.search ?? ''}${fromLocation.hash ?? ''}`
     : null
+
+  if (!sessionReady) {
+    return null
+  }
 
   if (session.type === 'admin') {
     return <Navigate to="/admin" replace />
