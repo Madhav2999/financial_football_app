@@ -1,13 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import AuthenticationGateway from './components/AuthenticationGateway'
+import {
+  ADMIN_CREDENTIALS,
+  MIN_TOURNAMENT_TEAM_COUNT,
+  MODERATOR_ACCOUNTS,
+  QUESTIONS_PER_TEAM,
+  SUPER_ADMIN_PROFILE,
+  TOURNAMENT_TEAM_LIMIT,
+} from './app/constants'
+import { advanceMatchState, applyAnswerResult, buildQuestionOrder, createLiveMatch } from './app/matchLifecycle'
+import {
+  INITIAL_TEAM_STATE,
+  normalizeModeratorRecord,
+  normalizeTeamRecord,
+} from './app/normalizers'
+import { buildDefaultTeamSelection, createSelectionKey } from './app/selection'
+import { clearStoredSession, readStoredSession, writeStoredSession } from './app/sessionStorage'
+import { createRunningTimer, pauseTimer, resumeTimer } from './app/matchTiming'
 import AdminDashboard from './components/AdminDashboard'
 import LandingPage from './components/LandingPage'
+import LoginPage from './components/LoginPage'
 import ModeratorDashboard from './components/ModeratorDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
-import { initialTeams } from './data/teams'
-import { questionBank } from './data/questions'
-import { moderatorAccounts } from './data/moderators'
 import TeamDashboard from './components/TeamDashboard'
 import {
   initializeTournament,
@@ -16,303 +30,9 @@ import {
   detachLiveMatch,
   grantMatchBye,
 } from './tournament/engine'
-import {
-  PRIMARY_QUESTION_DURATION_MS,
-  PRIMARY_QUESTION_POINTS,
-  STEAL_QUESTION_DURATION_MS,
-  STEAL_QUESTION_POINTS,
-} from './constants/matchSettings'
 import LearnToPlay from './components/LearnToPlay'
 import PublicTournamentPage from './components/PublicTournamentPage'
 import PublicMatchViewer from './components/PublicMatchViewer'
-
-
-
-const QUESTIONS_PER_TEAM = 1
-const TOURNAMENT_TEAM_LIMIT = Number.POSITIVE_INFINITY
-const MIN_TOURNAMENT_TEAM_COUNT = 2
-const ADMIN_CREDENTIALS = { loginId: 'admin', password: 'moderator' }
-const SUPER_ADMIN_PROFILE = {
-  name: 'SUNCOAST ADMIN',
-  email: 'admin@financialfootball.com',
-  phone: '+1 (555) 013-3700',
-}
-const MODERATOR_ACCOUNTS = moderatorAccounts
-
-function buildInitialTeams() {
-  return initialTeams.map((team) => ({
-    ...team,
-    wins: 0,
-    losses: 0,
-    totalScore: 0,
-    eliminated: false,
-  }))
-}
-
-const INITIAL_TEAM_STATE = buildInitialTeams()
-
-function buildDefaultTeamSelection(teams, limit = TOURNAMENT_TEAM_LIMIT) {
-  const roster = Array.isArray(teams) ? teams : []
-  const requiredCount = Math.min(limit, roster.length)
-  return roster.slice(0, requiredCount).map((team) => team.id)
-}
-
-function createSelectionKey(ids) {
-  if (!ids?.length) return ''
-  return [...ids].sort().join('|')
-}
-
-function shuffleArray(array) {
-  const items = [...array]
-  for (let index = items.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1))
-      ;[items[index], items[swapIndex]] = [items[swapIndex], items[index]]
-  }
-  return items
-}
-
-const TIMER_DURATIONS = {
-  primary: PRIMARY_QUESTION_DURATION_MS,
-  steal: STEAL_QUESTION_DURATION_MS,
-}
-
-function createRunningTimer(type = 'primary', remainingOverride = null) {
-  const duration = TIMER_DURATIONS[type] ?? TIMER_DURATIONS.primary
-  const remainingMs = remainingOverride ?? duration
-  const now = Date.now()
-
-  return {
-    type,
-    status: 'running',
-    durationMs: duration,
-    remainingMs,
-    startedAt: now,
-    deadline: now + remainingMs,
-  }
-}
-
-function pauseTimer(timer) {
-  if (!timer || timer.status !== 'running') {
-    return timer ?? null
-  }
-
-  const now = Date.now()
-  const remainingMs = Math.max(0, (timer.deadline ?? now) - now)
-
-  return {
-    ...timer,
-    status: 'paused',
-    remainingMs,
-    deadline: null,
-  }
-}
-
-function resumeTimer(timer) {
-  if (!timer || timer.status !== 'paused') {
-    return timer ?? null
-  }
-
-  const remainingMs = Math.max(0, timer.remainingMs ?? timer.durationMs ?? 0)
-  const now = Date.now()
-
-  return {
-    ...timer,
-    status: 'running',
-    startedAt: now,
-    deadline: now + remainingMs,
-    remainingMs,
-  }
-}
-
-function buildOptions(question) {
-  const distractorPool = questionBank.filter((item) => item.id !== question.id).map((item) => item.answer)
-  const distractors = []
-
-  while (distractors.length < 3 && distractorPool.length) {
-    const index = Math.floor(Math.random() * distractorPool.length)
-    const [choice] = distractorPool.splice(index, 1)
-
-    if (!distractors.includes(choice) && choice !== question.answer) {
-      distractors.push(choice)
-    }
-  }
-
-  const fallbackChoices = ['None of the above', 'All of the above', 'Insufficient information']
-  let fallbackIndex = 0
-  while (distractors.length < 3) {
-    const fallback = fallbackChoices[fallbackIndex % fallbackChoices.length]
-    if (!distractors.includes(fallback) && fallback !== question.answer) {
-      distractors.push(fallback)
-    }
-    fallbackIndex += 1
-  }
-
-  return shuffleArray([question.answer, ...distractors])
-}
-
-function drawQuestions(count) {
-  const pool = [...questionBank]
-  const selected = []
-
-  while (selected.length < count) {
-    if (!pool.length) {
-      pool.push(...questionBank)
-    }
-    const index = Math.floor(Math.random() * pool.length)
-    selected.push(pool.splice(index, 1)[0])
-  }
-
-  const timestamp = Date.now()
-  return selected.map((question, index) => ({
-    ...question,
-    instanceId: `${question.id}-${timestamp}-${index}`,
-    options: buildOptions(question),
-  }))
-}
-
-function buildQuestionOrder(firstTeamId, teams, questionsPerTeam) {
-  const [teamAId, teamBId] = teams
-  const counts = {
-    [teamAId]: 0,
-    [teamBId]: 0,
-  }
-  const order = []
-  let current = firstTeamId
-
-  while (order.length < questionsPerTeam * 2) {
-    if (counts[current] >= questionsPerTeam) {
-      current = current === teamAId ? teamBId : teamAId
-      continue
-    }
-
-    order.push(current)
-    counts[current] += 1
-    current = current === teamAId ? teamBId : teamAId
-  }
-
-  return order
-}
-
-function advanceMatchState(match, scores) {
-  const nextIndex = match.questionIndex + 1
-  const base = {
-    ...match,
-    scores,
-    questionIndex: nextIndex,
-    awaitingSteal: false,
-    timer: null,
-  }
-
-  if (nextIndex >= match.questionQueue.length) {
-    return {
-      completed: true,
-      match: {
-        ...base,
-        status: 'completed',
-        activeTeamId: null,
-      },
-    }
-  }
-
-  return {
-    completed: false,
-    match: {
-      ...base,
-      status: 'in-progress',
-      activeTeamId: match.assignedTeamOrder[nextIndex],
-      timer: createRunningTimer('primary'),
-    },
-  }
-}
-
-function applyAnswerResult(match, teamId, isCorrect) {
-  const isStealAttempt = match.awaitingSteal
-
-  if (isStealAttempt) {
-    const updatedScores = isCorrect
-      ? {
-        ...match.scores,
-        [teamId]: match.scores[teamId] + STEAL_QUESTION_POINTS,
-      }
-      : { ...match.scores }
-
-    const sanitizedMatch = {
-      ...match,
-      timer: null,
-    }
-
-    return advanceMatchState(sanitizedMatch, updatedScores)
-  }
-
-  if (isCorrect) {
-    const updatedScores = {
-      ...match.scores,
-      [teamId]: match.scores[teamId] + PRIMARY_QUESTION_POINTS,
-    }
-
-    const sanitizedMatch = {
-      ...match,
-      timer: null,
-    }
-
-    return advanceMatchState(sanitizedMatch, updatedScores)
-  }
-
-  const opponentId = match.teams.find((id) => id && id !== teamId) ?? null
-
-  if (!opponentId) {
-    const sanitizedMatch = {
-      ...match,
-      timer: null,
-    }
-
-    return advanceMatchState(sanitizedMatch, { ...match.scores })
-  }
-
-  return {
-    completed: false,
-    match: {
-      ...match,
-      awaitingSteal: true,
-      activeTeamId: opponentId,
-      timer: createRunningTimer('steal'),
-    },
-  }
-}
-
-function createLiveMatch(teamAId, teamBId, options = {}) {
-  const {
-    id = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    moderatorId = null,
-    tournamentMatchId = null,
-  } = options
-
-  const questionQueue = drawQuestions(QUESTIONS_PER_TEAM * 2)
-
-  return {
-    id,
-    teams: [teamAId, teamBId],
-    scores: {
-      [teamAId]: 0,
-      [teamBId]: 0,
-    },
-    questionQueue,
-    assignedTeamOrder: [],
-    questionIndex: 0,
-    activeTeamId: null,
-    awaitingSteal: false,
-    status: 'coin-toss',
-    timer: null,
-    coinToss: {
-      status: 'ready',
-      winnerId: null,
-      decision: null,
-      resultFace: null,
-    },
-    tournamentMatchId,
-    moderatorId,
-  }
-}
 
 export default function App() {
   return (
@@ -323,19 +43,23 @@ export default function App() {
 }
 
 function AppShell() {
-  const [teams, setTeams] = useState(INITIAL_TEAM_STATE)
-  const [session, setSession] = useState({ type: 'guest' })
+  const [teams, setTeams] = useState(() => INITIAL_TEAM_STATE.map(normalizeTeamRecord))
+  const [moderators, setModerators] = useState(() => MODERATOR_ACCOUNTS.map(normalizeModeratorRecord))
+  const [session, setSession] = useState(() => readStoredSession() ?? { type: 'guest' })
   const [activeMatches, setActiveMatches] = useState([])
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
   const [authError, setAuthError] = useState(null)
   const [selectedTeamIds, setSelectedTeamIds] = useState(() =>
-    buildDefaultTeamSelection(INITIAL_TEAM_STATE, TOURNAMENT_TEAM_LIMIT),
+    buildDefaultTeamSelection(INITIAL_TEAM_STATE.map(normalizeTeamRecord), TOURNAMENT_TEAM_LIMIT),
   )
   const [tournament, setTournament] = useState(null)
   const [tournamentLaunched, setTournamentLaunched] = useState(false)
+  const [teamRegistrations, setTeamRegistrations] = useState([])
+  const [moderatorRegistrations, setModeratorRegistrations] = useState([])
   const finalizedMatchesRef = useRef(new Set())
   const rosterSeedKeyRef = useRef('')
+  const hydratingSessionRef = useRef(false)
 
   const navigate = useNavigate()
 
@@ -377,51 +101,360 @@ function AppShell() {
 
   const activeModerator = useMemo(() => {
     if (session.type !== 'moderator') return null
-    return MODERATOR_ACCOUNTS.find((account) => account.id === session.moderatorId) ?? null
+    return moderators.find((account) => account.id === session.moderatorId) ?? null
+  }, [session, moderators])
+
+  useEffect(() => {
+    writeStoredSession(session)
   }, [session])
 
-  const handleTeamLogin = (loginId, password, options = {}) => {
-    const team = teams.find((item) => item.loginId === loginId)
+  const API_BASE = '/api'
 
-    if (!team || team.password !== password) {
-      setAuthError('Invalid team credentials. Please try again.')
-      return
-    }
-
-    setSession({ type: 'team', teamId: team.id })
-    setAuthError(null)
-    navigate(options.redirectTo ?? '/team', { replace: true })
+  const withApiBase = (path) => {
+    if (!path) return API_BASE
+    return path.startsWith('http') ? path : `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
   }
 
-  const handleAdminLogin = (loginId, password, options = {}) => {
-    if (loginId !== ADMIN_CREDENTIALS.loginId || password !== ADMIN_CREDENTIALS.password) {
-      setAuthError('Incorrect admin login details.')
-      return
-    }
+  const requestJson = useCallback(
+    async (url, { method = 'GET', body, headers = {}, auth = false, token } = {}) => {
+      const requestHeaders = { ...headers }
+      const requestInit = { method }
 
-    setSession({ type: 'admin' })
+      if (body !== undefined) {
+        requestInit.body = JSON.stringify(body ?? {})
+        if (!requestHeaders['Content-Type']) {
+          requestHeaders['Content-Type'] = 'application/json'
+        }
+      }
+
+      const bearerToken = token ?? session.token
+      if (auth && bearerToken) {
+        requestHeaders.Authorization = `Bearer ${bearerToken}`
+      }
+
+      requestInit.headers = requestHeaders
+
+      try {
+        const response = await fetch(withApiBase(url), requestInit)
+        const data = await response.json().catch(() => ({}))
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Request failed')
+        }
+
+        return data
+      } catch (error) {
+        const message = error?.message || 'Request failed'
+        const err = new Error(message)
+        err.cause = error
+        throw err
+      }
+    },
+    [session.token],
+  )
+
+  const postJson = (url, body, options = {}) => requestJson(url, { method: 'POST', body, ...options })
+
+  const upsertTeamRecord = useCallback((team) => {
+    const normalized = normalizeTeamRecord(team)
+    if (!normalized) return
+
+    setTeams((previous) => {
+      const existing = previous.find((item) => item.id === normalized.id)
+      if (existing) {
+        return previous.map((item) =>
+          item.id === normalized.id
+            ? {
+                ...normalized,
+                wins: existing.wins ?? normalized.wins,
+                losses: existing.losses ?? normalized.losses,
+                totalScore: existing.totalScore ?? normalized.totalScore,
+                eliminated: existing.eliminated ?? normalized.eliminated,
+              }
+            : item,
+        )
+      }
+
+      return [...previous, normalized]
+    })
+  }, [])
+
+  const upsertModeratorRecord = useCallback((moderator) => {
+    const normalized = normalizeModeratorRecord(moderator)
+    if (!normalized) return
+
+    setModerators((previous) => {
+      const existing = previous.find((item) => item.id === normalized.id)
+      if (existing) {
+        return previous.map((item) => (item.id === normalized.id ? { ...existing, ...normalized } : item))
+      }
+      return [...previous, normalized]
+    })
+  }, [])
+
+  const hydrateSessionFromToken = useCallback(
+    async (storedSession) => {
+      if (!storedSession?.token) return null
+
+      try {
+        const result = await requestJson('/auth/session', { auth: true, token: storedSession.token })
+        const role = result.role || storedSession.type
+        const resolvedToken = result.token || storedSession.token
+
+        if (role === 'team') {
+          const normalizedTeam = normalizeTeamRecord(result.user)
+          upsertTeamRecord(normalizedTeam)
+          setSession({
+            type: 'team',
+            teamId: normalizedTeam?.id ?? storedSession.teamId,
+            token: resolvedToken,
+            profile: normalizedTeam,
+          })
+          return normalizedTeam
+        }
+
+        if (role === 'admin') {
+          setSession({ type: 'admin', token: resolvedToken, profile: result.user })
+          return result.user
+        }
+
+        if (role === 'moderator') {
+          const normalizedModerator = normalizeModeratorRecord(result.user)
+          upsertModeratorRecord(normalizedModerator)
+          setSession({
+            type: 'moderator',
+            moderatorId: normalizedModerator?.id ?? storedSession.moderatorId,
+            token: resolvedToken,
+            profile: normalizedModerator,
+          })
+          return normalizedModerator
+        }
+
+        clearStoredSession()
+        setSession({ type: 'guest' })
+        return null
+      } catch (error) {
+        console.error('Failed to restore session from token', error)
+        clearStoredSession()
+        setSession({ type: 'guest' })
+        return null
+      }
+    },
+    [requestJson, upsertModeratorRecord, upsertTeamRecord],
+  )
+
+  useEffect(() => {
+    if (hydratingSessionRef.current) return
+
+    const stored = readStoredSession()
+    if (!stored?.token) return
+
+    hydratingSessionRef.current = true
+    hydrateSessionFromToken(stored).finally(() => {
+      hydratingSessionRef.current = false
+    })
+  }, [hydrateSessionFromToken])
+
+  const handleTeamLogin = async (loginId, password, options = {}) => {
     setAuthError(null)
-    navigate(options.redirectTo ?? '/admin', { replace: true })
+    try {
+      const result = await postJson('/auth/team', { loginId, password })
+      const team = result.user
+
+      upsertTeamRecord(team)
+
+      setSession({ type: 'team', teamId: team?.id ?? loginId, token: result.token, profile: team })
+      navigate(options.redirectTo ?? '/team', { replace: true })
+      return result
+    } catch (error) {
+      const message = error?.message || 'Invalid team credentials. Please try again.'
+      setAuthError(message)
+      throw error
+    }
   }
 
-  const handleModeratorLogin = (loginId, password, options = {}) => {
-    const moderator = MODERATOR_ACCOUNTS.find((item) => item.loginId === loginId)
-
-    if (!moderator || moderator.password !== password) {
-      setAuthError('Invalid moderator credentials. Please try again.')
-      return
-    }
-
-    setSession({ type: 'moderator', moderatorId: moderator.id })
+  const handleAdminLogin = async (loginId, password, options = {}) => {
     setAuthError(null)
-    navigate(options.redirectTo ?? '/moderator', { replace: true })
+    try {
+      const result = await postJson('/auth/admin', { loginId, password })
+      setSession({ type: 'admin', token: result.token, profile: result.user })
+      navigate(options.redirectTo ?? '/admin', { replace: true })
+      return result
+    } catch (error) {
+      const message = error?.message || 'Incorrect admin login details.'
+      setAuthError(message)
+      throw error
+    }
   }
 
-  const handleLogout = () => {
+  const handleModeratorLogin = async (loginId, password, options = {}) => {
+    setAuthError(null)
+    try {
+      const result = await postJson('/auth/moderator', { loginId, password })
+      const moderator = result.user
+
+      upsertModeratorRecord(moderator)
+
+      setSession({ type: 'moderator', moderatorId: moderator?.id, token: result.token, profile: moderator })
+      navigate(options.redirectTo ?? '/moderator', { replace: true })
+      return result
+    } catch (error) {
+      const message = error?.message || 'Invalid moderator credentials. Please try again.'
+      setAuthError(message)
+      throw error
+    }
+  }
+
+  const handleTeamRegistration = async (payload) => {
+    return postJson('/auth/register', payload)
+  }
+
+  const handleModeratorRegistration = async (payload) => {
+    return postJson('/auth/register/moderator', payload)
+  }
+
+  const handleTeamForgotPassword = async (payload) => {
+    return postJson('/auth/forgot-password/team', payload)
+  }
+
+  const handleModeratorForgotPassword = async (payload) => {
+    return postJson('/auth/forgot-password/moderator', payload)
+  }
+
+  const loadAdminData = useCallback(async () => {
+    if (session.type !== 'admin') return null
+
+    const [teamResult, moderatorResult, teamRegResult, moderatorRegResult] = await Promise.all([
+      requestJson('/admin/teams', { auth: true }),
+      requestJson('/admin/moderators', { auth: true }),
+      requestJson('/admin/registrations/teams', { auth: true }),
+      requestJson('/admin/registrations/moderators', { auth: true }),
+    ])
+
+    setTeams((previous) => {
+      const previousMap = new Map(previous.map((team) => [team.id, team]))
+      return (teamResult?.teams ?? []).map((team) => {
+        const normalized = normalizeTeamRecord(team)
+        const existing = previousMap.get(normalized.id)
+        return existing
+          ? {
+              ...normalized,
+              wins: existing.wins ?? normalized.wins,
+              losses: existing.losses ?? normalized.losses,
+              totalScore: existing.totalScore ?? normalized.totalScore,
+              eliminated: existing.eliminated ?? normalized.eliminated,
+            }
+          : normalized
+      })
+    })
+
+    setModerators((previous) => {
+      const previousMap = new Map(previous.map((record) => [record.id, record]))
+      return (moderatorResult?.moderators ?? []).map((record) => {
+        const normalized = normalizeModeratorRecord(record)
+        const existing = previousMap.get(normalized.id)
+        return existing ? { ...existing, ...normalized } : normalized
+      })
+    })
+
+    setTeamRegistrations(teamRegResult?.registrations ?? [])
+    setModeratorRegistrations(moderatorRegResult?.registrations ?? [])
+
+    return true
+  }, [requestJson, session.type])
+
+  const approveTeamRegistration = useCallback(
+    async (registrationId) => {
+      const result = await requestJson(`/admin/registrations/${registrationId}/approve`, {
+        method: 'POST',
+        auth: true,
+      })
+      if (result?.team) {
+        upsertTeamRecord(result.team)
+      }
+      if (result?.registration) {
+        setTeamRegistrations((previous) => {
+          const filtered = previous.filter((entry) => entry.id !== result.registration.id)
+          return [...filtered, result.registration]
+        })
+      }
+      return result
+    },
+    [requestJson, upsertTeamRecord],
+  )
+
+  const approveModeratorRegistration = useCallback(
+    async (registrationId) => {
+      const result = await requestJson(`/admin/registrations/moderators/${registrationId}/approve`, {
+        method: 'POST',
+        auth: true,
+      })
+      if (result?.moderator) {
+        upsertModeratorRecord(result.moderator)
+      }
+      if (result?.registration) {
+        setModeratorRegistrations((previous) => {
+          const filtered = previous.filter((entry) => entry.id !== result.registration.id)
+          return [...filtered, result.registration]
+        })
+      }
+      return result
+    },
+    [requestJson, upsertModeratorRecord],
+  )
+
+  const deleteTeamAccount = useCallback(
+    async (teamId) => {
+      const result = await requestJson(`/admin/teams/${teamId}`, { method: 'DELETE', auth: true })
+
+      setTeams((previous) => previous.filter((team) => team.id !== teamId))
+      setSelectedTeamIds((previous) => previous.filter((id) => id !== teamId))
+      setActiveMatches((previous) => previous.filter((match) => !(match.teams || []).includes(teamId)))
+
+      await loadAdminData()
+      return result
+    },
+    [loadAdminData, requestJson],
+  )
+
+  const deleteModeratorAccount = useCallback(
+    async (moderatorId) => {
+      const result = await requestJson(`/admin/moderators/${moderatorId}`, { method: 'DELETE', auth: true })
+
+      setModerators((previous) => previous.filter((moderator) => moderator.id !== moderatorId))
+      setActiveMatches((previous) => previous.filter((match) => match.moderatorId !== moderatorId))
+
+      await loadAdminData()
+      return result
+    },
+    [loadAdminData, requestJson],
+  )
+
+  const handleLogout = useCallback(async () => {
+    const token = session?.token
+
+    if (token) {
+      try {
+        await requestJson('/auth/logout', { method: 'POST', auth: true, token })
+      } catch (error) {
+        console.error('Failed to log out', error)
+      }
+    }
+
     setSession({ type: 'guest' })
     setAuthError(null)
+    setTeamRegistrations([])
+    setModeratorRegistrations([])
+    clearStoredSession()
     navigate('/', { replace: true })
-  }
+  }, [clearStoredSession, navigate, requestJson, session?.token])
+
+  useEffect(() => {
+    if (session.type !== 'admin') return
+    loadAdminData().catch((error) => {
+      console.error('Failed to refresh admin data', error)
+    })
+  }, [session.type, loadAdminData])
 
   useEffect(() => {
     if (!tournamentLaunched || !tournament) {
@@ -538,7 +571,7 @@ function AppShell() {
       return
     }
 
-    const nextTournament = initializeTournament(seededTeams, MODERATOR_ACCOUNTS)
+    const nextTournament = initializeTournament(seededTeams, moderators)
     rosterSeedKeyRef.current = createSelectionKey(seededIds)
 
     finalizedMatchesRef.current = new Set()
@@ -556,7 +589,7 @@ function AppShell() {
       })),
     )
     setTournament(nextTournament)
-  }, [selectedTeamIds, teams, tournamentLaunched])
+  }, [moderators, selectedTeamIds, teams, tournamentLaunched])
 
   const handleGrantMatchBye = useCallback(
     (matchId, teamId) => {
@@ -1058,6 +1091,10 @@ function AppShell() {
             }
             authError={authError}
             onClearAuthError={() => setAuthError(null)}
+            onTeamRegister={handleTeamRegistration}
+            onModeratorRegister={handleModeratorRegistration}
+            onTeamForgotPassword={handleTeamForgotPassword}
+            onModeratorForgotPassword={handleModeratorForgotPassword}
           />
         }
       />
@@ -1071,6 +1108,10 @@ function AppShell() {
             onModeratorLogin={(loginId, password) => handleModeratorLogin(loginId, password, { redirectTo: '/moderator' })}
             authError={authError}
             onClearAuthError={() => setAuthError(null)}
+            onTeamRegister={handleTeamRegistration}
+            onModeratorRegister={handleModeratorRegistration}
+            onTeamForgotPassword={handleTeamForgotPassword}
+            onModeratorForgotPassword={handleModeratorForgotPassword}
           />
         }
       />
@@ -1081,7 +1122,7 @@ function AppShell() {
             tournament={tournament}
             teams={teams}
             activeMatches={activeMatches}
-            moderators={MODERATOR_ACCOUNTS}
+            moderators={moderators}
             history={matchHistory}
           />
         }
@@ -1089,7 +1130,7 @@ function AppShell() {
       <Route
         path="/tournament/match/:matchId"
         element={
-          <PublicMatchViewer matches={activeMatches} teams={teams} moderators={MODERATOR_ACCOUNTS} />
+          <PublicMatchViewer matches={activeMatches} teams={teams} moderators={moderators} />
         }
       />
       <Route
@@ -1100,6 +1141,10 @@ function AppShell() {
             onTeamLogin={handleTeamLogin}
             onAdminLogin={handleAdminLogin}
             onModeratorLogin={handleModeratorLogin}
+            onTeamRegister={handleTeamRegistration}
+            onModeratorRegister={handleModeratorRegistration}
+            onTeamForgotPassword={handleTeamForgotPassword}
+            onModeratorForgotPassword={handleModeratorForgotPassword}
             onBack={() => {
               setAuthError(null)
               navigate('/')
@@ -1118,7 +1163,7 @@ function AppShell() {
               recentResult={recentResult}
               history={matchHistory}
               tournament={tournament}
-              moderators={MODERATOR_ACCOUNTS}
+              moderators={moderators}
               superAdmin={SUPER_ADMIN_PROFILE}
               tournamentLaunched={tournamentLaunched}
               selectedTeamIds={selectedTeamIds}
@@ -1132,6 +1177,13 @@ function AppShell() {
               onGrantBye={handleGrantMatchBye}
               onDismissRecent={handleDismissRecent}
               onLogout={handleLogout}
+              teamRegistrations={teamRegistrations}
+              moderatorRegistrations={moderatorRegistrations}
+              onApproveTeamRegistration={approveTeamRegistration}
+              onApproveModeratorRegistration={approveModeratorRegistration}
+              onReloadData={loadAdminData}
+              onDeleteTeam={deleteTeamAccount}
+              onDeleteModerator={deleteModeratorAccount}
             />
           </ProtectedRoute>
         }
@@ -1146,7 +1198,7 @@ function AppShell() {
               matches={activeMatches}
               teams={teams}
               tournament={tournament}
-              moderators={MODERATOR_ACCOUNTS}
+              moderators={moderators}
               selectedTeamIds={selectedTeamIds}
               matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
               tournamentLaunched={tournamentLaunched}
@@ -1180,7 +1232,7 @@ function AppShell() {
               history={matchHistory}
               tournament={tournament}
               tournamentLaunched={tournamentLaunched}
-              moderators={MODERATOR_ACCOUNTS}
+              moderators={moderators}
               onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
               onSelectFirst={(matchId, firstTeamId) =>
                 handleSelectFirst(matchId, activeTeam.id, firstTeamId)
@@ -1192,69 +1244,5 @@ function AppShell() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-  )
-}
-
-function LoginPage({
-  authError,
-  onTeamLogin,
-  onAdminLogin,
-  onModeratorLogin,
-  onBack,
-  session,
-}) {
-  const location = useLocation()
-  const [searchParams] = useSearchParams()
-
-  const allowedModes = new Set(['team', 'admin', 'moderator'])
-  const requestedModeParam = searchParams.get('mode') ?? 'team'
-  const requestedMode = allowedModes.has(requestedModeParam) ? requestedModeParam : 'team'
-
-  const fromLocation = location.state?.from
-  const pathToMode = [
-    ['/admin', 'admin'],
-    ['/team', 'team'],
-    ['/moderator', 'moderator'],
-  ]
-
-  let inferredMode = requestedMode
-  if (fromLocation?.pathname) {
-    const match = pathToMode.find(([prefix]) => fromLocation.pathname.startsWith(prefix))
-    if (match) {
-      inferredMode = match[1]
-    }
-  }
-
-  const redirectTarget = fromLocation
-    ? `${fromLocation.pathname}${fromLocation.search ?? ''}${fromLocation.hash ?? ''}`
-    : null
-
-  if (session.type === 'admin') {
-    return <Navigate to="/admin" replace />
-  }
-
-  if (session.type === 'team') {
-    return <Navigate to="/team" replace />
-  }
-
-  if (session.type === 'moderator') {
-    return <Navigate to="/moderator" replace />
-  }
-
-  return (
-    <AuthenticationGateway
-      initialMode={inferredMode}
-      onTeamLogin={(loginId, password) =>
-        onTeamLogin(loginId, password, { redirectTo: redirectTarget ?? '/team' })
-      }
-      onAdminLogin={(loginId, password) =>
-        onAdminLogin(loginId, password, { redirectTo: redirectTarget ?? '/admin' })
-      }
-      onModeratorLogin={(loginId, password) =>
-        onModeratorLogin(loginId, password, { redirectTo: redirectTarget ?? '/moderator' })
-      }
-      onBack={onBack}
-      error={authError}
-    />
   )
 }
