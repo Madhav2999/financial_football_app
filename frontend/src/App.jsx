@@ -28,9 +28,11 @@ import PublicMatchViewer from './components/PublicMatchViewer'
 import {
   clearStoredToken,
   createSessionFromAuthResponse,
+  getStoredToken,
   loginAdmin,
   loginModerator,
   loginTeam,
+  logout,
   registerModerator,
   registerTeam,
   requestModeratorPasswordReset,
@@ -509,11 +511,22 @@ function AppShell() {
     return requestModeratorPasswordReset(payload)
   }
 
-  const handleLogout = () => {
-    clearStoredToken()
-    setSession({ type: 'guest' })
-    setAuthError(null)
-    navigate('/', { replace: true })
+  const handleLogout = async () => {
+    const token = session?.token ?? getStoredToken()
+
+    try {
+      if (token) {
+        await logout(token)
+      }
+    } catch (error) {
+      console.error('Logout failed', error)
+    } finally {
+      clearStoredToken()
+      setSession({ type: 'guest', token: null, profile: null, teamId: null, moderatorId: null })
+      setSessionReady(true)
+      setAuthError(null)
+      navigate('/', { replace: true })
+    }
   }
 
   useEffect(() => {
