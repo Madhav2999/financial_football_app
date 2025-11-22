@@ -461,7 +461,7 @@ function AppShell() {
     writeStoredSession(session)
   }, [session])
 
-  const API_BASE = '/api'
+  const API_BASE = 'http://localhost:5000/api'
 
   const withApiBase = (path) => {
     if (!path) return API_BASE
@@ -774,6 +774,13 @@ function AppShell() {
     clearStoredSession()
     navigate('/', { replace: true })
   }, [clearStoredSession, navigate, requestJson, session?.token])
+
+  useEffect(() => {
+    if (session.type !== 'admin') return
+    loadAdminData().catch((error) => {
+      console.error('Failed to refresh admin data', error)
+    })
+  }, [session.type, loadAdminData])
 
   useEffect(() => {
     if (session.type !== 'admin') return
