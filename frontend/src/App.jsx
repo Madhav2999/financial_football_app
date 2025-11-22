@@ -62,6 +62,46 @@ function createSelectionKey(ids) {
   return [...ids].sort().join('|')
 }
 
+const SESSION_STORAGE_KEY = 'ffa.auth.session.v1'
+
+const readStoredSession = () => {
+  if (typeof localStorage === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw)
+    if (parsed?.token && parsed?.type) {
+      return parsed
+    }
+  } catch (error) {
+    console.warn('Unable to read stored session', error)
+  }
+  return null
+}
+
+const writeStoredSession = (session) => {
+  if (typeof localStorage === 'undefined') return
+
+  if (session?.token && session?.type && session.type !== 'guest') {
+    const payload = {
+      type: session.type,
+      token: session.token,
+      teamId: session.teamId ?? null,
+      moderatorId: session.moderatorId ?? null,
+      profile: session.profile ?? null,
+    }
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload))
+  } else {
+    localStorage.removeItem(SESSION_STORAGE_KEY)
+  }
+}
+
+const clearStoredSession = () => {
+  if (typeof localStorage === 'undefined') return
+  localStorage.removeItem(SESSION_STORAGE_KEY)
+}
+
 function normalizeTeamRecord(team) {
   if (!team) return null
   const normalizedId = team.id || team._id || team.loginId || team.teamId
@@ -358,7 +398,7 @@ export default function App() {
 function AppShell() {
   const [teams, setTeams] = useState(() => INITIAL_TEAM_STATE.map(normalizeTeamRecord))
   const [moderators, setModerators] = useState(() => MODERATOR_ACCOUNTS.map(normalizeModeratorRecord))
-  const [session, setSession] = useState({ type: 'guest' })
+  const [session, setSession] = useState(() => readStoredSession() ?? { type: 'guest' })
   const [activeMatches, setActiveMatches] = useState([])
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
@@ -372,6 +412,7 @@ function AppShell() {
   const [moderatorRegistrations, setModeratorRegistrations] = useState([])
   const finalizedMatchesRef = useRef(new Set())
   const rosterSeedKeyRef = useRef('')
+  const hydratingSessionRef = useRef(false)
 
   const navigate = useNavigate()
 
@@ -416,7 +457,11 @@ function AppShell() {
     return moderators.find((account) => account.id === session.moderatorId) ?? null
   }, [session, moderators])
 
-  const API_BASE = 'http://localhost:5000/api'
+  useEffect(() => {
+    writeStoredSession(session)
+  }, [session])
+
+  const API_BASE = '/api'
 
   const withApiBase = (path) => {
     if (!path) return API_BASE
@@ -499,6 +544,69 @@ function AppShell() {
       return [...previous, normalized]
     })
   }, [])
+
+  const hydrateSessionFromToken = useCallback(
+    async (storedSession) => {
+      if (!storedSession?.token) return null
+
+      try {
+        const result = await requestJson('/auth/session', { auth: true, token: storedSession.token })
+        const role = result.role || storedSession.type
+        const resolvedToken = result.token || storedSession.token
+
+        if (role === 'team') {
+          const normalizedTeam = normalizeTeamRecord(result.user)
+          upsertTeamRecord(normalizedTeam)
+          setSession({
+            type: 'team',
+            teamId: normalizedTeam?.id ?? storedSession.teamId,
+            token: resolvedToken,
+            profile: normalizedTeam,
+          })
+          return normalizedTeam
+        }
+
+        if (role === 'admin') {
+          setSession({ type: 'admin', token: resolvedToken, profile: result.user })
+          return result.user
+        }
+
+        if (role === 'moderator') {
+          const normalizedModerator = normalizeModeratorRecord(result.user)
+          upsertModeratorRecord(normalizedModerator)
+          setSession({
+            type: 'moderator',
+            moderatorId: normalizedModerator?.id ?? storedSession.moderatorId,
+            token: resolvedToken,
+            profile: normalizedModerator,
+          })
+          return normalizedModerator
+        }
+
+        clearStoredSession()
+        setSession({ type: 'guest' })
+        return null
+      } catch (error) {
+        console.error('Failed to restore session from token', error)
+        clearStoredSession()
+        setSession({ type: 'guest' })
+        return null
+      }
+    },
+    [requestJson, upsertModeratorRecord, upsertTeamRecord],
+  )
+
+  useEffect(() => {
+    if (hydratingSessionRef.current) return
+
+    const stored = readStoredSession()
+    if (!stored?.token) return
+
+    hydratingSessionRef.current = true
+    hydrateSessionFromToken(stored).finally(() => {
+      hydratingSessionRef.current = false
+    })
+  }, [hydrateSessionFromToken])
 
   const handleTeamLogin = async (loginId, password, options = {}) => {
     setAuthError(null)
@@ -653,6 +761,7 @@ function AppShell() {
     setAuthError(null)
     setTeamRegistrations([])
     setModeratorRegistrations([])
+    clearStoredSession()
     navigate('/', { replace: true })
   }
 
