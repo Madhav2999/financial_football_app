@@ -123,6 +123,10 @@ export default function LearnToPlay({
   onModeratorLogin,
   authError,
   onClearAuthError,
+  onTeamRegister,
+  onModeratorRegister,
+  onTeamForgotPassword,
+  onModeratorForgotPassword,
 }) {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState('team');
@@ -145,6 +149,10 @@ export default function LearnToPlay({
           onTeamLogin={onTeamLogin}
           onAdminLogin={onAdminLogin}
           onModeratorLogin={onModeratorLogin}
+          onTeamRegister={onTeamRegister}
+          onModeratorRegister={onModeratorRegister}
+          onTeamForgotPassword={onTeamForgotPassword}
+          onModeratorForgotPassword={onModeratorForgotPassword}
           error={authError}
           displayVariant="modal"
           showRegistrationTab

@@ -380,41 +380,116 @@ function AppShell() {
     return MODERATOR_ACCOUNTS.find((account) => account.id === session.moderatorId) ?? null
   }, [session])
 
-  const handleTeamLogin = (loginId, password, options = {}) => {
-    const team = teams.find((item) => item.loginId === loginId)
+  const postJson = async (url, body) => {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body ?? {}),
+      })
 
-    if (!team || team.password !== password) {
-      setAuthError('Invalid team credentials. Please try again.')
-      return
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Request failed')
+      }
+
+      return data
+    } catch (error) {
+      const message = error?.message || 'Request failed'
+      const err = new Error(message)
+      err.cause = error
+      throw err
     }
-
-    setSession({ type: 'team', teamId: team.id })
-    setAuthError(null)
-    navigate(options.redirectTo ?? '/team', { replace: true })
   }
 
-  const handleAdminLogin = (loginId, password, options = {}) => {
-    if (loginId !== ADMIN_CREDENTIALS.loginId || password !== ADMIN_CREDENTIALS.password) {
-      setAuthError('Incorrect admin login details.')
-      return
-    }
-
-    setSession({ type: 'admin' })
+  const handleTeamLogin = async (loginId, password, options = {}) => {
     setAuthError(null)
-    navigate(options.redirectTo ?? '/admin', { replace: true })
+    try {
+      const result = await postJson('/auth/team', { loginId, password })
+      const team = result.user
+
+      if (team) {
+        setTeams((previous) => {
+          const exists = previous.find((item) => item.id === team.id)
+          if (exists) {
+            return previous.map((item) =>
+              item.id === team.id
+                ? {
+                    ...item,
+                    ...team,
+                  }
+                : item,
+            )
+          }
+
+          return [
+            ...previous,
+            {
+              ...team,
+              wins: 0,
+              losses: 0,
+              totalScore: 0,
+              eliminated: false,
+            },
+          ]
+        })
+      }
+
+      setSession({ type: 'team', teamId: team?.id ?? loginId, token: result.token, profile: team })
+      navigate(options.redirectTo ?? '/team', { replace: true })
+      return result
+    } catch (error) {
+      const message = error?.message || 'Invalid team credentials. Please try again.'
+      setAuthError(message)
+      throw error
+    }
   }
 
-  const handleModeratorLogin = (loginId, password, options = {}) => {
-    const moderator = MODERATOR_ACCOUNTS.find((item) => item.loginId === loginId)
-
-    if (!moderator || moderator.password !== password) {
-      setAuthError('Invalid moderator credentials. Please try again.')
-      return
-    }
-
-    setSession({ type: 'moderator', moderatorId: moderator.id })
+  const handleAdminLogin = async (loginId, password, options = {}) => {
     setAuthError(null)
-    navigate(options.redirectTo ?? '/moderator', { replace: true })
+    try {
+      const result = await postJson('/auth/admin', { loginId, password })
+      setSession({ type: 'admin', token: result.token, profile: result.user })
+      navigate(options.redirectTo ?? '/admin', { replace: true })
+      return result
+    } catch (error) {
+      const message = error?.message || 'Incorrect admin login details.'
+      setAuthError(message)
+      throw error
+    }
+  }
+
+  const handleModeratorLogin = async (loginId, password, options = {}) => {
+    setAuthError(null)
+    try {
+      const result = await postJson('/auth/moderator', { loginId, password })
+      const moderator = result.user
+
+      setSession({ type: 'moderator', moderatorId: moderator?.id, token: result.token, profile: moderator })
+      navigate(options.redirectTo ?? '/moderator', { replace: true })
+      return result
+    } catch (error) {
+      const message = error?.message || 'Invalid moderator credentials. Please try again.'
+      setAuthError(message)
+      throw error
+    }
+  }
+
+  const handleTeamRegistration = async (payload) => {
+    return postJson('/auth/register', payload)
+  }
+
+  const handleModeratorRegistration = async (payload) => {
+    return postJson('/auth/register/moderator', payload)
+  }
+
+  const handleTeamForgotPassword = async (payload) => {
+    return postJson('/auth/forgot-password/team', payload)
+  }
+
+  const handleModeratorForgotPassword = async (payload) => {
+    return postJson('/auth/forgot-password/moderator', payload)
   }
 
   const handleLogout = () => {
@@ -1058,6 +1133,10 @@ function AppShell() {
             }
             authError={authError}
             onClearAuthError={() => setAuthError(null)}
+            onTeamRegister={handleTeamRegistration}
+            onModeratorRegister={handleModeratorRegistration}
+            onTeamForgotPassword={handleTeamForgotPassword}
+            onModeratorForgotPassword={handleModeratorForgotPassword}
           />
         }
       />
@@ -1071,6 +1150,10 @@ function AppShell() {
             onModeratorLogin={(loginId, password) => handleModeratorLogin(loginId, password, { redirectTo: '/moderator' })}
             authError={authError}
             onClearAuthError={() => setAuthError(null)}
+            onTeamRegister={handleTeamRegistration}
+            onModeratorRegister={handleModeratorRegistration}
+            onTeamForgotPassword={handleTeamForgotPassword}
+            onModeratorForgotPassword={handleModeratorForgotPassword}
           />
         }
       />
@@ -1100,6 +1183,10 @@ function AppShell() {
             onTeamLogin={handleTeamLogin}
             onAdminLogin={handleAdminLogin}
             onModeratorLogin={handleModeratorLogin}
+            onTeamRegister={handleTeamRegistration}
+            onModeratorRegister={handleModeratorRegistration}
+            onTeamForgotPassword={handleTeamForgotPassword}
+            onModeratorForgotPassword={handleModeratorForgotPassword}
             onBack={() => {
               setAuthError(null)
               navigate('/')
@@ -1200,6 +1287,10 @@ function LoginPage({
   onTeamLogin,
   onAdminLogin,
   onModeratorLogin,
+  onTeamRegister,
+  onModeratorRegister,
+  onTeamForgotPassword,
+  onModeratorForgotPassword,
   onBack,
   session,
 }) {
@@ -1242,19 +1333,23 @@ function LoginPage({
   }
 
   return (
-    <AuthenticationGateway
-      initialMode={inferredMode}
-      onTeamLogin={(loginId, password) =>
-        onTeamLogin(loginId, password, { redirectTo: redirectTarget ?? '/team' })
-      }
-      onAdminLogin={(loginId, password) =>
-        onAdminLogin(loginId, password, { redirectTo: redirectTarget ?? '/admin' })
-      }
-      onModeratorLogin={(loginId, password) =>
-        onModeratorLogin(loginId, password, { redirectTo: redirectTarget ?? '/moderator' })
-      }
-      onBack={onBack}
-      error={authError}
-    />
+      <AuthenticationGateway
+        initialMode={inferredMode}
+        onTeamLogin={(loginId, password) =>
+          onTeamLogin(loginId, password, { redirectTo: redirectTarget ?? '/team' })
+        }
+        onAdminLogin={(loginId, password) =>
+          onAdminLogin(loginId, password, { redirectTo: redirectTarget ?? '/admin' })
+        }
+        onModeratorLogin={(loginId, password) =>
+          onModeratorLogin(loginId, password, { redirectTo: redirectTarget ?? '/moderator' })
+        }
+        onTeamRegister={onTeamRegister}
+        onModeratorRegister={onModeratorRegister}
+        onTeamForgotPassword={onTeamForgotPassword}
+        onModeratorForgotPassword={onModeratorForgotPassword}
+        onBack={onBack}
+        error={authError}
+      />
   )
 }
