@@ -756,14 +756,31 @@ function AppShell() {
     [requestJson, upsertModeratorRecord],
   )
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(async () => {
+    const token = session?.token
+
+    if (token) {
+      try {
+        await requestJson('/auth/logout', { method: 'POST', auth: true, token })
+      } catch (error) {
+        console.error('Failed to log out', error)
+      }
+    }
+
     setSession({ type: 'guest' })
     setAuthError(null)
     setTeamRegistrations([])
     setModeratorRegistrations([])
     clearStoredSession()
     navigate('/', { replace: true })
-  }
+  }, [clearStoredSession, navigate, requestJson, session?.token])
+
+  useEffect(() => {
+    if (session.type !== 'admin') return
+    loadAdminData().catch((error) => {
+      console.error('Failed to refresh admin data', error)
+    })
+  }, [session.type, loadAdminData])
 
   useEffect(() => {
     if (session.type !== 'admin') return
