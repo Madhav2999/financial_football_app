@@ -10,9 +10,13 @@ export default function RegistrationForm({
   onSubmit,
   submitting,
   error,
+  scrollable = false,
 }) {
   return (
-    <form className="space-y-6" onSubmit={onSubmit}>
+    <form
+      className={[scrollable ? 'max-h-[65vh] overflow-y-auto pr-1' : '', 'space-y-6'].join(' ')}
+      onSubmit={onSubmit}
+    >
       <div className="flex flex-wrap gap-3">
         {[
           { id: 'team', label: 'Team Registration' },
@@ -110,6 +114,20 @@ export default function RegistrationForm({
             </div>
           </div>
 
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-200">County</label>
+              <input
+                value={registerForm.county}
+                onChange={(e) => onRegisterFormChange({ ...registerForm, county: e.target.value })}
+                placeholder="County"
+                className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400 px-5 py-3.5 border border-zi
+nc-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
+              />
+            </div>
+            <div />
+          </div>
+
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-200">Notes</label>
             <textarea
@@ -124,6 +142,49 @@ export default function RegistrationForm({
           <p className="text-xs text-slate-300">
             Once approved by an administrator, you will receive confirmation and can sign in with your login ID.
           </p>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-200">
+            <p className="mb-3 text-[13px] font-semibold text-orange-200">
+              Please acknowledge the following statements by checking the boxes below:
+            </p>
+            <div className="space-y-3">
+              {[
+                {
+                  key: 'authorization',
+                  label: 'I have the authorization to register the team above to participate in the Financial Football Competition.',
+                },
+                {
+                  key: 'noGuarantee',
+                  label:
+                    'I understand that registration does NOT guarantee automatic entry into the Financial Football Competition.',
+                },
+                {
+                  key: 'travel',
+                  label:
+                    'I understand that the school will provide its own transportation and/or hotel accommodations to participate in the Financial Football Competition.',
+                },
+              ].map((item) => (
+                <label key={item.key} className="flex items-start gap-3 text-left">
+                  <input
+                    type="checkbox"
+                    required
+                    checked={registerForm.acknowledgements?.[item.key] ?? false}
+                    onChange={(e) =>
+                      onRegisterFormChange({
+                        ...registerForm,
+                        acknowledgements: {
+                          ...registerForm.acknowledgements,
+                          [item.key]: e.target.checked,
+                        },
+                      })
+                    }
+                    className="mt-1 h-4 w-4 rounded border-slate-500 bg-zinc-800 text-orange-400 focus:ring-orange-400"
+                  />
+                  <span className="text-[13px] leading-relaxed text-slate-100">{item.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
       ) : (
         <div className="space-y-5">

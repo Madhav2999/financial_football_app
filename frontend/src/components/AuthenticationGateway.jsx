@@ -144,9 +144,15 @@ export default function AuthenticationGateway({
     const isTeamRegistration = registerVariant === 'team'
 
     if (isTeamRegistration) {
-      const { teamName, organization, contactEmail, password, loginId } = registerForm
+      const { teamName, organization, contactEmail, password, loginId, acknowledgements } = registerForm
+      const hasAcknowledged =
+        acknowledgements?.authorization && acknowledgements?.noGuarantee && acknowledgements?.travel
       if (!teamName.trim() || !organization.trim() || !contactEmail.trim() || !password.trim() || !loginId.trim()) {
         setRegisterError('Please complete all required team registration fields.')
+        return
+      }
+      if (!hasAcknowledged) {
+        setRegisterError('Please acknowledge all statements before submitting your registration.')
         return
       }
     } else {
@@ -171,10 +177,12 @@ export default function AuthenticationGateway({
             loginId: registerForm.loginId.trim(),
             teamName: registerForm.teamName.trim(),
             organization: registerForm.organization.trim(),
+            county: registerForm.county.trim(),
             contactEmail: registerForm.contactEmail.trim(),
             contactName: registerForm.contactName.trim(),
             notes: registerForm.notes.trim(),
             password: registerForm.password.trim(),
+            acknowledgements: registerForm.acknowledgements,
           })
         : await registrationCallback({
             ...moderatorRegisterForm,
@@ -260,9 +268,17 @@ export default function AuthenticationGateway({
   }
 
   const modalContent = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      onClick={onClose}
+      role="dialog"
+      aria-modal
+    >
       <div className="absolute inset-0 bg-slate-900/90 backdrop-blur" />
-      <div className="relative w-full max-w-5xl overflow-hidden rounded-[32px] border border-slate-800 bg-slate-950/90 shadow-2xl shadow-orange-500/5">
+      <div
+        className="relative w-full max-w-5xl overflow-hidden rounded-[32px] border border-slate-800 bg-slate-950/90 shadow-2xl shadow-orange-500/5 max-h-[90vh]"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="absolute left-6 top-6 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Authentication</div>
         <button
           type="button"
@@ -297,6 +313,7 @@ export default function AuthenticationGateway({
                     onSubmit={handleRegistrationSubmit}
                     submitting={registerSubmitting}
                     error={registerError}
+                    scrollable={displayVariant === 'modal'}
                   />
                 )
               ) : (
@@ -385,6 +402,7 @@ export default function AuthenticationGateway({
                     onSubmit={handleRegistrationSubmit}
                     submitting={registerSubmitting}
                     error={registerError}
+                    scrollable={false}
                   />
                 )
               ) : (

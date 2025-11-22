@@ -12,8 +12,14 @@ export const INITIAL_REGISTER_FORM = {
   organization: '',
   contactName: '',
   contactEmail: '',
+  county: '',
   notes: '',
   password: '',
+  acknowledgements: {
+    authorization: false,
+    noGuarantee: false,
+    travel: false,
+  },
 }
 
 export const INITIAL_MODERATOR_REGISTER_FORM = {
