@@ -289,56 +289,56 @@ export default function AuthenticationGateway({
         </button>
         <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
           <section className="p-6 sm:p-8">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-400">Financial Football</p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white">{isRegistrationMode ? 'Register your team' : 'Login to your account'}</h2>
-            <p className="mt-2 text-sm text-slate-300">
-              {isRegistrationMode
-                ? 'Submit your details to be reviewed by our administrators.'
-                : 'Sign in with your credentials to access the experience.'}
-            </p>
+            <AuthHeader
+              isRegistrationMode={isRegistrationMode}
+              onSwitchToLogin={() => handleModeChange('team')}
+              onSwitchToRegister={() => handleModeChange('register')}
+            />
 
-            <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:p-5">
-              <ModeTabs mode={mode} onChange={handleModeChange} hidden={isRegistrationMode} />
-              {isRegistrationMode ? (
-                registrationSubmitted ? (
-                  <RegistrationSuccess message={registerSuccessMessage} onReset={resetRegistrationFlow} />
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:p-5">
+              <div className="max-h-[68vh] overflow-y-auto pr-1 sm:pr-2">
+                <ModeTabs mode={mode} onChange={handleModeChange} hidden={isRegistrationMode} />
+                {isRegistrationMode ? (
+                  registrationSubmitted ? (
+                    <RegistrationSuccess message={registerSuccessMessage} onReset={resetRegistrationFlow} />
+                  ) : (
+                    <RegistrationForm
+                      registerVariant={registerVariant}
+                      onVariantChange={handleRegisterVariantChange}
+                      registerForm={registerForm}
+                      moderatorRegisterForm={moderatorRegisterForm}
+                      onRegisterFormChange={setRegisterForm}
+                      onModeratorRegisterFormChange={setModeratorRegisterForm}
+                      onSubmit={handleRegistrationSubmit}
+                      submitting={registerSubmitting}
+                      error={registerError}
+                      scrollable={displayVariant === 'modal'}
+                    />
+                  )
                 ) : (
-                  <RegistrationForm
-                    registerVariant={registerVariant}
-                    onVariantChange={handleRegisterVariantChange}
-                    registerForm={registerForm}
-                    moderatorRegisterForm={moderatorRegisterForm}
-                    onRegisterFormChange={setRegisterForm}
-                    onModeratorRegisterFormChange={setModeratorRegisterForm}
-                    onSubmit={handleRegistrationSubmit}
-                    submitting={registerSubmitting}
-                    error={registerError}
-                    scrollable={displayVariant === 'modal'}
-                  />
-                )
-              ) : (
-                <>
-                  <LoginForm
-                    mode={mode}
-                    form={form}
-                    onChange={setForm}
-                    onSubmit={handleSubmit}
-                    onOpenForgot={openForgot}
-                    submitting={loginSubmitting}
-                    error={visibleError}
-                  />
-                  <ForgotPasswordPanel
-                    forgotMode={forgotMode}
-                    forgotForms={forgotForms}
-                    onChange={updateForgotForms}
-                    onSubmit={handleForgotSubmit}
-                    onClose={closeForgot}
-                    submitting={forgotSubmitting}
-                    error={forgotError}
-                    message={forgotMessage}
-                  />
-                </>
-              )}
+                  <div className="space-y-4">
+                    <LoginForm
+                      mode={mode}
+                      form={form}
+                      onChange={setForm}
+                      onSubmit={handleSubmit}
+                      onOpenForgot={openForgot}
+                      submitting={loginSubmitting}
+                      error={visibleError}
+                    />
+                    <ForgotPasswordPanel
+                      forgotMode={forgotMode}
+                      forgotForms={forgotForms}
+                      onChange={updateForgotForms}
+                      onSubmit={handleForgotSubmit}
+                      onClose={closeForgot}
+                      submitting={forgotSubmitting}
+                      error={forgotError}
+                      message={forgotMessage}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 
