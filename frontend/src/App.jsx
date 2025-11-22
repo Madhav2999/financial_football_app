@@ -6,8 +6,8 @@ import LandingPage from './components/LandingPage'
 import ModeratorDashboard from './components/ModeratorDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import { initialTeams } from './data/teams'
-import { questionBank } from './data/questions'
-import { moderatorAccounts } from './data/moderators'
+import { questionBank as fallbackQuestionBank } from './data/questions'
+import { moderatorAccounts as fallbackModerators } from './data/moderators'
 import TeamDashboard from './components/TeamDashboard'
 import {
   initializeTournament,
@@ -25,6 +25,15 @@ import {
 import LearnToPlay from './components/LearnToPlay'
 import PublicTournamentPage from './components/PublicTournamentPage'
 import PublicMatchViewer from './components/PublicMatchViewer'
+import {
+  useMatchHistory,
+  useModerators,
+  useQuestionBank,
+  useTeams,
+  useTournament,
+  mergeLoadingStates,
+  firstError,
+} from './hooks/useBackendResources'
 import {
   clearStoredToken,
   createSessionFromAuthResponse,
@@ -51,10 +60,9 @@ const SUPER_ADMIN_PROFILE = {
   email: 'admin@financialfootball.com',
   phone: '+1 (555) 013-3700',
 }
-const MODERATOR_ACCOUNTS = moderatorAccounts
-
-function buildInitialTeams() {
-  return initialTeams.map((team) => ({
+function buildInitialTeams(seedTeams = initialTeams) {
+  const roster = Array.isArray(seedTeams) ? seedTeams : []
+  return roster.map((team) => ({
     ...team,
     wins: 0,
     losses: 0,
@@ -63,7 +71,7 @@ function buildInitialTeams() {
   }))
 }
 
-const INITIAL_TEAM_STATE = buildInitialTeams()
+const INITIAL_TEAM_STATE = []
 
 function buildDefaultTeamSelection(teams, limit = TOURNAMENT_TEAM_LIMIT) {
   const roster = Array.isArray(teams) ? teams : []
@@ -138,8 +146,8 @@ function resumeTimer(timer) {
   }
 }
 
-function buildOptions(question) {
-  const distractorPool = questionBank.filter((item) => item.id !== question.id).map((item) => item.answer)
+function buildOptions(question, availableQuestions = []) {
+  const distractorPool = availableQuestions.filter((item) => item.id !== question.id).map((item) => item.answer)
   const distractors = []
 
   while (distractors.length < 3 && distractorPool.length) {
@@ -164,13 +172,14 @@ function buildOptions(question) {
   return shuffleArray([question.answer, ...distractors])
 }
 
-function drawQuestions(count) {
-  const pool = [...questionBank]
+function drawQuestions(questionPool = [], count) {
+  const fallbackPool = Array.isArray(questionPool) && questionPool.length ? questionPool : fallbackQuestionBank
+  const pool = [...fallbackPool]
   const selected = []
 
   while (selected.length < count) {
     if (!pool.length) {
-      pool.push(...questionBank)
+      pool.push(...fallbackPool)
     }
     const index = Math.floor(Math.random() * pool.length)
     selected.push(pool.splice(index, 1)[0])
@@ -180,7 +189,7 @@ function drawQuestions(count) {
   return selected.map((question, index) => ({
     ...question,
     instanceId: `${question.id}-${timestamp}-${index}`,
-    options: buildOptions(question),
+    options: buildOptions(question, fallbackPool),
   }))
 }
 
@@ -301,7 +310,7 @@ function createLiveMatch(teamAId, teamBId, options = {}) {
     tournamentMatchId = null,
   } = options
 
-  const questionQueue = drawQuestions(QUESTIONS_PER_TEAM * 2)
+  const questionQueue = drawQuestions(questionBankState, QUESTIONS_PER_TEAM * 2)
 
   return {
     id,
@@ -338,15 +347,15 @@ export default function App() {
 
 function AppShell() {
   const [teams, setTeams] = useState(INITIAL_TEAM_STATE)
+  const [moderators, setModerators] = useState([])
+  const [questionBankState, setQuestionBankState] = useState(fallbackQuestionBank)
   const [session, setSession] = useState({ type: 'guest' })
   const [sessionReady, setSessionReady] = useState(false)
   const [activeMatches, setActiveMatches] = useState([])
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
   const [authError, setAuthError] = useState(null)
-  const [selectedTeamIds, setSelectedTeamIds] = useState(() =>
-    buildDefaultTeamSelection(INITIAL_TEAM_STATE, TOURNAMENT_TEAM_LIMIT),
-  )
+  const [selectedTeamIds, setSelectedTeamIds] = useState([])
   const [tournament, setTournament] = useState(null)
   const [tournamentLaunched, setTournamentLaunched] = useState(false)
   const finalizedMatchesRef = useRef(new Set())
@@ -354,10 +363,88 @@ function AppShell() {
 
   const navigate = useNavigate()
 
+  const {
+    data: teamsPayload,
+    loading: teamsLoading,
+    error: teamsError,
+    refresh: refreshTeams,
+  } = useTeams()
+  const {
+    data: moderatorsPayload,
+    loading: moderatorsLoading,
+    error: moderatorsError,
+    refresh: refreshModerators,
+  } = useModerators()
+  const {
+    data: historyPayload,
+    loading: historyLoading,
+    error: historyError,
+    refresh: refreshHistory,
+  } = useMatchHistory()
+  const {
+    data: tournamentPayload,
+    loading: tournamentLoading,
+    error: tournamentError,
+    refresh: refreshTournament,
+  } = useTournament()
+  const {
+    data: questionPayload,
+    loading: questionLoading,
+    error: questionError,
+    refresh: refreshQuestions,
+  } = useQuestionBank()
+
   const activeTeam = useMemo(() => {
     if (session.type !== 'team') return null
     return teams.find((team) => team.id === session.teamId) ?? null
   }, [session, teams])
+
+  useEffect(() => {
+    if (Array.isArray(teamsPayload?.teams)) {
+      const hydrated = buildInitialTeams(teamsPayload.teams)
+      setTeams(hydrated)
+      setSelectedTeamIds(buildDefaultTeamSelection(hydrated, TOURNAMENT_TEAM_LIMIT))
+    } else if (!teamsLoading && teams.length === 0) {
+      const hydrated = buildInitialTeams(initialTeams)
+      setTeams(hydrated)
+      setSelectedTeamIds(buildDefaultTeamSelection(hydrated, TOURNAMENT_TEAM_LIMIT))
+    }
+  }, [teamsPayload, teamsLoading])
+
+  useEffect(() => {
+    if (Array.isArray(moderatorsPayload?.moderators)) {
+      setModerators(moderatorsPayload.moderators)
+    } else if (!moderatorsLoading && moderators.length === 0) {
+      setModerators(fallbackModerators)
+    }
+  }, [moderatorsPayload, moderatorsLoading])
+
+  useEffect(() => {
+    if (Array.isArray(historyPayload?.history)) {
+      setMatchHistory(historyPayload.history)
+    }
+  }, [historyPayload])
+
+  useEffect(() => {
+    if (tournamentPayload && 'tournament' in tournamentPayload) {
+      setTournament(tournamentPayload.tournament)
+    }
+  }, [tournamentPayload])
+
+  useEffect(() => {
+    if (Array.isArray(questionPayload?.questions) && questionPayload.questions.length) {
+      setQuestionBankState(questionPayload.questions)
+    }
+  }, [questionPayload])
+
+  const dataLoading = mergeLoadingStates(
+    teamsLoading,
+    moderatorsLoading,
+    historyLoading,
+    tournamentLoading,
+    questionLoading,
+  )
+  const dataError = firstError(teamsError, moderatorsError, historyError, tournamentError, questionError)
 
   useEffect(() => {
     setSelectedTeamIds((previous) => {
@@ -392,8 +479,8 @@ function AppShell() {
 
   const activeModerator = useMemo(() => {
     if (session.type !== 'moderator') return null
-    return MODERATOR_ACCOUNTS.find((account) => account.id === session.moderatorId) ?? null
-  }, [session])
+    return moderators.find((account) => account.id === session.moderatorId) ?? null
+  }, [session, moderators])
 
   useEffect(() => {
     let cancelled = false
@@ -529,6 +616,14 @@ function AppShell() {
     }
   }
 
+  const handleRefreshData = useCallback(() => {
+    refreshTeams()
+    refreshModerators()
+    refreshHistory()
+    refreshTournament()
+    refreshQuestions()
+  }, [refreshTeams, refreshModerators, refreshHistory, refreshTournament, refreshQuestions])
+
   useEffect(() => {
     if (!tournamentLaunched || !tournament) {
       return
@@ -644,7 +739,7 @@ function AppShell() {
       return
     }
 
-    const nextTournament = initializeTournament(seededTeams, MODERATOR_ACCOUNTS)
+    const nextTournament = initializeTournament(seededTeams, moderators)
     rosterSeedKeyRef.current = createSelectionKey(seededIds)
 
     finalizedMatchesRef.current = new Set()
@@ -1100,6 +1195,36 @@ function AppShell() {
     return () => clearInterval(interval)
   }, [scheduleFinalization])
 
+  if (dataError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-center text-slate-200">
+        <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 px-8 py-10 shadow-lg shadow-slate-900/40">
+          <p className="text-sm uppercase tracking-[0.3em] text-sky-400">Data unavailable</p>
+          <p className="text-lg font-semibold text-white">We couldn&apos;t load the latest tournament data.</p>
+          <p className="text-sm text-slate-300">{dataError.message || 'Please try again later.'}</p>
+          <button
+            type="button"
+            onClick={handleRefreshData}
+            className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:border-slate-500 hover:bg-slate-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (dataLoading && teams.length === 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-center text-slate-200">
+        <div className="space-y-2">
+          <p className="text-sm uppercase tracking-[0.3em] text-sky-400">Loading</p>
+          <p className="text-lg font-semibold text-white">Fetching live tournament data...</p>
+        </div>
+      </div>
+    )
+  }
+
   const handleTeamAnswer = (matchId, teamId, selectedOption) => {
     setActiveMatches((previousMatches) => {
       let completedMatch = null
@@ -1195,7 +1320,7 @@ function AppShell() {
             tournament={tournament}
             teams={teams}
             activeMatches={activeMatches}
-            moderators={MODERATOR_ACCOUNTS}
+              moderators={moderators}
             history={matchHistory}
           />
         }
@@ -1203,7 +1328,7 @@ function AppShell() {
       <Route
         path="/tournament/match/:matchId"
         element={
-          <PublicMatchViewer matches={activeMatches} teams={teams} moderators={MODERATOR_ACCOUNTS} />
+          <PublicMatchViewer matches={activeMatches} teams={teams} moderators={moderators} />
         }
       />
       <Route
@@ -1241,7 +1366,7 @@ function AppShell() {
               recentResult={recentResult}
               history={matchHistory}
               tournament={tournament}
-              moderators={MODERATOR_ACCOUNTS}
+              moderators={moderators}
               superAdmin={SUPER_ADMIN_PROFILE}
               tournamentLaunched={tournamentLaunched}
               selectedTeamIds={selectedTeamIds}
@@ -1254,6 +1379,9 @@ function AppShell() {
               onResetMatch={(matchId) => handleResetMatch(matchId, { isAdmin: true })}
               onGrantBye={handleGrantMatchBye}
               onDismissRecent={handleDismissRecent}
+              dataLoading={dataLoading}
+              dataError={dataError}
+              onRefreshData={handleRefreshData}
               onLogout={handleLogout}
             />
           </ProtectedRoute>
@@ -1273,7 +1401,7 @@ function AppShell() {
               matches={activeMatches}
               teams={teams}
               tournament={tournament}
-              moderators={MODERATOR_ACCOUNTS}
+              moderators={moderators}
               selectedTeamIds={selectedTeamIds}
               matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
               tournamentLaunched={tournamentLaunched}
@@ -1288,6 +1416,9 @@ function AppShell() {
               onPauseMatch={(matchId) => handlePauseMatch(matchId, { moderatorId: activeModerator?.id })}
               onResumeMatch={(matchId) => handleResumeMatch(matchId, { moderatorId: activeModerator?.id })}
               onResetMatch={(matchId) => handleResetMatch(matchId, { moderatorId: activeModerator?.id })}
+              dataLoading={dataLoading}
+              dataError={dataError}
+              onRefreshData={handleRefreshData}
               onLogout={handleLogout}
             />
           </ProtectedRoute>
@@ -1310,7 +1441,10 @@ function AppShell() {
               history={matchHistory}
               tournament={tournament}
               tournamentLaunched={tournamentLaunched}
-              moderators={MODERATOR_ACCOUNTS}
+              moderators={moderators}
+              dataLoading={dataLoading}
+              dataError={dataError}
+              onRefreshData={handleRefreshData}
               onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
               onSelectFirst={(matchId, firstTeamId) =>
                 handleSelectFirst(matchId, activeTeam.id, firstTeamId)

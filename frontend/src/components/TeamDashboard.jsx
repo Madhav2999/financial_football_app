@@ -699,6 +699,9 @@ export default function TeamDashboard({
   tournament,
   tournamentLaunched,
   moderators = [],
+  dataLoading,
+  dataError,
+  onRefreshData,
   onAnswer,
   onSelectFirst,
   onLogout,
@@ -800,6 +803,14 @@ export default function TeamDashboard({
             <span className="rounded-full border border-white/20 bg-slate-900/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-200">
               {tournamentStatusLabel}
             </span>
+            <button
+              type="button"
+              onClick={onRefreshData}
+              disabled={dataLoading}
+              className="rounded-xl border border-white/20 bg-slate-900/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-100 transition hover:border-white/40 hover:text-white disabled:opacity-50"
+            >
+              {dataLoading ? 'Syncing data…' : 'Refresh data'}
+            </button>
             <div className="rounded-2xl border border-white/15 bg-transparent px-4 py-3 text-sm">
               <div className="flex items-center gap-3 text-slate-100">
                 <span className="font-semibold text-white">Wins:</span>
@@ -845,6 +856,14 @@ export default function TeamDashboard({
           </div>
         </div>
       </header>
+
+      {dataError ? (
+        <div className="mx-auto mt-4 max-w-6xl px-6">
+          <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            {dataError.message || 'We had trouble loading tournament updates. Try refreshing.'}
+          </div>
+        </div>
+      ) : null}
 
       <main className="mx-auto max-w-6xl px-6 py-8">
         {showGameRoom ? (

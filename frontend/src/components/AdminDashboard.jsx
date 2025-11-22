@@ -32,6 +32,9 @@ export default function AdminDashboard(props) {
     onGrantBye,
     onDismissRecent,
     onLogout,
+    dataLoading,
+    dataError,
+    onRefreshData,
   } = props
 
   return (
@@ -46,17 +49,32 @@ export default function AdminDashboard(props) {
             <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Admin Control Booth</p>
             <h1 className="text-3xl font-semibold text-white">Tournament Moderator</h1>
           </div>
-          <button
-            onClick={onLogout}
-            className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 cursor-pointer"
-          >
-            Log out
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={onRefreshData}
+              disabled={dataLoading}
+              className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:opacity-50"
+            >
+              {dataLoading ? 'Refreshing…' : 'Refresh data'}
+            </button>
+            <button
+              onClick={onLogout}
+              className="rounded-2xl border border-rose-500/60 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:border-rose-400 hover:bg-rose-500/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 cursor-pointer"
+            >
+              Log out
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-10 pt-8 lg:flex-row">
         <aside className="w-full rounded-3xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg shadow-slate-900/40 lg:w-64">
+          {dataError ? (
+            <p className="mb-3 rounded-2xl bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              {dataError.message || 'Some data failed to load.'}
+            </p>
+          ) : null}
           <nav aria-label="Admin dashboard sections" className="space-y-1">
             {NAV_ITEMS.map((item) => (
               <NavLink
