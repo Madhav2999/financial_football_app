@@ -3,9 +3,11 @@ import AdminOverviewTab from './admin/AdminOverviewTab'
 import AdminMatchesTab from './admin/AdminMatchesTab'
 import AdminStandingsTab from './admin/AdminStandingsTab'
 import AdminAnalyticsTab from './admin/AdminAnalyticsTab'
+import AdminApprovalsTab from './admin/AdminApprovalsTab'
 
 const NAV_ITEMS = [
   { to: 'overview', label: 'Overview' },
+  { to: 'approvals', label: 'Approvals' },
   { to: 'matches', label: 'Matches' },
   { to: 'standings', label: 'Standings' },
   { to: 'analytics', label: 'Analytics' },
@@ -32,6 +34,13 @@ export default function AdminDashboard(props) {
     onGrantBye,
     onDismissRecent,
     onLogout,
+    teamRegistrations,
+    moderatorRegistrations,
+    onApproveTeamRegistration,
+    onApproveModeratorRegistration,
+    onReloadData,
+    onDeleteTeam,
+    onDeleteModerator,
   } = props
 
   return (
@@ -97,6 +106,22 @@ export default function AdminDashboard(props) {
                   onMatchMake={onMatchMake}
                   onLaunchTournament={onLaunchTournament}
                   onDismissRecent={onDismissRecent}
+                />
+              }
+            />
+            <Route
+              path="approvals"
+              element={
+                <AdminApprovalsTab
+                  teamRegistrations={teamRegistrations}
+                  moderatorRegistrations={moderatorRegistrations}
+                  teams={teams}
+                  moderators={moderators}
+                  onApproveTeam={onApproveTeamRegistration}
+                  onApproveModerator={onApproveModeratorRegistration}
+                  onReload={onReloadData}
+                  onDeleteTeam={onDeleteTeam}
+                  onDeleteModerator={onDeleteModerator}
                 />
               }
             />

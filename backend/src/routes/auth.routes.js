@@ -72,6 +72,9 @@ const validateCredentials = (req, res) => {
 const comparePassword = async (providedPassword, storedHash) =>
   bcrypt.compare(providedPassword, storedHash)
 
+const extractBearerToken = (headerValue = '') =>
+  headerValue.startsWith('Bearer ') ? headerValue.replace('Bearer ', '') : null
+
 authRouter.post('/team', async (req, res, next) => {
   const credentials = validateCredentials(req, res)
   if (!credentials) return
@@ -139,6 +142,34 @@ authRouter.post('/admin', async (req, res, next) => {
     res.json({ token, user: sanitizeModerator(admin) })
   } catch (error) {
     next(error)
+  }
+})
+
+authRouter.get('/session', async (req, res, next) => {
+  if (!req.user?.role || !req.user?.sub) {
+    return res.status(401).json({ message: 'Authorization token missing' })
+  }
+
+  try {
+    const bearerToken = extractBearerToken(req.headers.authorization)
+
+    if (req.user.role === 'team') {
+      const team = await Team.findById(req.user.sub)
+      if (!team) {
+        return res.status(404).json({ message: 'Team not found for this session' })
+      }
+
+      return res.json({ token: bearerToken, role: req.user.role, user: sanitizeTeam(team) })
+    }
+
+    const moderator = await Moderator.findById(req.user.sub)
+    if (!moderator) {
+      return res.status(404).json({ message: 'Moderator not found for this session' })
+    }
+
+    return res.json({ token: bearerToken, role: req.user.role, user: sanitizeModerator(moderator) })
+  } catch (error) {
+    return next(error)
   }
 })
 
