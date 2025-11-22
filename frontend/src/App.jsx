@@ -416,6 +416,13 @@ function AppShell() {
     return moderators.find((account) => account.id === session.moderatorId) ?? null
   }, [session, moderators])
 
+  const API_BASE = '/api'
+
+  const withApiBase = (path) => {
+    if (!path) return API_BASE
+    return path.startsWith('http') ? path : `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
+  }
+
   const requestJson = useCallback(
     async (url, { method = 'GET', body, headers = {}, auth = false, token } = {}) => {
       const requestHeaders = { ...headers }
@@ -436,7 +443,7 @@ function AppShell() {
       requestInit.headers = requestHeaders
 
       try {
-        const response = await fetch(url, requestInit)
+        const response = await fetch(withApiBase(url), requestInit)
         const data = await response.json().catch(() => ({}))
 
         if (!response.ok) {
