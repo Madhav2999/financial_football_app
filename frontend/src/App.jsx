@@ -403,6 +403,33 @@ function AppShell() {
     [requestJson, upsertModeratorRecord],
   )
 
+  const deleteTeamAccount = useCallback(
+    async (teamId) => {
+      const result = await requestJson(`/admin/teams/${teamId}`, { method: 'DELETE', auth: true })
+
+      setTeams((previous) => previous.filter((team) => team.id !== teamId))
+      setSelectedTeamIds((previous) => previous.filter((id) => id !== teamId))
+      setActiveMatches((previous) => previous.filter((match) => !(match.teams || []).includes(teamId)))
+
+      await loadAdminData()
+      return result
+    },
+    [loadAdminData, requestJson],
+  )
+
+  const deleteModeratorAccount = useCallback(
+    async (moderatorId) => {
+      const result = await requestJson(`/admin/moderators/${moderatorId}`, { method: 'DELETE', auth: true })
+
+      setModerators((previous) => previous.filter((moderator) => moderator.id !== moderatorId))
+      setActiveMatches((previous) => previous.filter((match) => match.moderatorId !== moderatorId))
+
+      await loadAdminData()
+      return result
+    },
+    [loadAdminData, requestJson],
+  )
+
   const handleLogout = useCallback(async () => {
     const token = session?.token
 
@@ -1155,6 +1182,8 @@ function AppShell() {
               onApproveTeamRegistration={approveTeamRegistration}
               onApproveModeratorRegistration={approveModeratorRegistration}
               onReloadData={loadAdminData}
+              onDeleteTeam={deleteTeamAccount}
+              onDeleteModerator={deleteModeratorAccount}
             />
           </ProtectedRoute>
         }

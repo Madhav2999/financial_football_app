@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import AdminRosterPanel from './AdminRosterPanel'
 
 function StatusBadge({ status }) {
   const styles = {
@@ -132,9 +133,13 @@ function RegistrationRoster({
 export default function AdminApprovalsTab({
   teamRegistrations = [],
   moderatorRegistrations = [],
+  teams = [],
+  moderators = [],
   onApproveTeam,
   onApproveModerator,
   onReload,
+  onDeleteTeam,
+  onDeleteModerator,
 }) {
   return (
     <div className="space-y-6">
@@ -171,6 +176,22 @@ export default function AdminApprovalsTab({
         registrations={moderatorRegistrations}
         type="moderator"
         onApprove={onApproveModerator}
+      />
+
+      <AdminRosterPanel
+        title="Active teams"
+        description="Manage approved teams that currently have access to the tournament."
+        entries={teams}
+        type="team"
+        onDelete={onDeleteTeam}
+      />
+
+      <AdminRosterPanel
+        title="Active moderators"
+        description="Manage approved moderators. Admin accounts are protected from removal."
+        entries={moderators}
+        type="moderator"
+        onDelete={onDeleteModerator}
       />
     </div>
   )

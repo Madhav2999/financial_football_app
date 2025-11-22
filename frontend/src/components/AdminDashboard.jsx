@@ -39,6 +39,8 @@ export default function AdminDashboard(props) {
     onApproveTeamRegistration,
     onApproveModeratorRegistration,
     onReloadData,
+    onDeleteTeam,
+    onDeleteModerator,
   } = props
 
   return (
@@ -113,9 +115,13 @@ export default function AdminDashboard(props) {
                 <AdminApprovalsTab
                   teamRegistrations={teamRegistrations}
                   moderatorRegistrations={moderatorRegistrations}
+                  teams={teams}
+                  moderators={moderators}
                   onApproveTeam={onApproveTeamRegistration}
                   onApproveModerator={onApproveModeratorRegistration}
                   onReload={onReloadData}
+                  onDeleteTeam={onDeleteTeam}
+                  onDeleteModerator={onDeleteModerator}
                 />
               }
             />
