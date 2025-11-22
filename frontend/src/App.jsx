@@ -62,6 +62,39 @@ function createSelectionKey(ids) {
   return [...ids].sort().join('|')
 }
 
+function normalizeTeamRecord(team) {
+  if (!team) return null
+  const normalizedId = team.id || team._id || team.loginId || team.teamId
+  return {
+    id: normalizedId,
+    loginId: team.loginId || normalizedId,
+    name: team.name || team.teamName || team.organization || team.loginId,
+    region: team.region || team.county || '',
+    seed: typeof team.seed === 'number' ? team.seed : null,
+    avatarUrl: team.avatarUrl,
+    metadata: team.metadata || {},
+    wins: Number.isFinite(team.wins) ? team.wins : 0,
+    losses: Number.isFinite(team.losses) ? team.losses : 0,
+    totalScore: Number.isFinite(team.totalScore) ? team.totalScore : 0,
+    eliminated: Boolean(team.eliminated),
+  }
+}
+
+function normalizeModeratorRecord(moderator) {
+  if (!moderator) return null
+  const normalizedId = moderator.id || moderator._id || moderator.loginId
+  const displayName = moderator.displayName || moderator.name || moderator.loginId
+  return {
+    id: normalizedId,
+    loginId: moderator.loginId || normalizedId,
+    email: moderator.email,
+    displayName,
+    name: displayName,
+    role: moderator.role || 'moderator',
+    permissions: moderator.permissions || [],
+  }
+}
+
 function shuffleArray(array) {
   const items = [...array]
   for (let index = items.length - 1; index > 0; index -= 1) {
@@ -323,17 +356,20 @@ export default function App() {
 }
 
 function AppShell() {
-  const [teams, setTeams] = useState(INITIAL_TEAM_STATE)
+  const [teams, setTeams] = useState(() => INITIAL_TEAM_STATE.map(normalizeTeamRecord))
+  const [moderators, setModerators] = useState(() => MODERATOR_ACCOUNTS.map(normalizeModeratorRecord))
   const [session, setSession] = useState({ type: 'guest' })
   const [activeMatches, setActiveMatches] = useState([])
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
   const [authError, setAuthError] = useState(null)
   const [selectedTeamIds, setSelectedTeamIds] = useState(() =>
-    buildDefaultTeamSelection(INITIAL_TEAM_STATE, TOURNAMENT_TEAM_LIMIT),
+    buildDefaultTeamSelection(INITIAL_TEAM_STATE.map(normalizeTeamRecord), TOURNAMENT_TEAM_LIMIT),
   )
   const [tournament, setTournament] = useState(null)
   const [tournamentLaunched, setTournamentLaunched] = useState(false)
+  const [teamRegistrations, setTeamRegistrations] = useState([])
+  const [moderatorRegistrations, setModeratorRegistrations] = useState([])
   const finalizedMatchesRef = useRef(new Set())
   const rosterSeedKeyRef = useRef('')
 
@@ -377,51 +413,255 @@ function AppShell() {
 
   const activeModerator = useMemo(() => {
     if (session.type !== 'moderator') return null
-    return MODERATOR_ACCOUNTS.find((account) => account.id === session.moderatorId) ?? null
-  }, [session])
+    return moderators.find((account) => account.id === session.moderatorId) ?? null
+  }, [session, moderators])
 
-  const handleTeamLogin = (loginId, password, options = {}) => {
-    const team = teams.find((item) => item.loginId === loginId)
+  const API_BASE = '/api'
 
-    if (!team || team.password !== password) {
-      setAuthError('Invalid team credentials. Please try again.')
-      return
-    }
-
-    setSession({ type: 'team', teamId: team.id })
-    setAuthError(null)
-    navigate(options.redirectTo ?? '/team', { replace: true })
+  const withApiBase = (path) => {
+    if (!path) return API_BASE
+    return path.startsWith('http') ? path : `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
   }
 
-  const handleAdminLogin = (loginId, password, options = {}) => {
-    if (loginId !== ADMIN_CREDENTIALS.loginId || password !== ADMIN_CREDENTIALS.password) {
-      setAuthError('Incorrect admin login details.')
-      return
-    }
+  const requestJson = useCallback(
+    async (url, { method = 'GET', body, headers = {}, auth = false, token } = {}) => {
+      const requestHeaders = { ...headers }
+      const requestInit = { method }
 
-    setSession({ type: 'admin' })
+      if (body !== undefined) {
+        requestInit.body = JSON.stringify(body ?? {})
+        if (!requestHeaders['Content-Type']) {
+          requestHeaders['Content-Type'] = 'application/json'
+        }
+      }
+
+      const bearerToken = token ?? session.token
+      if (auth && bearerToken) {
+        requestHeaders.Authorization = `Bearer ${bearerToken}`
+      }
+
+      requestInit.headers = requestHeaders
+
+      try {
+        const response = await fetch(withApiBase(url), requestInit)
+        const data = await response.json().catch(() => ({}))
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Request failed')
+        }
+
+        return data
+      } catch (error) {
+        const message = error?.message || 'Request failed'
+        const err = new Error(message)
+        err.cause = error
+        throw err
+      }
+    },
+    [session.token],
+  )
+
+  const postJson = (url, body, options = {}) => requestJson(url, { method: 'POST', body, ...options })
+
+  const upsertTeamRecord = useCallback((team) => {
+    const normalized = normalizeTeamRecord(team)
+    if (!normalized) return
+
+    setTeams((previous) => {
+      const existing = previous.find((item) => item.id === normalized.id)
+      if (existing) {
+        return previous.map((item) =>
+          item.id === normalized.id
+            ? {
+                ...normalized,
+                wins: existing.wins ?? normalized.wins,
+                losses: existing.losses ?? normalized.losses,
+                totalScore: existing.totalScore ?? normalized.totalScore,
+                eliminated: existing.eliminated ?? normalized.eliminated,
+              }
+            : item,
+        )
+      }
+
+      return [...previous, normalized]
+    })
+  }, [])
+
+  const upsertModeratorRecord = useCallback((moderator) => {
+    const normalized = normalizeModeratorRecord(moderator)
+    if (!normalized) return
+
+    setModerators((previous) => {
+      const existing = previous.find((item) => item.id === normalized.id)
+      if (existing) {
+        return previous.map((item) => (item.id === normalized.id ? { ...existing, ...normalized } : item))
+      }
+      return [...previous, normalized]
+    })
+  }, [])
+
+  const handleTeamLogin = async (loginId, password, options = {}) => {
     setAuthError(null)
-    navigate(options.redirectTo ?? '/admin', { replace: true })
+    try {
+      const result = await postJson('/auth/team', { loginId, password })
+      const team = result.user
+
+      upsertTeamRecord(team)
+
+      setSession({ type: 'team', teamId: team?.id ?? loginId, token: result.token, profile: team })
+      navigate(options.redirectTo ?? '/team', { replace: true })
+      return result
+    } catch (error) {
+      const message = error?.message || 'Invalid team credentials. Please try again.'
+      setAuthError(message)
+      throw error
+    }
   }
 
-  const handleModeratorLogin = (loginId, password, options = {}) => {
-    const moderator = MODERATOR_ACCOUNTS.find((item) => item.loginId === loginId)
-
-    if (!moderator || moderator.password !== password) {
-      setAuthError('Invalid moderator credentials. Please try again.')
-      return
-    }
-
-    setSession({ type: 'moderator', moderatorId: moderator.id })
+  const handleAdminLogin = async (loginId, password, options = {}) => {
     setAuthError(null)
-    navigate(options.redirectTo ?? '/moderator', { replace: true })
+    try {
+      const result = await postJson('/auth/admin', { loginId, password })
+      setSession({ type: 'admin', token: result.token, profile: result.user })
+      navigate(options.redirectTo ?? '/admin', { replace: true })
+      return result
+    } catch (error) {
+      const message = error?.message || 'Incorrect admin login details.'
+      setAuthError(message)
+      throw error
+    }
   }
+
+  const handleModeratorLogin = async (loginId, password, options = {}) => {
+    setAuthError(null)
+    try {
+      const result = await postJson('/auth/moderator', { loginId, password })
+      const moderator = result.user
+
+      upsertModeratorRecord(moderator)
+
+      setSession({ type: 'moderator', moderatorId: moderator?.id, token: result.token, profile: moderator })
+      navigate(options.redirectTo ?? '/moderator', { replace: true })
+      return result
+    } catch (error) {
+      const message = error?.message || 'Invalid moderator credentials. Please try again.'
+      setAuthError(message)
+      throw error
+    }
+  }
+
+  const handleTeamRegistration = async (payload) => {
+    return postJson('/auth/register', payload)
+  }
+
+  const handleModeratorRegistration = async (payload) => {
+    return postJson('/auth/register/moderator', payload)
+  }
+
+  const handleTeamForgotPassword = async (payload) => {
+    return postJson('/auth/forgot-password/team', payload)
+  }
+
+  const handleModeratorForgotPassword = async (payload) => {
+    return postJson('/auth/forgot-password/moderator', payload)
+  }
+
+  const loadAdminData = useCallback(async () => {
+    if (session.type !== 'admin') return null
+
+    const [teamResult, moderatorResult, teamRegResult, moderatorRegResult] = await Promise.all([
+      requestJson('/admin/teams', { auth: true }),
+      requestJson('/admin/moderators', { auth: true }),
+      requestJson('/admin/registrations/teams', { auth: true }),
+      requestJson('/admin/registrations/moderators', { auth: true }),
+    ])
+
+    setTeams((previous) => {
+      const previousMap = new Map(previous.map((team) => [team.id, team]))
+      return (teamResult?.teams ?? []).map((team) => {
+        const normalized = normalizeTeamRecord(team)
+        const existing = previousMap.get(normalized.id)
+        return existing
+          ? {
+              ...normalized,
+              wins: existing.wins ?? normalized.wins,
+              losses: existing.losses ?? normalized.losses,
+              totalScore: existing.totalScore ?? normalized.totalScore,
+              eliminated: existing.eliminated ?? normalized.eliminated,
+            }
+          : normalized
+      })
+    })
+
+    setModerators((previous) => {
+      const previousMap = new Map(previous.map((record) => [record.id, record]))
+      return (moderatorResult?.moderators ?? []).map((record) => {
+        const normalized = normalizeModeratorRecord(record)
+        const existing = previousMap.get(normalized.id)
+        return existing ? { ...existing, ...normalized } : normalized
+      })
+    })
+
+    setTeamRegistrations(teamRegResult?.registrations ?? [])
+    setModeratorRegistrations(moderatorRegResult?.registrations ?? [])
+
+    return true
+  }, [requestJson, session.type])
+
+  const approveTeamRegistration = useCallback(
+    async (registrationId) => {
+      const result = await requestJson(`/admin/registrations/${registrationId}/approve`, {
+        method: 'POST',
+        auth: true,
+      })
+      if (result?.team) {
+        upsertTeamRecord(result.team)
+      }
+      if (result?.registration) {
+        setTeamRegistrations((previous) => {
+          const filtered = previous.filter((entry) => entry.id !== result.registration.id)
+          return [...filtered, result.registration]
+        })
+      }
+      return result
+    },
+    [requestJson, upsertTeamRecord],
+  )
+
+  const approveModeratorRegistration = useCallback(
+    async (registrationId) => {
+      const result = await requestJson(`/admin/registrations/moderators/${registrationId}/approve`, {
+        method: 'POST',
+        auth: true,
+      })
+      if (result?.moderator) {
+        upsertModeratorRecord(result.moderator)
+      }
+      if (result?.registration) {
+        setModeratorRegistrations((previous) => {
+          const filtered = previous.filter((entry) => entry.id !== result.registration.id)
+          return [...filtered, result.registration]
+        })
+      }
+      return result
+    },
+    [requestJson, upsertModeratorRecord],
+  )
 
   const handleLogout = () => {
     setSession({ type: 'guest' })
     setAuthError(null)
+    setTeamRegistrations([])
+    setModeratorRegistrations([])
     navigate('/', { replace: true })
   }
+
+  useEffect(() => {
+    if (session.type !== 'admin') return
+    loadAdminData().catch((error) => {
+      console.error('Failed to refresh admin data', error)
+    })
+  }, [session.type, loadAdminData])
 
   useEffect(() => {
     if (!tournamentLaunched || !tournament) {
@@ -538,7 +778,7 @@ function AppShell() {
       return
     }
 
-    const nextTournament = initializeTournament(seededTeams, MODERATOR_ACCOUNTS)
+    const nextTournament = initializeTournament(seededTeams, moderators)
     rosterSeedKeyRef.current = createSelectionKey(seededIds)
 
     finalizedMatchesRef.current = new Set()
@@ -556,7 +796,7 @@ function AppShell() {
       })),
     )
     setTournament(nextTournament)
-  }, [selectedTeamIds, teams, tournamentLaunched])
+  }, [moderators, selectedTeamIds, teams, tournamentLaunched])
 
   const handleGrantMatchBye = useCallback(
     (matchId, teamId) => {
@@ -1058,6 +1298,10 @@ function AppShell() {
             }
             authError={authError}
             onClearAuthError={() => setAuthError(null)}
+            onTeamRegister={handleTeamRegistration}
+            onModeratorRegister={handleModeratorRegistration}
+            onTeamForgotPassword={handleTeamForgotPassword}
+            onModeratorForgotPassword={handleModeratorForgotPassword}
           />
         }
       />
@@ -1071,6 +1315,10 @@ function AppShell() {
             onModeratorLogin={(loginId, password) => handleModeratorLogin(loginId, password, { redirectTo: '/moderator' })}
             authError={authError}
             onClearAuthError={() => setAuthError(null)}
+            onTeamRegister={handleTeamRegistration}
+            onModeratorRegister={handleModeratorRegistration}
+            onTeamForgotPassword={handleTeamForgotPassword}
+            onModeratorForgotPassword={handleModeratorForgotPassword}
           />
         }
       />
@@ -1081,7 +1329,7 @@ function AppShell() {
             tournament={tournament}
             teams={teams}
             activeMatches={activeMatches}
-            moderators={MODERATOR_ACCOUNTS}
+            moderators={moderators}
             history={matchHistory}
           />
         }
@@ -1089,7 +1337,7 @@ function AppShell() {
       <Route
         path="/tournament/match/:matchId"
         element={
-          <PublicMatchViewer matches={activeMatches} teams={teams} moderators={MODERATOR_ACCOUNTS} />
+          <PublicMatchViewer matches={activeMatches} teams={teams} moderators={moderators} />
         }
       />
       <Route
@@ -1100,6 +1348,10 @@ function AppShell() {
             onTeamLogin={handleTeamLogin}
             onAdminLogin={handleAdminLogin}
             onModeratorLogin={handleModeratorLogin}
+            onTeamRegister={handleTeamRegistration}
+            onModeratorRegister={handleModeratorRegistration}
+            onTeamForgotPassword={handleTeamForgotPassword}
+            onModeratorForgotPassword={handleModeratorForgotPassword}
             onBack={() => {
               setAuthError(null)
               navigate('/')
@@ -1118,7 +1370,7 @@ function AppShell() {
               recentResult={recentResult}
               history={matchHistory}
               tournament={tournament}
-              moderators={MODERATOR_ACCOUNTS}
+              moderators={moderators}
               superAdmin={SUPER_ADMIN_PROFILE}
               tournamentLaunched={tournamentLaunched}
               selectedTeamIds={selectedTeamIds}
@@ -1132,6 +1384,11 @@ function AppShell() {
               onGrantBye={handleGrantMatchBye}
               onDismissRecent={handleDismissRecent}
               onLogout={handleLogout}
+              teamRegistrations={teamRegistrations}
+              moderatorRegistrations={moderatorRegistrations}
+              onApproveTeamRegistration={approveTeamRegistration}
+              onApproveModeratorRegistration={approveModeratorRegistration}
+              onReloadData={loadAdminData}
             />
           </ProtectedRoute>
         }
@@ -1146,7 +1403,7 @@ function AppShell() {
               matches={activeMatches}
               teams={teams}
               tournament={tournament}
-              moderators={MODERATOR_ACCOUNTS}
+              moderators={moderators}
               selectedTeamIds={selectedTeamIds}
               matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
               tournamentLaunched={tournamentLaunched}
@@ -1180,7 +1437,7 @@ function AppShell() {
               history={matchHistory}
               tournament={tournament}
               tournamentLaunched={tournamentLaunched}
-              moderators={MODERATOR_ACCOUNTS}
+              moderators={moderators}
               onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
               onSelectFirst={(matchId, firstTeamId) =>
                 handleSelectFirst(matchId, activeTeam.id, firstTeamId)
@@ -1200,6 +1457,10 @@ function LoginPage({
   onTeamLogin,
   onAdminLogin,
   onModeratorLogin,
+  onTeamRegister,
+  onModeratorRegister,
+  onTeamForgotPassword,
+  onModeratorForgotPassword,
   onBack,
   session,
 }) {
@@ -1242,19 +1503,23 @@ function LoginPage({
   }
 
   return (
-    <AuthenticationGateway
-      initialMode={inferredMode}
-      onTeamLogin={(loginId, password) =>
-        onTeamLogin(loginId, password, { redirectTo: redirectTarget ?? '/team' })
-      }
-      onAdminLogin={(loginId, password) =>
-        onAdminLogin(loginId, password, { redirectTo: redirectTarget ?? '/admin' })
-      }
-      onModeratorLogin={(loginId, password) =>
-        onModeratorLogin(loginId, password, { redirectTo: redirectTarget ?? '/moderator' })
-      }
-      onBack={onBack}
-      error={authError}
-    />
+      <AuthenticationGateway
+        initialMode={inferredMode}
+        onTeamLogin={(loginId, password) =>
+          onTeamLogin(loginId, password, { redirectTo: redirectTarget ?? '/team' })
+        }
+        onAdminLogin={(loginId, password) =>
+          onAdminLogin(loginId, password, { redirectTo: redirectTarget ?? '/admin' })
+        }
+        onModeratorLogin={(loginId, password) =>
+          onModeratorLogin(loginId, password, { redirectTo: redirectTarget ?? '/moderator' })
+        }
+        onTeamRegister={onTeamRegister}
+        onModeratorRegister={onModeratorRegister}
+        onTeamForgotPassword={onTeamForgotPassword}
+        onModeratorForgotPassword={onModeratorForgotPassword}
+        onBack={onBack}
+        error={authError}
+      />
   )
 }
