@@ -461,7 +461,7 @@ function AppShell() {
     writeStoredSession(session)
   }, [session])
 
-  const API_BASE = '/api'
+  const API_BASE = 'http://localhost:5000/api'
 
   const withApiBase = (path) => {
     if (!path) return API_BASE
