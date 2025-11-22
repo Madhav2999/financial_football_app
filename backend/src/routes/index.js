@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { accounts, constants } from '../config/index.js'
 import adminRouter from './admin.js'
 import authRouter from './auth.routes.js'
+import dataRouter from './data.js'
 
 const router = Router()
 
@@ -25,5 +26,6 @@ router.get('/accounts/seed', (req, res) => {
 
 router.use('/auth', authRouter)
 router.use('/admin', adminRouter)
+router.use('/data', dataRouter)
 
 export default router

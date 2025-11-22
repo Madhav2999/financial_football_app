@@ -154,3 +154,5 @@ export async function restoreSessionFromStorage() {
   const profileData = await fetchProfile(token)
   return deriveSessionFromProfile({ ...profileData, token })
 }
+
+export { getHeaders }
