@@ -64,6 +64,9 @@ export default function ModeratorDashboard({
   onPauseMatch,
   onResumeMatch,
   onResetMatch,
+  dataLoading,
+  dataError,
+  onRefreshData,
   onLogout,
 }) {
   const interactiveAssignments = useMemo(() => {
@@ -145,6 +148,22 @@ export default function ModeratorDashboard({
             >
               Log out
             </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={onRefreshData}
+              disabled={dataLoading}
+              className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-700 disabled:opacity-50"
+            >
+              {dataLoading ? 'Syncing data…' : 'Refresh data'}
+            </button>
+            {dataError ? (
+              <span className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                {dataError.message || 'Latest bracket data is unavailable.'}
+              </span>
+            ) : null}
           </div>
 
           {!moderator ? (
