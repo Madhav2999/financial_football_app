@@ -96,6 +96,13 @@ export async function requestModeratorPasswordReset(payload) {
   return postJson('/auth/forgot-password/moderator', payload)
 }
 
+export async function logout(token) {
+  const authToken = token ?? getStoredToken()
+  if (!authToken) throw new Error('Missing auth token')
+
+  return postJson('/auth/logout', {}, authToken)
+}
+
 export async function fetchProfile(token) {
   const authToken = token ?? getStoredToken()
   if (!authToken) throw new Error('Missing auth token')
