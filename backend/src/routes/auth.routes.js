@@ -72,6 +72,9 @@ const validateCredentials = (req, res) => {
 const comparePassword = async (providedPassword, storedHash) =>
   bcrypt.compare(providedPassword, storedHash)
 
+const extractBearerToken = (headerValue = '') =>
+  headerValue.startsWith('Bearer ') ? headerValue.replace('Bearer ', '') : null
+
 authRouter.post('/team', async (req, res, next) => {
   const credentials = validateCredentials(req, res)
   if (!credentials) return
@@ -139,6 +142,34 @@ authRouter.post('/admin', async (req, res, next) => {
     res.json({ token, user: sanitizeModerator(admin) })
   } catch (error) {
     next(error)
+  }
+})
+
+authRouter.get('/session', async (req, res, next) => {
+  if (!req.user?.role || !req.user?.sub) {
+    return res.status(401).json({ message: 'Authorization token missing' })
+  }
+
+  try {
+    const bearerToken = extractBearerToken(req.headers.authorization)
+
+    if (req.user.role === 'team') {
+      const team = await Team.findById(req.user.sub)
+      if (!team) {
+        return res.status(404).json({ message: 'Team not found for this session' })
+      }
+
+      return res.json({ token: bearerToken, role: req.user.role, user: sanitizeTeam(team) })
+    }
+
+    const moderator = await Moderator.findById(req.user.sub)
+    if (!moderator) {
+      return res.status(404).json({ message: 'Moderator not found for this session' })
+    }
+
+    return res.json({ token: bearerToken, role: req.user.role, user: sanitizeModerator(moderator) })
+  } catch (error) {
+    return next(error)
   }
 })
 
@@ -234,60 +265,57 @@ authRouter.post('/register/moderator', async (req, res, next) => {
 })
 
 authRouter.post('/forgot-password/team', async (req, res, next) => {
-  const { loginId, contactEmail, newPassword } = req.body || {}
+  const { contactEmail } = req.body || {}
 
-  const trimmedLoginId = loginId?.trim()
   const trimmedContactEmail = contactEmail?.trim().toLowerCase()
-  const trimmedPassword = newPassword?.trim()
 
-  if (!isNonEmptyString(trimmedLoginId) || !isNonEmptyString(trimmedPassword)) {
-    return res.status(400).json({ message: 'loginId and newPassword are required' })
+  if (!isNonEmptyString(trimmedContactEmail)) {
+    return res.status(400).json({ message: 'contactEmail is required' })
   }
 
   try {
-    const team = await Team.findOne({ loginId: trimmedLoginId }).select('+passwordHash')
+    const team = await Team.findOne({
+      $or: [
+        { 'metadata.contactEmail': trimmedContactEmail },
+        { 'metadata.contactemail': trimmedContactEmail },
+      ],
+    })
 
     if (!team) {
-      return res.status(404).json({ message: 'Team not found' })
+      return res.json({
+        message: 'If that email is registered, a reset link has been sent.',
+      })
     }
 
-    const storedContactEmail = team.metadata?.get?.('contactEmail') || team.metadata?.contactEmail
-
-    if (trimmedContactEmail && storedContactEmail && trimmedContactEmail !== storedContactEmail.toLowerCase()) {
-      return res.status(403).json({ message: 'Contact email does not match' })
-    }
-
-    team.passwordHash = await bcrypt.hash(trimmedPassword, 10)
-    await team.save()
-
-    return res.json({ message: 'Password updated', user: sanitizeTeam(team) })
+    return res.json({
+      message: 'If that email is registered, a reset link has been sent.',
+      user: sanitizeTeam(team),
+    })
   } catch (error) {
     return next(error)
   }
 })
 
 authRouter.post('/forgot-password/moderator', async (req, res, next) => {
-  const { loginId, email, newPassword } = req.body || {}
+  const { email } = req.body || {}
 
-  const trimmedLoginId = loginId?.trim()
   const trimmedEmail = email?.trim().toLowerCase()
-  const trimmedPassword = newPassword?.trim()
 
-  if (!isNonEmptyString(trimmedLoginId) || !isNonEmptyString(trimmedEmail) || !isNonEmptyString(trimmedPassword)) {
-    return res.status(400).json({ message: 'loginId, email, and newPassword are required' })
+  if (!isNonEmptyString(trimmedEmail)) {
+    return res.status(400).json({ message: 'email is required' })
   }
 
   try {
-    const moderator = await Moderator.findOne({ loginId: trimmedLoginId, email: trimmedEmail }).select('+passwordHash')
+    const moderator = await Moderator.findOne({ email: trimmedEmail })
 
     if (!moderator) {
-      return res.status(404).json({ message: 'Moderator not found' })
+      return res.json({ message: 'If that email is registered, a reset link has been sent.' })
     }
 
-    moderator.passwordHash = await bcrypt.hash(trimmedPassword, 10)
-    await moderator.save()
-
-    return res.json({ message: 'Password updated', user: sanitizeModerator(moderator) })
+    return res.json({
+      message: 'If that email is registered, a reset link has been sent.',
+      user: sanitizeModerator(moderator),
+    })
   } catch (error) {
     return next(error)
   }
