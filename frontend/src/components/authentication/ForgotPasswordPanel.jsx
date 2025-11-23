@@ -7,6 +7,7 @@ export default function ForgotPasswordPanel({
   submitting,
   error,
   message,
+  resetLink,
 }) {
   if (!forgotMode) return null
 
@@ -55,6 +56,16 @@ export default function ForgotPasswordPanel({
 
       {error ? <p className="text-sm text-rose-400">{error}</p> : null}
       {message ? <p className="text-sm text-emerald-300">{message}</p> : null}
+      {resetLink ? (
+        <a
+          href={resetLink}
+          className="block text-sm font-semibold text-sky-300 underline underline-offset-4 hover:text-sky-200"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Open reset link
+        </a>
+      ) : null}
 
       <button
         type="submit"

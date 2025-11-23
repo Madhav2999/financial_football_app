@@ -51,6 +51,7 @@ export default function AuthenticationGateway({
   const [forgotMessage, setForgotMessage] = useState('')
   const [forgotError, setForgotError] = useState(null)
   const [forgotSubmitting, setForgotSubmitting] = useState(false)
+  const [forgotResetLink, setForgotResetLink] = useState('')
   const [localError, setLocalError] = useState(null)
   const [loginSubmitting, setLoginSubmitting] = useState(false)
 
@@ -68,6 +69,7 @@ export default function AuthenticationGateway({
     setForgotMode(null)
     setForgotMessage('')
     setForgotError(null)
+    setForgotResetLink('')
     setLocalError(null)
   }, [initialMode, allowedModes])
 
@@ -122,6 +124,7 @@ export default function AuthenticationGateway({
     setForgotMode(targetMode)
     setForgotError(null)
     setForgotMessage('')
+    setForgotResetLink('')
     setForgotForms(INITIAL_FORGOT_STATE)
   }
 
@@ -129,6 +132,7 @@ export default function AuthenticationGateway({
     setForgotMode(null)
     setForgotError(null)
     setForgotMessage('')
+    setForgotResetLink('')
     setForgotForms(INITIAL_FORGOT_STATE)
   }
 
@@ -208,6 +212,7 @@ export default function AuthenticationGateway({
     if (!forgotMode) return
     setForgotError(null)
     setForgotMessage('')
+    setForgotResetLink('')
 
     const formState = forgotForms[forgotMode]
     const emailField = forgotMode === 'team' ? formState.contactEmail.trim() : formState.email.trim()
@@ -233,6 +238,7 @@ export default function AuthenticationGateway({
         result?.message ||
           'If that email is on file, we have sent a password reset link. Please check your inbox.',
       )
+      setForgotResetLink(result?.resetUrl || '')
       setForgotForms(INITIAL_FORGOT_STATE)
     } catch (submissionError) {
       setForgotError(submissionError?.message || 'Unable to reset password right now. Please try again later.')
@@ -267,24 +273,25 @@ export default function AuthenticationGateway({
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-      onClick={onClose}
-      role="dialog"
-      aria-modal
-    >
-      <div className="absolute inset-0 bg-slate-900/90 backdrop-blur" />
-      <div
-        className="relative w-full max-w-5xl overflow-hidden rounded-[32px] border border-slate-800 bg-slate-950/90 shadow-2xl shadow-orange-500/5 max-h-[90vh]"
-        onClick={(event) => event.stopPropagation()}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+        onClick={onClose}
+        role="dialog"
+        aria-modal
       >
-        <div className="absolute left-6 top-6 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Authentication</div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-6 top-6 rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300 transition hover:border-orange-400 hover:text-orange-200"
+        <div className="absolute inset-0 bg-slate-900/90 backdrop-blur" />
+        <div
+          className="relative w-full max-w-5xl overflow-hidden rounded-[32px] border border-slate-800 bg-slate-950/90 shadow-2xl shadow-orange-500/5 max-h-[90vh]"
+          onClick={(event) => event.stopPropagation()}
         >
-          Close
-        </button>
+          <div className="absolute left-6 top-6 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Authentication</div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close authentication modal"
+            className="absolute right-6 top-6 flex h-10 w-10 items-center justify-center rounded-full border border-slate-600/80 bg-slate-800/80 text-lg font-semibold text-slate-200 transition hover:border-orange-400 hover:text-orange-100"
+          >
+            ×
+          </button>
         <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
           <section className="p-6 sm:p-8">
             <AuthHeader
@@ -345,6 +352,7 @@ export default function AuthenticationGateway({
                       submitting={forgotSubmitting}
                       error={forgotError}
                       message={forgotMessage}
+                      resetLink={forgotResetLink}
                     />
                   </div>
                 )}
@@ -435,6 +443,7 @@ export default function AuthenticationGateway({
                     submitting={forgotSubmitting}
                     error={forgotError}
                     message={forgotMessage}
+                    resetLink={forgotResetLink}
                   />
                 </>
               )}

@@ -15,6 +15,17 @@ const signToken = ({ id, loginId, role }) =>
     expiresIn,
   })
 
+const signResetToken = ({ id, role }) =>
+  jwt.sign({ sub: id, role, purpose: 'password-reset' }, secret, {
+    expiresIn: '1h',
+  })
+
+const buildResetUrl = (token, role) => {
+  const baseUrl = process.env.PASSWORD_RESET_BASE_URL || 'http://localhost:5173/reset-password'
+  const roleParam = role ? `&role=${role}` : ''
+  return `${baseUrl}?token=${token}${roleParam}`
+}
+
 const sanitizeTeam = (teamDoc) => ({
   id: teamDoc._id.toString(),
   loginId: teamDoc.loginId,
@@ -287,8 +298,17 @@ authRouter.post('/forgot-password/team', async (req, res, next) => {
       })
     }
 
+    const resetToken = signResetToken({ id: team._id.toString(), role: 'team' })
+    const resetUrl = buildResetUrl(resetToken, 'team')
+
+    // Simulate email delivery in development by returning and logging the reset URL
+    /* eslint-disable no-console */
+    console.log(`Team password reset link for ${trimmedContactEmail}: ${resetUrl}`)
+    /* eslint-enable no-console */
+
     return res.json({
       message: 'If that email is registered, a reset link has been sent.',
+      resetUrl,
       user: sanitizeTeam(team),
     })
   } catch (error) {
@@ -312,8 +332,16 @@ authRouter.post('/forgot-password/moderator', async (req, res, next) => {
       return res.json({ message: 'If that email is registered, a reset link has been sent.' })
     }
 
+    const resetToken = signResetToken({ id: moderator._id.toString(), role: 'moderator' })
+    const resetUrl = buildResetUrl(resetToken, moderator.role)
+
+    /* eslint-disable no-console */
+    console.log(`Moderator password reset link for ${trimmedEmail}: ${resetUrl}`)
+    /* eslint-enable no-console */
+
     return res.json({
       message: 'If that email is registered, a reset link has been sent.',
+      resetUrl,
       user: sanitizeModerator(moderator),
     })
   } catch (error) {
