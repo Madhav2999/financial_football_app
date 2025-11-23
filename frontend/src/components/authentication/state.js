@@ -30,6 +30,6 @@ export const INITIAL_MODERATOR_REGISTER_FORM = {
 }
 
 export const INITIAL_FORGOT_STATE = {
-  team: { loginId: '', contactEmail: '', newPassword: '' },
-  moderator: { loginId: '', email: '', newPassword: '' },
+  team: { contactEmail: '' },
+  moderator: { email: '' },
 }

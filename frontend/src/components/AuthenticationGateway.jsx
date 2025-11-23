@@ -210,19 +210,14 @@ export default function AuthenticationGateway({
     setForgotMessage('')
 
     const formState = forgotForms[forgotMode]
-    const loginId = formState.loginId.trim()
-    const newPassword = formState.newPassword.trim()
     const emailField = forgotMode === 'team' ? formState.contactEmail.trim() : formState.email.trim()
 
-    if (!loginId || !newPassword || (forgotMode === 'moderator' && !emailField)) {
-      setForgotError('Please provide the required details to reset your password.')
+    if (!emailField) {
+      setForgotError('Please enter your account email to receive a reset link.')
       return
     }
 
-    const payload =
-      forgotMode === 'team'
-        ? { loginId, contactEmail: emailField, newPassword }
-        : { loginId, email: emailField, newPassword }
+    const payload = forgotMode === 'team' ? { contactEmail: emailField } : { email: emailField }
 
     const forgotCallback = forgotMode === 'team' ? onTeamForgotPassword : onModeratorForgotPassword
     if (!forgotCallback) {
@@ -234,7 +229,10 @@ export default function AuthenticationGateway({
       setForgotSubmitting(true)
       const result = await forgotCallback(payload)
 
-      setForgotMessage(result?.message || 'Password updated. You can sign in with the new password now.')
+      setForgotMessage(
+        result?.message ||
+          'If that email is on file, we have sent a password reset link. Please check your inbox.',
+      )
       setForgotForms(INITIAL_FORGOT_STATE)
     } catch (submissionError) {
       setForgotError(submissionError?.message || 'Unable to reset password right now. Please try again later.')
@@ -294,6 +292,18 @@ export default function AuthenticationGateway({
               onSwitchToLogin={() => handleModeChange('team')}
               onSwitchToRegister={() => handleModeChange('register')}
             />
+
+            {displayVariant === 'modal' && onClose ? (
+              <div className="mb-3 flex justify-end lg:hidden">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 transition hover:border-orange-400 hover:text-orange-100"
+                >
+                  Close
+                </button>
+              </div>
+            ) : null}
 
             <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:p-5">
               <div className="max-h-[68vh] overflow-y-auto pr-1 sm:pr-2">
