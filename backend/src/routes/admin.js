@@ -295,25 +295,35 @@ adminRouter.delete('/teams/:id', async (req, res, next) => {
       return res.status(404).json({ message: 'Team not found' })
     }
 
-    await TeamRegistration.updateMany(
-      { linkedTeamId: team._id },
-      {
-        $set: {
-          status: 'rejected',
-          'metadata.deletedAt': new Date(),
-          'metadata.deletionReason': 'Team account removed by admin',
-        },
-        $unset: { linkedTeamId: '' },
-      },
-    )
+    // 1️⃣ Find the related registration (if exists)
+    const registration = await TeamRegistration.findOne({
+      linkedTeamId: team._id,
+    })
 
+    if (registration) {
+      // 2️⃣ Update metadata before deleting
+      registration.status = 'rejected'
+      registration.metadata.set('deletedAt', new Date())
+      registration.metadata.set('deletionReason', 'Team account removed by admin')
+
+      await registration.save()
+
+      // 3️⃣ Now delete the registration
+      await registration.deleteOne()
+    }
+
+    // 4️⃣ Delete the team
     await team.deleteOne()
 
-    return res.json({ message: 'Team deleted', team: sanitizeTeam(team) })
+    return res.json({
+      message: 'Team and registration deleted',
+      team: sanitizeTeam(team),
+    })
   } catch (error) {
     return next(error)
   }
 })
+
 
 adminRouter.delete('/moderators/:id', async (req, res, next) => {
   try {
@@ -327,24 +337,35 @@ adminRouter.delete('/moderators/:id', async (req, res, next) => {
       return res.status(403).json({ message: 'Admin accounts cannot be deleted via this endpoint' })
     }
 
-    await ModeratorRegistration.updateMany(
-      { linkedModeratorId: moderator._id },
-      {
-        $set: {
-          status: 'rejected',
-          'metadata.deletedAt': new Date(),
-          'metadata.deletionReason': 'Moderator account removed by admin',
-        },
-        $unset: { linkedModeratorId: '' },
-      },
-    )
+    // 1️⃣ Find the related registration
+    const registration = await ModeratorRegistration.findOne({
+      linkedModeratorId: moderator._id,
+    })
 
+    if (registration) {
+      // 2️⃣ Update metadata before deletion
+      registration.status = 'rejected'
+      registration.metadata.set('deletedAt', new Date())
+      registration.metadata.set('deletionReason', 'Moderator account removed by admin')
+
+      await registration.save()
+
+      // 3️⃣ Now delete the registration
+      await registration.deleteOne()
+    }
+
+    // 4️⃣ Delete the moderator
     await moderator.deleteOne()
 
-    return res.json({ message: 'Moderator deleted', moderator: sanitizeModerator(moderator) })
+    return res.json({
+      message: 'Moderator and registration deleted',
+      moderator: sanitizeModerator(moderator),
+    })
+
   } catch (error) {
     return next(error)
   }
 })
+
 
 export default adminRouter
