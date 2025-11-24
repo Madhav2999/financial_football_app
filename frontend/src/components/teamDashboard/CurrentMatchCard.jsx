@@ -2,13 +2,19 @@ import { useEffect, useRef, useState } from 'react'
 import { useMatchTimer, formatSeconds } from '../../hooks/useMatchTimer'
 
 export default function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
+  if (match.status === 'completed') {
+    return null
+  }
   const opponentId = match.teams.find((id) => id !== teamId)
   const activeTeam = teams.find((team) => team.id === match.activeTeamId)
   const opponent = teams.find((team) => team.id === opponentId)
   const thisTeam = teams.find((team) => team.id === teamId)
-  const question = match.questionQueue?.[match.questionIndex] ?? null
+  const totalQuestions = match.questionQueue?.length ?? 0
+  const safeIndex = Math.min(match.questionIndex, Math.max(totalQuestions - 1, 0))
+  const displayQuestionNumber = Math.min(safeIndex + 1, Math.max(totalQuestions, 1))
+  const question = match.questionQueue?.[safeIndex] ?? null
   const questionInstanceId = question?.instanceId ?? match.id
-  const questionOptions = question?.options ?? []
+  const questionOptions = question?.options ?? question?.answers?.map((opt) => opt.text) ?? []
   // if you expose either of these in your question object, both are supported:
   const correctIndex = typeof question?.correctIndex === 'number' ? question.correctIndex : null
   const correctAnswer = question?.answer ?? null
@@ -227,8 +233,8 @@ export default function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
 
         <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-3 rounded-full border border-white/25 px-4 py-2 text-sm text-slate-100">
-            <span className="font-semibold text-white">Question {match.questionIndex + 1}</span>
-            <span className="text-slate-200">/ {match.questionQueue?.length ?? 0}</span>
+            <span className="font-semibold text-white">Question {displayQuestionNumber}</span>
+            <span className="text-slate-200">/ {totalQuestions}</span>
           </div>
           {isTimerVisible ? (
             <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${timerBadgeClass}`}>

@@ -125,6 +125,46 @@ export default function AdminAnalyticsTab({ history, teams, summary, questions }
     return null
   }, [])
 
+  const downloadCsv = () => {
+    const matchRows = [
+      ['Year', 'Match ID', 'Tournament', 'Home Team', 'Away Team', 'Winner', 'Home Score', 'Away Score', 'Completed At'],
+      ...history.map((match) => {
+        const [home, away] = match.teams ?? []
+        return [
+          match.completedAt ? new Date(match.completedAt).getFullYear() : '',
+          match.id,
+          match.tournamentName ?? '',
+          match.homeTeamName ?? home ?? '',
+          match.awayTeamName ?? away ?? '',
+          match.winnerTeamName ?? match.winnerId ?? '',
+          match.scores?.[home] ?? 0,
+          match.scores?.[away] ?? 0,
+          match.completedAt ?? '',
+        ]
+      }),
+    ]
+
+    const questionRows = [
+      ['Prompt', 'Category', 'Times Asked', 'Avg Accuracy'],
+      ...(questions || []).map((q) => [q.prompt, q.category ?? '', q.totalAsked ?? 0, q.accuracy ?? '']),
+    ]
+
+    const toCsv = (rows) => rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
+
+    const blob = new Blob(
+      [`Matches (year-wise)\n`, toCsv(matchRows), `\n\nQuestion Analytics\n`, toCsv(questionRows)],
+      { type: 'text/csv;charset=utf-8;' },
+    )
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'analytics-export.csv'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   const summaryCards = [
     {
       label: 'Total Questions',
@@ -157,6 +197,16 @@ export default function AdminAnalyticsTab({ history, teams, summary, questions }
             <p className="mt-2 text-2xl font-semibold text-white">{card.value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={downloadCsv}
+          className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-200 transition hover:border-emerald-400 hover:text-white"
+        >
+          Download CSV
+        </button>
       </div>
 
       {answeredByYear.length ? (

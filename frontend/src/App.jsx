@@ -264,6 +264,10 @@ function AppShell() {
 
       socket.on('liveMatch:update', (match) => {
         if (!match?.id) return
+        if (match.status === 'completed') {
+          setActiveMatches((previous) => previous.filter((item) => item.id !== match.id))
+          return
+        }
         setActiveMatches((previous) => {
           const existing = previous.find((item) => item.id === match.id)
           if (existing) {
@@ -1143,6 +1147,19 @@ function AppShell() {
         ),
       )
       socket?.emit('liveMatch:coinToss', { matchId })
+      // If we don't hear back within 2.5s, re-enable the toss button so it doesn't spin forever.
+      setTimeout(() => {
+        setActiveMatches((previous) =>
+          previous.map((item) => {
+            if (item.id !== matchId) return item
+            if (item.coinToss.status !== 'flipping') return item
+            return {
+              ...item,
+              coinToss: { status: 'ready', winnerId: null, decision: null, resultFace: null },
+            }
+          }),
+        )
+      }, 2500)
       return
     }
 

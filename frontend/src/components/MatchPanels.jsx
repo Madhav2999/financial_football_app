@@ -225,6 +225,9 @@ export function CoinTossPanel({
 // same signature/logic; only classes/markup are tweaked to match the visual you showed
 
 export function LiveMatchPanel({ match, teams, moderators, actions, description }) {
+  if (match.status === 'completed') {
+    return null
+  }
   const question = match.questionQueue?.[match.questionIndex] ?? null
   const questionOptions = question?.options ?? question?.answers?.map((opt) => opt.text) ?? []
   const optionKeyPrefix = question?.instanceId ?? match.id
