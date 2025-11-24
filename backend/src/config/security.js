@@ -8,6 +8,7 @@ const security = {
   },
   publicRoutes: [
     '/api/health',
+    '/api/public',
     '/api/auth/login',
     '/api/auth/team',
     '/api/auth/moderator',

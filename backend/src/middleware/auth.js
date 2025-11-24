@@ -81,6 +81,7 @@ const requireRole = (allowedRoles) => (req, res, next) => {
 const requireTeam = requireRole(['team'])
 const requireModerator = requireRole(['moderator', 'admin'])
 const requireAdmin = requireRole(['admin'])
+const requireUser = requireRole(['team', 'moderator', 'admin'])
 
 export default authMiddleware
-export { requireTeam, requireModerator, requireAdmin, addTokenToBlacklist, isTokenBlacklisted }
+export { requireTeam, requireModerator, requireAdmin, requireUser, addTokenToBlacklist, isTokenBlacklisted }

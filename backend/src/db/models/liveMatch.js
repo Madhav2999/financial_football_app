@@ -13,15 +13,14 @@ const eventSchema = new Schema(
 
 const liveMatchSchema = new Schema(
   {
-    match: { type: Schema.Types.ObjectId, ref: 'Match', required: true },
+    match: { type: Schema.Types.ObjectId, ref: 'Match' },
     matchRefId: { type: String, required: true, unique: true },
-    streamKey: { type: String },
-    state: { type: String, enum: ['waiting', 'live', 'paused', 'completed'], default: 'waiting' },
-    scoreboard: {
-      homeScore: { type: Number, default: 0 },
-      awayScore: { type: Number, default: 0 },
-      period: { type: String },
-    },
+    tournamentId: { type: String },
+    tournamentMatchId: { type: String },
+    moderatorId: { type: String },
+    teams: [{ type: String }],
+    status: { type: String, enum: ['coin-toss', 'in-progress', 'paused', 'completed'], default: 'coin-toss' },
+    state: { type: Schema.Types.Mixed, required: true },
     events: { type: [eventSchema], default: [] },
   },
   { timestamps: true }

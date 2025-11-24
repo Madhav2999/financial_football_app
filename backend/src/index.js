@@ -9,6 +9,7 @@ import authMiddleware from './middleware/auth.js'
 import apiRouter from './routes/index.js'
 import { ensureAdminAccount } from './seeds/bootstrapAdmin.js'
 import registerSocketHandlers from './sockets/index.js'
+import { initializeLiveMatches } from './services/liveMatchEngine.js'
 
 const app = express()
 
@@ -37,6 +38,7 @@ const start = async () => {
     console.log(`MongoDB connected: ${mongoose.connection.host}`)
 
     await ensureAdminAccount()
+    await initializeLiveMatches()
 
     server.listen(PORT, () => {
       console.log(`HTTP and WebSocket server ready on port ${PORT}`)

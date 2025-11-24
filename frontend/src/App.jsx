@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { io } from 'socket.io-client'
 import {
   ADMIN_CREDENTIALS,
   MIN_TOURNAMENT_TEAM_COUNT,
@@ -34,6 +35,19 @@ import LearnToPlay from './components/LearnToPlay'
 import PublicTournamentPage from './components/PublicTournamentPage'
 import PublicMatchViewer from './components/PublicMatchViewer'
 
+const mapTournamentFromApi = (apiTournament) => {
+  if (!apiTournament?.state) return null
+  const baseState = apiTournament.state
+  return {
+    ...baseState,
+    backendId: apiTournament.id,
+    name: apiTournament.name,
+    status: baseState.status || apiTournament.status,
+    createdAt: baseState.createdAt ?? apiTournament.createdAt,
+    updatedAt: baseState.updatedAt ?? apiTournament.updatedAt,
+  }
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -57,10 +71,17 @@ function AppShell() {
   const [tournamentLaunched, setTournamentLaunched] = useState(false)
   const [teamRegistrations, setTeamRegistrations] = useState([])
   const [moderatorRegistrations, setModeratorRegistrations] = useState([])
+  const [, setMatchSettings] = useState(null)
+  const [analyticsSummary, setAnalyticsSummary] = useState(null)
+  const [analyticsQuestions, setAnalyticsQuestions] = useState([])
   const finalizedMatchesRef = useRef(new Set())
   const rosterSeedKeyRef = useRef('')
   const rosterHydratedRef = useRef(false)
   const hydratingSessionRef = useRef(false)
+  const activeMatchesRef = useRef([])
+  const socketRef = useRef(null)
+  const eventSourceRef = useRef(null)
+  const liveMatchCreationRef = useRef(new Set())
 
   const navigate = useNavigate()
 
@@ -106,15 +127,23 @@ function AppShell() {
   }, [session, moderators])
 
   useEffect(() => {
+    activeMatchesRef.current = activeMatches
+  }, [activeMatches])
+
+  useEffect(() => {
     writeStoredSession(session)
   }, [session])
 
   const API_BASE = 'http://localhost:5000/api'
+  const SOCKET_BASE = API_BASE.replace(/\/api$/, '')
 
-  const withApiBase = (path) => {
-    if (!path) return API_BASE
-    return path.startsWith('http') ? path : `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
-  }
+  const withApiBase = useCallback(
+    (path) => {
+      if (!path) return API_BASE
+      return path.startsWith('http') ? path : `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
+    },
+    [API_BASE],
+  )
 
   const requestJson = useCallback(
     async (url, { method = 'GET', body, headers = {}, auth = false, token } = {}) => {
@@ -155,6 +184,119 @@ function AppShell() {
   )
 
   const postJson = (url, body, options = {}) => requestJson(url, { method: 'POST', body, ...options })
+
+  const applyRecordsToTeams = useCallback((records) => {
+    if (!records) return
+    setTeams((previous) =>
+      previous.map((team) => {
+        const record = records[team.id]
+        if (!record) return team
+        return {
+          ...team,
+          wins: record.wins ?? team.wins ?? 0,
+          losses: record.losses ?? team.losses ?? 0,
+          totalScore: record.points ?? team.totalScore ?? 0,
+          eliminated: record.eliminated ?? team.eliminated ?? false,
+        }
+      }),
+    )
+  }, [])
+
+  const syncMatchHistoryFromTournament = useCallback((state) => {
+    if (!state?.matches) return
+    setMatchHistory((previous) => {
+      const existing = new Map(previous.map((item) => [item.id, item]))
+      Object.values(state.matches)
+        .filter((match) => match.status === 'completed')
+        .forEach((match) => {
+          const lastHistory = Array.isArray(match.history) && match.history.length ? match.history[match.history.length - 1] : null
+          const completedAt = lastHistory?.timestamp
+            ? new Date(lastHistory.timestamp).toISOString()
+            : new Date().toISOString()
+          const winnerId = match.winnerId ?? lastHistory?.winnerId ?? null
+          const loserId = match.loserId ?? lastHistory?.loserId ?? null
+          const scores = lastHistory?.scores ?? match.scores ?? {}
+          if (!existing.has(match.id)) {
+            existing.set(match.id, {
+              id: match.id,
+              teams: match.teams ?? [],
+              scores,
+              winnerId,
+              loserId,
+              completedAt,
+            })
+          }
+        })
+      const next = Array.from(existing.values())
+      next.sort((left, right) => new Date(right.completedAt || 0) - new Date(left.completedAt || 0))
+      return next
+    })
+  }, [])
+
+  const applyTournamentFromApi = useCallback(
+    (apiTournament) => {
+      const mapped = mapTournamentFromApi(apiTournament)
+      if (!mapped) return null
+      setTournament(mapped)
+      setTournamentLaunched(mapped.status === 'active' || mapped.status === 'live' || Boolean(mapped.startedAt))
+      applyRecordsToTeams(mapped.records)
+      syncMatchHistoryFromTournament(mapped)
+      return mapped
+    },
+    [applyRecordsToTeams, syncMatchHistoryFromTournament],
+  )
+
+  const ensureSocket = useCallback(() => {
+    if (!socketRef.current) {
+      const socket = io(SOCKET_BASE, {
+        autoConnect: true,
+        auth: session?.token ? { token: session.token } : {},
+      })
+
+      socket.on('connect', () => {
+        socket.emit('tournament:subscribe')
+        activeMatchesRef.current.forEach((match) => {
+          socket.emit('liveMatch:join', { matchId: match.id })
+        })
+      })
+
+      socket.on('match:settings', (settings) => setMatchSettings(settings))
+
+      socket.on('liveMatch:update', (match) => {
+        if (!match?.id) return
+        setActiveMatches((previous) => {
+          const existing = previous.find((item) => item.id === match.id)
+          if (existing) {
+            return previous.map((item) => (item.id === match.id ? { ...existing, ...match } : item))
+          }
+          return [...previous, match]
+        })
+      })
+
+      socket.on('tournament:update', (payload) => {
+        applyTournamentFromApi(payload)
+      })
+
+      socketRef.current = socket
+    } else {
+      socketRef.current.auth = session?.token ? { token: session.token } : {}
+      if (socketRef.current.disconnected) {
+        socketRef.current.connect()
+      }
+    }
+
+    return socketRef.current
+  }, [SOCKET_BASE, applyTournamentFromApi, session?.token])
+
+  const joinLiveMatchRoom = useCallback(
+    (matchId) => {
+      if (!matchId) return
+      const socket = ensureSocket()
+      if (!socket) return
+      socket.emit('liveMatch:join', { matchId })
+    },
+    [ensureSocket],
+  )
 
   const upsertTeamRecord = useCallback((team) => {
     const normalized = normalizeTeamRecord(team)
@@ -405,6 +547,66 @@ function AppShell() {
     }
   }, [requestJson])
 
+  const hydrateLatestTournament = useCallback(async () => {
+    try {
+      const result = await requestJson('/public/tournaments')
+      const list = Array.isArray(result?.tournaments) ? result.tournaments : []
+      if (!list.length) return null
+      const latest = list[0]
+      return applyTournamentFromApi(latest)
+    } catch (error) {
+      console.error('Failed to hydrate tournament from API', error)
+      return null
+    }
+  }, [applyTournamentFromApi, requestJson])
+
+  const hydrateMatchHistory = useCallback(async () => {
+    if (!session?.token) return
+    try {
+      const result = await requestJson('/matches/history?limit=100', { auth: true })
+      const matches = Array.isArray(result?.matches) ? result.matches : []
+      const sorted = [...matches].sort(
+        (left, right) => new Date(right.completedAt || 0) - new Date(left.completedAt || 0),
+      )
+      setMatchHistory(sorted)
+    } catch (error) {
+      console.error('Failed to hydrate match history; using local history', error)
+    }
+  }, [requestJson, session?.token])
+
+  const hydrateLiveMatchesFromBackend = useCallback(async () => {
+    if (!tournament?.matches) return
+    const missing = Object.values(tournament.matches).filter(
+      (match) => match.matchRefId && !activeMatches.some((live) => live.id === match.matchRefId),
+    )
+    if (!missing.length) return
+    for (const match of missing) {
+      try {
+        const result = await requestJson(`/live-matches/${match.matchRefId}`, { auth: true })
+        if (result?.match) {
+          setActiveMatches((previous) => {
+            if (previous.some((live) => live.id === result.match.id)) return previous
+            return [...previous, result.match]
+          })
+          joinLiveMatchRoom(result.match.id)
+        }
+      } catch (error) {
+        console.error(`Failed to hydrate live match ${match.matchRefId}`, error)
+      }
+    }
+  }, [activeMatches, joinLiveMatchRoom, requestJson, tournament?.matches])
+
+  const loadAnalytics = useCallback(async () => {
+    if (session.type !== 'admin') return
+    try {
+      const result = await requestJson('/analytics/questions', { auth: true })
+      setAnalyticsSummary(result?.summary ?? null)
+      setAnalyticsQuestions(Array.isArray(result?.questions) ? result.questions : [])
+    } catch (error) {
+      console.error('Failed to load analytics', error)
+    }
+  }, [requestJson, session.type])
+
   const approveTeamRegistration = useCallback(
     async (registrationId) => {
       const result = await requestJson(`/admin/registrations/${registrationId}/approve`, {
@@ -495,10 +697,38 @@ function AppShell() {
     if (rosterHydratedRef.current) return
     rosterHydratedRef.current = true
 
-    hydrateApprovedRosters().catch((error) => {
-      console.error('Failed to hydrate approved rosters', error)
-    })
-  }, [hydrateApprovedRosters])
+    hydrateApprovedRosters()
+      .then(() => hydrateLatestTournament())
+      .catch((error) => {
+        console.error('Failed to hydrate approved rosters', error)
+      })
+  }, [hydrateApprovedRosters, hydrateLatestTournament])
+
+  useEffect(() => {
+    const socket = ensureSocket()
+    return () => {
+      if (socket) {
+        socket.removeAllListeners()
+        socket.close()
+      }
+      socketRef.current = null
+    }
+  }, [ensureSocket])
+
+  useEffect(() => {
+    const socket = ensureSocket()
+    if (!socket) return
+    if (socket.connected) {
+      activeMatches.forEach((match) => socket.emit('liveMatch:join', { matchId: match.id }))
+    }
+  }, [activeMatches, ensureSocket])
+
+  useEffect(() => {
+    const socket = socketRef.current
+    if (socket?.connected) {
+      socket.emit('tournament:subscribe')
+    }
+  }, [tournament?.backendId])
 
   useEffect(() => {
     if (session.type !== 'admin') return
@@ -508,16 +738,52 @@ function AppShell() {
   }, [session.type, loadAdminData])
 
   useEffect(() => {
+    if (session.type === 'guest') return
+    hydrateMatchHistory().catch((error) => {
+      console.error('Failed to refresh match history', error)
+    })
+  }, [hydrateMatchHistory, session.type])
+
+  useEffect(() => {
+    hydrateLiveMatchesFromBackend()
+  }, [hydrateLiveMatchesFromBackend])
+
+  useEffect(() => {
+    if (session.type !== 'admin') return
+    loadAnalytics()
+  }, [loadAnalytics, session.type])
+
+  useEffect(() => {
+    const streamUrl = withApiBase('/public/tournaments/stream')
+    const source = new EventSource(streamUrl)
+    eventSourceRef.current = source
+    source.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data)
+        applyTournamentFromApi(payload)
+      } catch (error) {
+        console.error('Failed to parse tournament stream payload', error)
+      }
+    }
+    source.onerror = (error) => {
+      console.error('Tournament stream encountered an error', error)
+    }
+    return () => {
+      source.close()
+      eventSourceRef.current = null
+    }
+  }, [applyTournamentFromApi, withApiBase])
+
+  useEffect(() => {
     if (!tournamentLaunched || !tournament) {
       return
     }
-    //already has live match ids
     const activeTournamentMatches = new Set(
       activeMatches
         .filter((match) => match.status !== 'completed' && match.tournamentMatchId)
         .map((match) => match.tournamentMatchId),
     )
-    //scans every match defined on the current tournament and keeps only those that are ready to spin up a live matches .
+
     const matchesToLaunch = Object.values(tournament.matches ?? {}).filter((match) => {
       if (match.status === 'completed') return false
       if (!match.teams?.every((teamId) => Boolean(teamId))) return false
@@ -530,30 +796,90 @@ function AppShell() {
       return
     }
 
-    const creations = matchesToLaunch.map((bracketMatch) => {
-      const liveMatchId = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-      return {
-        tournamentMatchId: bracketMatch.id,
-        liveMatch: createLiveMatch(bracketMatch.teams[0], bracketMatch.teams[1], {
+    const launchMatches = async () => {
+      for (const bracketMatch of matchesToLaunch) {
+        if (liveMatchCreationRef.current.has(bracketMatch.id)) {
+          continue
+        }
+        liveMatchCreationRef.current.add(bracketMatch.id)
+        const [teamAId, teamBId] = bracketMatch.teams
+
+        if (tournament.backendId && session.type === 'admin') {
+          try {
+            const createResult = await postJson(
+              '/live-matches',
+              {
+                teamAId,
+                teamBId,
+                tournamentMatchId: bracketMatch.id,
+                tournamentId: tournament.backendId,
+                moderatorId: bracketMatch.moderatorId ?? null,
+              },
+              { auth: true },
+            )
+
+            const liveMatch = createResult?.match
+            if (liveMatch) {
+              setActiveMatches((previous) => [...previous, liveMatch])
+              joinLiveMatchRoom(liveMatch.id)
+
+              try {
+                const attachResult = await postJson(
+                  `/tournaments/${tournament.backendId}/matches/${bracketMatch.id}/attach`,
+                  { liveMatchId: liveMatch.id },
+                  { auth: true },
+                )
+                if (attachResult?.tournament) {
+                  applyTournamentFromApi(attachResult.tournament)
+                } else {
+                  setTournament((previous) =>
+                    previous ? attachLiveMatch(previous, bracketMatch.id, liveMatch.id) : previous,
+                  )
+                }
+              } catch (error) {
+                console.error('Failed to attach live match to tournament; keeping local state', error)
+                setTournament((previous) =>
+                  previous ? attachLiveMatch(previous, bracketMatch.id, liveMatch.id) : previous,
+                )
+              }
+              continue
+            }
+          } catch (error) {
+            console.error('Failed to create live match via API; falling back to local creation', error)
+            liveMatchCreationRef.current.delete(bracketMatch.id)
+          }
+        }
+
+        const liveMatchId = `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+        const liveMatch = createLiveMatch(teamAId, teamBId, {
           id: liveMatchId,
           tournamentMatchId: bracketMatch.id,
           moderatorId: bracketMatch.moderatorId ?? null,
-        }),
+        })
+        setActiveMatches((previous) => [...previous, liveMatch])
+        joinLiveMatchRoom(liveMatch.id)
+        setTournament((previous) => (previous ? attachLiveMatch(previous, bracketMatch.id, liveMatch.id) : previous))
       }
-    })
+    }
 
-    setActiveMatches((previous) => [...previous, ...creations.map((item) => item.liveMatch)])
-    setTournament((previous) => {
-      if (!previous) return previous
-      return creations.reduce(
-        (state, item) => attachLiveMatch(state, item.tournamentMatchId, item.liveMatch.id),
-        previous,
-      )
-    })
-  }, [tournamentLaunched, tournament, activeMatches])
+    launchMatches()
+  }, [activeMatches, applyTournamentFromApi, postJson, session.type, tournament, tournamentLaunched])
 
-  const handleLaunchTournament = () => {
+  const handleLaunchTournament = async () => {
     if (!tournament) return
+
+    if (tournament.backendId && session.type === 'admin') {
+      try {
+        const result = await postJson(`/tournaments/${tournament.backendId}/launch`, {}, { auth: true })
+        if (result?.tournament) {
+          applyTournamentFromApi(result.tournament)
+          return
+        }
+      } catch (error) {
+        console.error('Failed to launch tournament via API; keeping local state', error)
+      }
+    }
+
     setTournamentLaunched((previous) => (previous ? previous : true))
   }
 
@@ -622,30 +948,92 @@ function AppShell() {
       return
     }
 
-    const nextTournament = initializeTournament(seededTeams, moderators)
-    rosterSeedKeyRef.current = createSelectionKey(seededIds)
+    const resetTeams = () =>
+      setTeams((previous) =>
+        previous.map((team) => ({
+          ...team,
+          wins: 0,
+          losses: 0,
+          totalScore: 0,
+          eliminated: false,
+        })),
+      )
 
-    finalizedMatchesRef.current = new Set()
-    setActiveMatches([])
-    setMatchHistory([])
-    setRecentResult(null)
-    setTournamentLaunched(false)
-    setTeams((previous) =>
-      previous.map((team) => ({
-        ...team,
-        wins: 0,
-        losses: 0,
-        totalScore: 0,
-        eliminated: false,
-      })),
-    )
-    setTournament(nextTournament)
-  }, [moderators, selectedTeamIds, teams, tournamentLaunched])
+    const resetProgress = () => {
+      finalizedMatchesRef.current = new Set()
+      setActiveMatches([])
+      setMatchHistory([])
+      setRecentResult(null)
+      setTournamentLaunched(false)
+    }
+
+    const createTournamentViaApi = async () => {
+      try {
+        const result = await postJson(
+          '/tournaments',
+          {
+            teamIds: seededTeams.map((team) => team.id),
+            moderatorIds: moderators.map((moderator) => moderator.id),
+            name: `Tournament ${new Date().toLocaleDateString()}`,
+          },
+          { auth: true },
+        )
+        if (result?.tournament) {
+          resetProgress()
+          resetTeams()
+          rosterSeedKeyRef.current = createSelectionKey(seededIds)
+          const mapped = applyTournamentFromApi(result.tournament)
+          if (!mapped) {
+            setTournament(null)
+          }
+          return mapped
+        }
+      } catch (error) {
+        console.error('Failed to create tournament via API; falling back to local engine', error)
+      }
+      return null
+    }
+
+    const fallbackLocalTournament = () => {
+      const nextTournament = initializeTournament(seededTeams, moderators)
+      rosterSeedKeyRef.current = createSelectionKey(seededIds)
+      resetProgress()
+      resetTeams()
+      setTournament(nextTournament)
+      return nextTournament
+    }
+
+    if (session.type === 'admin') {
+      createTournamentViaApi().then((created) => {
+        if (!created) {
+          fallbackLocalTournament()
+        }
+      })
+    } else {
+      fallbackLocalTournament()
+    }
+  }, [applyTournamentFromApi, moderators, postJson, selectedTeamIds, session.type, teams, tournamentLaunched])
 
   const handleGrantMatchBye = useCallback(
-    (matchId, teamId) => {
+    async (matchId, teamId) => {
       if (!matchId || !teamId) {
         return
+      }
+
+      if (tournament?.backendId && session.type === 'admin') {
+        try {
+          const result = await requestJson(`/tournaments/${tournament.backendId}/matches/${matchId}/bye`, {
+            method: 'POST',
+            auth: true,
+            body: { teamId },
+          })
+          if (result?.tournament) {
+            applyTournamentFromApi(result.tournament)
+            return result
+          }
+        } catch (error) {
+          console.error('Failed to grant bye via API; falling back to local state', error)
+        }
       }
 
       let result = null
@@ -730,14 +1118,36 @@ function AppShell() {
         winnerId,
         summary: `${winnerName} advanced by bye over ${loserName}.`,
       })
+      return result
     },
-    [teams],
+    [applyTournamentFromApi, requestJson, session.type, teams, tournament?.backendId],
   )
 
   const handleFlipCoin = (matchId, options = {}) => {
     const { moderatorId } = options
+    const match = activeMatches.find((item) => item.id === matchId)
+    const useSocket = Boolean(match && (tournament?.backendId || match?.tournamentId))
+
+    if (useSocket) {
+      joinLiveMatchRoom(matchId)
+      const socket = ensureSocket()
+      // Optimistically show the flip animation while the server resolves the result.
+      setActiveMatches((previous) =>
+        previous.map((item) =>
+          item.id === matchId
+            ? {
+                ...item,
+                coinToss: { ...item.coinToss, status: 'flipping', resultFace: null, winnerId: null },
+              }
+            : item,
+        ),
+      )
+      socket?.emit('liveMatch:coinToss', { matchId })
+      return
+    }
+
     setActiveMatches((previousMatches) => {
-      const targetMatch = previousMatches.find((match) => match.id === matchId)
+      const targetMatch = previousMatches.find((item) => item.id === matchId)
 
       if (!targetMatch || targetMatch.coinToss.status !== 'ready') {
         return previousMatches
@@ -751,15 +1161,15 @@ function AppShell() {
       const resultFace = Math.random() < 0.5 ? 'heads' : 'tails'
       const winnerId = resultFace === 'heads' ? teamAId : teamBId
 
-      const updatedMatches = previousMatches.map((match) => {
-        if (match.id !== matchId) {
-          return match
+      const updatedMatches = previousMatches.map((item) => {
+        if (item.id !== matchId) {
+          return item
         }
 
         return {
-          ...match,
+          ...item,
           coinToss: {
-            ...match.coinToss,
+            ...item.coinToss,
             status: 'flipping',
             winnerId: null,
             resultFace,
@@ -769,19 +1179,19 @@ function AppShell() {
 
       setTimeout(() => {
         setActiveMatches((matches) =>
-          matches.map((match) => {
-            if (match.id !== matchId) {
-              return match
+          matches.map((item) => {
+            if (item.id !== matchId) {
+              return item
             }
 
-            if (match.coinToss.status !== 'flipping') {
-              return match
+            if (item.coinToss.status !== 'flipping') {
+              return item
             }
 
             return {
-              ...match,
+              ...item,
               coinToss: {
-                ...match.coinToss,
+                ...item.coinToss,
                 status: 'flipped',
                 winnerId,
               },
@@ -796,6 +1206,16 @@ function AppShell() {
 
   const handleSelectFirst = (matchId, deciderId, firstTeamId, options = {}) => {
     const { moderatorId } = options
+    const match = activeMatches.find((item) => item.id === matchId)
+    const useSocket = Boolean(match && (tournament?.backendId || match?.tournamentId))
+
+    if (useSocket) {
+      joinLiveMatchRoom(matchId)
+      const socket = ensureSocket()
+      socket?.emit('liveMatch:decideFirst', { matchId, deciderId, firstTeamId })
+      return
+    }
+
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
         if (match.id !== matchId) {
@@ -832,6 +1252,14 @@ function AppShell() {
 
   const handlePauseMatch = (matchId, actor = {}) => {
     const { moderatorId = null, isAdmin = false } = actor
+    const match = activeMatches.find((item) => item.id === matchId)
+    const useSocket = Boolean(match && (tournament?.backendId || match?.tournamentId))
+    if (useSocket) {
+      joinLiveMatchRoom(matchId)
+      const socket = ensureSocket()
+      socket?.emit('liveMatch:pause', { matchId })
+      return
+    }
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
         if (match.id !== matchId) {
@@ -852,6 +1280,14 @@ function AppShell() {
 
   const handleResumeMatch = (matchId, actor = {}) => {
     const { moderatorId = null, isAdmin = false } = actor
+    const match = activeMatches.find((item) => item.id === matchId)
+    const useSocket = Boolean(match && (tournament?.backendId || match?.tournamentId))
+    if (useSocket) {
+      joinLiveMatchRoom(matchId)
+      const socket = ensureSocket()
+      socket?.emit('liveMatch:resume', { matchId })
+      return
+    }
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
         if (match.id !== matchId) {
@@ -872,6 +1308,14 @@ function AppShell() {
 
   const handleResetMatch = (matchId, actor = {}) => {
     const { moderatorId = null, isAdmin = false } = actor
+    const match = activeMatches.find((item) => item.id === matchId)
+    const useSocket = Boolean(match && (tournament?.backendId || match?.tournamentId))
+    if (useSocket) {
+      joinLiveMatchRoom(matchId)
+      const socket = ensureSocket()
+      socket?.emit('liveMatch:reset', { matchId })
+      return
+    }
     finalizedMatchesRef.current.delete(matchId)
     setActiveMatches((previousMatches) =>
       previousMatches.map((match) => {
@@ -908,7 +1352,7 @@ function AppShell() {
   }
 
   const finalizeMatch = useCallback(
-    (match) => {
+    async (match) => {
       if (finalizedMatchesRef.current.has(match.id)) {
         return
       }
@@ -921,68 +1365,98 @@ function AppShell() {
       const winnerId = teamAScore === teamBScore ? null : teamAScore > teamBScore ? teamAId : teamBId
       const loserId = winnerId ? (winnerId === teamAId ? teamBId : teamAId) : null
 
-      setTeams((previous) =>
-        previous.map((team) => {
-          if (!match.teams.includes(team.id)) {
-            return team
-          }
-
-          const updatedScore = team.totalScore + match.scores[team.id]
-
-          if (team.id === winnerId) {
-            return {
-              ...team,
-              wins: team.wins + 1,
-              totalScore: updatedScore,
-            }
-          }
-
-          if (team.id === loserId) {
-            const losses = team.losses + 1
-            return {
-              ...team,
-              losses,
-              totalScore: updatedScore,
-              eliminated: losses >= 2,
-            }
-          }
-
-          return {
-            ...team,
-            totalScore: updatedScore,
-          }
-        }),
-      )
-
       const record = {
         id: match.id,
         teams: match.teams,
         scores: match.scores,
         winnerId,
+        loserId,
         completedAt: new Date().toISOString(),
       }
 
-      setMatchHistory((previous) => {
-        if (previous.some((item) => item.id === match.id)) {
-          return previous
-        }
+      const applyLocalUpdate = () => {
+        setTeams((previous) =>
+          previous.map((team) => {
+            if (!match.teams.includes(team.id)) {
+              return team
+            }
 
-        return [record, ...previous]
-      })
+            const updatedScore = team.totalScore + match.scores[team.id]
 
-      if (match.tournamentMatchId) {
-        setTournament((previous) => {
-          if (!previous) return previous
-          let nextState = previous
-          if (winnerId && loserId) {
-            nextState = recordMatchResult(nextState, match.tournamentMatchId, {
-              winnerId,
-              loserId,
-              scores: match.scores,
-            })
+            if (team.id === winnerId) {
+              return {
+                ...team,
+                wins: team.wins + 1,
+                totalScore: updatedScore,
+              }
+            }
+
+            if (team.id === loserId) {
+              const losses = team.losses + 1
+              return {
+                ...team,
+                losses,
+                totalScore: updatedScore,
+                eliminated: losses >= 2,
+              }
+            }
+
+            return {
+              ...team,
+              totalScore: updatedScore,
+            }
+          }),
+        )
+
+        setMatchHistory((previous) => {
+          if (previous.some((item) => item.id === match.id)) {
+            return previous
           }
-          return detachLiveMatch(nextState, match.tournamentMatchId)
+
+          return [record, ...previous]
         })
+
+        if (match.tournamentMatchId) {
+          setTournament((previous) => {
+            if (!previous) return previous
+            let nextState = previous
+            if (winnerId && loserId) {
+              nextState = recordMatchResult(nextState, match.tournamentMatchId, {
+                winnerId,
+                loserId,
+                scores: match.scores,
+              })
+            }
+            return detachLiveMatch(nextState, match.tournamentMatchId)
+          })
+        }
+      }
+
+      if (tournament?.backendId && session.type === 'admin' && match.tournamentMatchId) {
+        try {
+          const result = await requestJson(
+            `/tournaments/${tournament.backendId}/matches/${match.tournamentMatchId}/result`,
+            {
+              method: 'POST',
+              auth: true,
+              body: {
+                winnerId,
+                loserId,
+                scores: match.scores,
+              },
+            },
+          )
+          if (result?.tournament) {
+            applyTournamentFromApi(result.tournament)
+          } else {
+            applyLocalUpdate()
+          }
+        } catch (error) {
+          console.error('Failed to persist match result via API; falling back to local state', error)
+          applyLocalUpdate()
+        }
+      } else {
+        applyLocalUpdate()
       }
 
       const teamAName = teams.find((team) => team.id === teamAId)?.name ?? 'Team A'
@@ -999,7 +1473,7 @@ function AppShell() {
         summary,
       })
     },
-    [setMatchHistory, setRecentResult, setTeams, setTournament, teams],
+    [applyTournamentFromApi, requestJson, session.type, teams, tournament?.backendId],
   )
 
   const scheduleFinalization = useCallback(
@@ -1026,6 +1500,10 @@ function AppShell() {
         const finalizations = []
 
         const nextMatches = previousMatches.reduce((updated, match) => {
+          if (match.tournamentId) {
+            updated.push(match)
+            return updated
+          }
           if (match.status !== 'in-progress') {
             updated.push(match)
             return updated
@@ -1079,6 +1557,14 @@ function AppShell() {
   }, [scheduleFinalization])
 
   const handleTeamAnswer = (matchId, teamId, selectedOption) => {
+    const match = activeMatches.find((item) => item.id === matchId)
+    const useSocket = Boolean(match && (tournament?.backendId || match?.tournamentId))
+    if (useSocket) {
+      joinLiveMatchRoom(matchId)
+      const socket = ensureSocket()
+      socket?.emit('liveMatch:answer', { matchId, teamId, answerKey: selectedOption })
+      return
+    }
     setActiveMatches((previousMatches) => {
       let completedMatch = null
 
@@ -1093,14 +1579,19 @@ function AppShell() {
           return updated
         }
 
-        const question = match.questionQueue?.[match.questionIndex]
+        const questionQueue = Array.isArray(match.questionQueue) ? match.questionQueue : []
+        const question = questionQueue[match.questionIndex]
 
         if (!question) {
-          updated.push(match)
+          // If we ran out of questions, finalize the match to avoid blank prompts.
+          completedMatch = { ...match, status: 'completed', activeTeamId: null }
           return updated
         }
 
-        const isCorrect = question.answer === selectedOption
+        const isCorrect =
+          question.correctAnswerKey === selectedOption ||
+          question.answer === selectedOption ||
+          question.answers?.some((option) => option.text === selectedOption && option.key === question.correctAnswerKey)
 
         const outcome = applyAnswerResult(match, teamId, isCorrect)
 
@@ -1235,6 +1726,8 @@ function AppShell() {
               onReloadData={loadAdminData}
               onDeleteTeam={deleteTeamAccount}
               onDeleteModerator={deleteModeratorAccount}
+              analyticsSummary={analyticsSummary}
+              analyticsQuestions={analyticsQuestions}
             />
           </ProtectedRoute>
         }

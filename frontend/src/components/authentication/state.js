@@ -33,3 +33,8 @@ export const INITIAL_FORGOT_STATE = {
   team: { contactEmail: '' },
   moderator: { email: '' },
 }
+
+export const REGISTRATION_VARIANTS = [
+  { id: 'team', label: 'Team Registration', reset: INITIAL_REGISTER_FORM },
+  { id: 'moderator', label: 'Moderator Registration', reset: INITIAL_MODERATOR_REGISTER_FORM },
+]

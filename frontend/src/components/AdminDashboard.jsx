@@ -41,6 +41,8 @@ export default function AdminDashboard(props) {
     onReloadData,
     onDeleteTeam,
     onDeleteModerator,
+    analyticsSummary,
+    analyticsQuestions,
   } = props
 
   return (
@@ -142,7 +144,17 @@ export default function AdminDashboard(props) {
               }
             />
             <Route path="standings" element={<AdminStandingsTab teams={teams} />} />
-            <Route path="analytics" element={<AdminAnalyticsTab history={history} teams={teams} />} />
+            <Route
+              path="analytics"
+              element={
+                <AdminAnalyticsTab
+                  history={history}
+                  teams={teams}
+                  summary={analyticsSummary}
+                  questions={analyticsQuestions}
+                />
+              }
+            />
             <Route path="*" element={<Navigate to="overview" replace />} />
           </Routes>
         </main>

@@ -301,9 +301,10 @@ export default function PublicTournamentPage({
               <div className="mt-6 grid gap-4 md:grid-cols-2">
                 {recentHistory.map((item) => {
                   const [teamAId, teamBId] = item.teams;
-                  const teamA = teams.find((team) => team.id === teamAId);
-                  const teamB = teams.find((team) => team.id === teamBId);
-                  const winner = teams.find((team) => team.id === item.winnerId);
+                  const teamAName = item.homeTeamName || teams.find((team) => team.id === teamAId)?.name || 'Team A';
+                  const teamBName = item.awayTeamName || teams.find((team) => team.id === teamBId)?.name || 'Team B';
+                  const winnerName =
+                    item.winnerTeamName || teams.find((team) => team.id === item.winnerId)?.name || null;
 
                   return (
                     <div
@@ -311,14 +312,14 @@ export default function PublicTournamentPage({
                       className="rounded-3xl border border-white/10 bg-slate-900/60 p-5 text-sm text-slate-200 shadow shadow-black/30"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3 text-white">
-                        <span className="font-semibold">{teamA?.name} vs {teamB?.name}</span>
+                        <span className="font-semibold">{teamAName} vs {teamBName}</span>
                         <span className="rounded-full border border-emerald-400/50 bg-emerald-400/10 px-3 py-1 text-[10px] uppercase tracking-[0.45em] text-emerald-100">
-                          {winner ? `${winner.name} won` : "Tied"}
+                          {winnerName ? `${winnerName} won` : "Tied"}
                         </span>
                       </div>
                       <p className="mt-3 text-xs uppercase tracking-[0.45em] text-slate-400">Scoreline</p>
                       <p className="text-base font-semibold text-white">
-                        {teamA?.name} {item.scores?.[teamAId] ?? 0} - {teamB?.name} {item.scores?.[teamBId] ?? 0}
+                        {teamAName} {item.scores?.[teamAId] ?? 0} - {teamBName} {item.scores?.[teamBId] ?? 0}
                       </p>
                       <p className="mt-3 text-xs text-slate-400">
                         {new Date(item.completedAt ?? Date.now()).toLocaleString()}

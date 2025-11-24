@@ -3,6 +3,10 @@ import { accounts, constants } from '../config/index.js'
 import adminRouter from './admin.js'
 import authRouter from './auth.routes.js'
 import publicRouter from './public.js'
+import tournamentsRouter from './tournaments.js'
+import liveMatchesRouter from './liveMatches.js'
+import analyticsRouter from './analytics.js'
+import matchesRouter from './matches.js'
 
 const router = Router()
 
@@ -27,5 +31,9 @@ router.get('/accounts/seed', (req, res) => {
 router.use('/auth', authRouter)
 router.use('/admin', adminRouter)
 router.use('/public', publicRouter)
+router.use('/tournaments', tournamentsRouter)
+router.use('/live-matches', liveMatchesRouter)
+router.use('/analytics', analyticsRouter)
+router.use('/matches', matchesRouter)
 
 export default router

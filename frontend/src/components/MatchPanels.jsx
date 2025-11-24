@@ -226,8 +226,11 @@ export function CoinTossPanel({
 
 export function LiveMatchPanel({ match, teams, moderators, actions, description }) {
   const question = match.questionQueue?.[match.questionIndex] ?? null
-  const questionOptions = question?.options ?? []
+  const questionOptions = question?.options ?? question?.answers?.map((opt) => opt.text) ?? []
   const optionKeyPrefix = question?.instanceId ?? match.id
+  const totalQuestions = match.questionQueue?.length ?? 0
+  const safeIndex = Math.min(match.questionIndex, Math.max(totalQuestions - 1, 0))
+  const displayQuestionNumber = Math.min(safeIndex + 1, Math.max(totalQuestions, 1))
   const [teamAId, teamBId] = match.teams
   const teamA = teams.find((team) => team.id === teamAId) ?? null
   const teamB = teams.find((team) => team.id === teamBId) ?? null
@@ -258,7 +261,7 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Live Question</p>
-          <h2 className="text-2xl font-semibold text-white">Question {match.questionIndex + 1}</h2>
+          <h2 className="text-2xl font-semibold text-white">Question {displayQuestionNumber}</h2>
           <p className="text-sm text-slate-300">
             {teamA?.name ?? 'Team A'} vs {teamB?.name ?? 'Team B'}
           </p>
@@ -269,8 +272,8 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
         <div className="flex flex-wrap items-center justify-end gap-3">
           {actions}
           <div className="flex items-center gap-3 rounded-full bg-slate-800/80 px-4 py-2 text-sm text-slate-200">
-            <span className="font-semibold text-white">{match.questionIndex + 1}</span>
-            <span className="text-slate-400">/ {match.questionQueue?.length ?? 0}</span>
+            <span className="font-semibold text-white">{displayQuestionNumber}</span>
+            <span className="text-slate-400">/ {totalQuestions}</span>
           </div>
 
           {isTimerVisible ? (
@@ -292,7 +295,7 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
           {/* orange corner badge like your mock */}
           <div className="absolute left-0 top-0 translate-x-[-17px] translate-y-[-24px]">
             <div className="rounded-[18px] rounded-bl-none bg-orange-500 px-4 py-3 text-lg font-bold text-white shadow-lg">
-              Q{match.questionIndex + 1}
+              Q{displayQuestionNumber}
             </div>
           </div>
 

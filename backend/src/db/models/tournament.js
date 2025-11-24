@@ -19,6 +19,7 @@ const tournamentSchema = new Schema(
     teams: [{ type: Schema.Types.ObjectId, ref: 'Team' }],
     stages: [{ type: Schema.Types.ObjectId, ref: 'Stage' }],
     standings: { type: [teamRecordSchema], default: [] },
+    state: { type: Schema.Types.Mixed, default: null },
     settings: {
       bracketSize: { type: Number },
       doubleElimination: { type: Boolean, default: false },

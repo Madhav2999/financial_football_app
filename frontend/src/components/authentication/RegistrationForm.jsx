@@ -1,4 +1,9 @@
-import { BASE_MODES, INITIAL_MODERATOR_REGISTER_FORM, INITIAL_REGISTER_FORM } from './state'
+import {
+  BASE_MODES,
+  INITIAL_MODERATOR_REGISTER_FORM,
+  INITIAL_REGISTER_FORM,
+  REGISTRATION_VARIANTS,
+} from './state'
 
 export default function RegistrationForm({
   registerVariant,
@@ -18,10 +23,7 @@ export default function RegistrationForm({
       onSubmit={onSubmit}
     >
       <div className="flex flex-wrap gap-3">
-        {[
-          { id: 'team', label: 'Team Registration' },
-          { id: 'moderator', label: 'Moderator Registration' },
-        ].map((variant) => {
+        {REGISTRATION_VARIANTS.map((variant) => {
           const active = registerVariant === variant.id
           return (
             <button
@@ -255,8 +257,3 @@ nc-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-
     </form>
   )
 }
-
-export const REGISTRATION_VARIANTS = [
-  { id: 'team', label: 'Team Registration', reset: INITIAL_REGISTER_FORM },
-  { id: 'moderator', label: 'Moderator Registration', reset: INITIAL_MODERATOR_REGISTER_FORM },
-]

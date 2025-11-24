@@ -20,6 +20,24 @@ const questionSchema = new Schema(
     explanation: { type: String },
     tags: [{ type: String }],
     lastUsedAt: { type: Date },
+    stats: {
+      timesAsked: { type: Number, default: 0 },
+      correctCount: { type: Number, default: 0 },
+      incorrectCount: { type: Number, default: 0 },
+      byTeam: {
+        type: [
+          new Schema(
+            {
+              team: { type: Schema.Types.ObjectId, ref: 'Team', required: true },
+              correct: { type: Number, default: 0 },
+              incorrect: { type: Number, default: 0 },
+            },
+            { _id: false },
+          ),
+        ],
+        default: [],
+      },
+    },
   },
   { timestamps: true }
 )

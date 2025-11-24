@@ -5,6 +5,7 @@ import {
   ModeratorRegistration,
   Question,
   Team,
+  TeamRecord,
   TeamRegistration,
 } from '../db/models/index.js'
 import { requireAdmin } from '../middleware/auth.js'
@@ -88,6 +89,24 @@ const upsertByLoginId = async (Model, payload, uniqueKey = 'loginId') => {
 
   const result = await Model.bulkWrite(operations, { ordered: false })
   return { matchedCount: result.matchedCount || 0, upsertedCount: result.upsertedCount || 0 }
+}
+
+const ensureTeamRecord = async (teamId) => {
+  if (!teamId) return null
+  return TeamRecord.findOneAndUpdate(
+    { team: teamId },
+    {
+      $setOnInsert: {
+        team: teamId,
+        wins: 0,
+        losses: 0,
+        points: 0,
+        eliminated: false,
+        initialBye: false,
+      },
+    },
+    { upsert: true, new: true },
+  )
 }
 
 adminRouter.post('/seed/teams', async (req, res, next) => {
@@ -182,6 +201,7 @@ adminRouter.post('/registrations/:id/approve', async (req, res, next) => {
     }
 
     if (registration.status === 'approved' && registration.linkedTeamId) {
+      await ensureTeamRecord(registration.linkedTeamId)
       return res.json({
         message: 'Registration already approved',
         registration: sanitizeTeamRegistration(registration),
@@ -209,6 +229,7 @@ adminRouter.post('/registrations/:id/approve', async (req, res, next) => {
     registration.status = 'approved'
     registration.linkedTeamId = team._id
     await registration.save()
+    await ensureTeamRecord(team._id)
 
     return res.json({
       message: 'Registration approved and team created',
@@ -314,6 +335,7 @@ adminRouter.delete('/teams/:id', async (req, res, next) => {
 
     // 4️⃣ Delete the team
     await team.deleteOne()
+    await TeamRecord.deleteOne({ team: team._id })
 
     return res.json({
       message: 'Team and registration deleted',
