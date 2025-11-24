@@ -168,6 +168,15 @@ function applyMatchCompletion(state, matchId, payload) {
   }
 }
 
+function canGrantBye(state, matchId) {
+  const match = state.matches?.[matchId]
+  if (!match) return false
+  const disallowed = new Set(['active', 'in-progress', 'completed', 'live'])
+  if (disallowed.has(match.status)) return false
+  if (!match.teams?.every((teamId) => Boolean(teamId))) return false
+  return true
+}
+
 function createRoundMetadata(state, bracket, roundNumber, entrants, byes, matchIds) {
   const rounds = state.rounds?.[bracket] ?? []
   const existingIndex = rounds.findIndex((round) => round.roundNumber === roundNumber)
@@ -685,6 +694,7 @@ export function recordMatchResult(state, matchId, payload) {
 }
 
 export function grantMatchBye(state, matchId, teamId) {
+  if (!canGrantBye(state, matchId)) return state
   const match = state.matches[matchId]
   if (!match) return state
   const [teamAId, teamBId] = match.teams

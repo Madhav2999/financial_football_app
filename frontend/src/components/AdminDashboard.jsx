@@ -133,7 +133,7 @@ export default function AdminDashboard(props) {
                 <AdminMatchesTab
                   tournament={tournament}
                   teams={teams}
-                  activeMatches={activeMatches}
+                  activeMatches={activeMatches.filter((match) => match.status !== 'coin-toss')}
                   moderators={moderators}
                   tournamentLaunched={tournamentLaunched}
                   onPauseMatch={onPauseMatch}

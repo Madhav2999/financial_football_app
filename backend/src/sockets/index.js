@@ -26,7 +26,10 @@ const canControlMatch = (socket, match, deciderId = null) => {
   const user = socket.data.user
   if (!user) return false
   if (user.role === 'admin') return true
-  if (user.role === 'moderator' && match?.moderatorId && match.moderatorId === user.sub) return true
+  if (user.role === 'moderator') {
+    // Allow moderator if assigned, or if no moderator is assigned yet.
+    if (!match?.moderatorId || match.moderatorId === user.sub) return true
+  }
   if (deciderId && user.role === 'team' && user.sub === deciderId) return true
   return false
 }
