@@ -390,11 +390,13 @@ export const createLiveMatch = async ({ teamAId, teamBId, moderatorId = null, to
 
 export const joinMatch = (matchId) => getMatch(matchId)
 
-export const flipCoin = (matchId) => {
+export const flipCoin = (matchId, winnerIdOverride = null) => {
   const match = getMatch(matchId)
   if (!match || match.coinToss.status !== 'ready') return null
   const [teamAId, teamBId] = match.teams
-  const resultFace = Math.random() < 0.5 ? 'heads' : 'tails'
+  const validOverride =
+    winnerIdOverride && (winnerIdOverride === teamAId || winnerIdOverride === teamBId) ? winnerIdOverride : null
+  const resultFace = validOverride ? (validOverride === teamAId ? 'heads' : 'tails') : Math.random() < 0.5 ? 'heads' : 'tails'
   const winnerId = resultFace === 'heads' ? teamAId : teamBId
   const updated = {
     ...match,

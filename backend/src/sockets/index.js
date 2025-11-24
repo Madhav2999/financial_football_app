@@ -69,10 +69,10 @@ const registerSocketHandlers = (io) => {
       socket.leave(`live-match:${matchId}`)
     })
 
-    socket.on('liveMatch:coinToss', ({ matchId }) => {
+    socket.on('liveMatch:coinToss', ({ matchId, forceWinnerId = null }) => {
       const match = joinMatch(matchId)
       if (!match || !canControlMatch(socket, match)) return
-      const updated = flipCoin(matchId)
+      const updated = flipCoin(matchId, forceWinnerId)
       if (updated) {
         io.to(`live-match:${matchId}`).emit('liveMatch:update', updated)
       }

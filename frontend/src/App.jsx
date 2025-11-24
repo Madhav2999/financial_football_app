@@ -83,6 +83,7 @@ function AppShell() {
   const eventSourceRef = useRef(null)
   const liveMatchCreationRef = useRef(new Set())
   const coinFlipAnimRef = useRef(new Map())
+  const coinFlipFallbackRef = useRef(new Map())
 
   const navigate = useNavigate()
 
@@ -267,12 +268,24 @@ function AppShell() {
         if (!match?.id) return
         if (match.status === 'completed') {
           setActiveMatches((previous) => previous.filter((item) => item.id !== match.id))
+          const fallback = coinFlipFallbackRef.current.get(match.id)
+          if (fallback) {
+            clearTimeout(fallback)
+            coinFlipFallbackRef.current.delete(match.id)
+          }
           return
         }
         const prior = activeMatchesRef.current.find((item) => item.id === match.id)
         const isFlipUpdate = match.coinToss?.status === 'flipped' || match.coinToss?.status === 'decided'
         const wasFlipping = prior?.coinToss?.status === 'flipping'
         const flipStart = coinFlipAnimRef.current.get(match.id)
+        if (match.coinToss?.status !== 'flipping') {
+          const fallback = coinFlipFallbackRef.current.get(match.id)
+          if (fallback) {
+            clearTimeout(fallback)
+            coinFlipFallbackRef.current.delete(match.id)
+          }
+        }
         const applyUpdate = () =>
           setActiveMatches((previous) => {
             const existing = previous.find((item) => item.id === match.id)
@@ -1175,6 +1188,16 @@ function AppShell() {
         ),
       )
       socket?.emit('liveMatch:coinToss', { matchId })
+      if (coinFlipFallbackRef.current.has(matchId)) {
+        clearTimeout(coinFlipFallbackRef.current.get(matchId))
+      }
+      const fallback = setTimeout(() => {
+        const current = activeMatchesRef.current.find((item) => item.id === matchId)
+        if (!current || current.coinToss?.status !== 'flipping') return
+        const [teamAId] = current.teams || []
+        socket?.emit('liveMatch:coinToss', { matchId, forceWinnerId: teamAId })
+      }, 3200)
+      coinFlipFallbackRef.current.set(matchId, fallback)
       return
     }
 
