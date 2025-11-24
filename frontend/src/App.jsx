@@ -82,6 +82,7 @@ function AppShell() {
   const socketRef = useRef(null)
   const eventSourceRef = useRef(null)
   const liveMatchCreationRef = useRef(new Set())
+  const coinFlipAnimRef = useRef(new Map())
 
   const navigate = useNavigate()
 
@@ -267,6 +268,32 @@ function AppShell() {
         if (match.status === 'completed') {
           setActiveMatches((previous) => previous.filter((item) => item.id !== match.id))
           return
+        }
+        const prior = activeMatchesRef.current.find((item) => item.id === match.id)
+        const isFlipUpdate = match.coinToss?.status === 'flipped' || match.coinToss?.status === 'decided'
+        const wasFlipping = prior?.coinToss?.status === 'flipping'
+        const flipStart = coinFlipAnimRef.current.get(match.id)
+        const applyUpdate = () =>
+          setActiveMatches((previous) => {
+            const existing = previous.find((item) => item.id === match.id)
+            if (existing) {
+              return previous.map((item) => (item.id === match.id ? { ...existing, ...match } : item))
+            }
+            return [...previous, match]
+          })
+
+        if (isFlipUpdate && wasFlipping && flipStart) {
+          const elapsed = Date.now() - flipStart
+          const delay = Math.max(0, 1800 - elapsed)
+          setTimeout(() => {
+            coinFlipAnimRef.current.delete(match.id)
+            applyUpdate()
+          }, delay)
+          return
+        }
+
+        if (match.coinToss?.status === 'flipped' || match.coinToss?.status === 'decided') {
+          coinFlipAnimRef.current.delete(match.id)
         }
         setActiveMatches((previous) => {
           const existing = previous.find((item) => item.id === match.id)
@@ -1136,6 +1163,7 @@ function AppShell() {
       joinLiveMatchRoom(matchId)
       const socket = ensureSocket()
       // Optimistically show the flip animation while the server resolves the result.
+      coinFlipAnimRef.current.set(matchId, Date.now())
       setActiveMatches((previous) =>
         previous.map((item) =>
           item.id === matchId
@@ -1147,19 +1175,6 @@ function AppShell() {
         ),
       )
       socket?.emit('liveMatch:coinToss', { matchId })
-      // If we don't hear back within 2.5s, re-enable the toss button so it doesn't spin forever.
-      setTimeout(() => {
-        setActiveMatches((previous) =>
-          previous.map((item) => {
-            if (item.id !== matchId) return item
-            if (item.coinToss.status !== 'flipping') return item
-            return {
-              ...item,
-              coinToss: { status: 'ready', winnerId: null, decision: null, resultFace: null },
-            }
-          }),
-        )
-      }, 2500)
       return
     }
 

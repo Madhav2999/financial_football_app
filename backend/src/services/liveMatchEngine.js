@@ -405,6 +405,7 @@ export const flipCoin = (matchId) => {
       resultFace,
     },
   }
+  matches.set(matchId, updated)
   setMatch(updated)
   return updated
 }

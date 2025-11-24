@@ -12,8 +12,6 @@ import {
   resetMatch,
 } from '../services/liveMatchEngine.js'
 
-const pendingFlipResolvers = new Map()
-
 const authenticateSocket = (socket) => {
   const token = socket.handshake.auth?.token
   if (!token) return null
@@ -74,11 +72,6 @@ const registerSocketHandlers = (io) => {
       const updated = flipCoin(matchId)
       if (updated) {
         io.to(`live-match:${matchId}`).emit('liveMatch:update', updated)
-        const resolver = pendingFlipResolvers.get(matchId)
-        if (resolver) {
-          clearTimeout(resolver.timeout)
-          pendingFlipResolvers.delete(matchId)
-        }
       }
     })
 
@@ -88,7 +81,6 @@ const registerSocketHandlers = (io) => {
       const updated = decideFirst(matchId, deciderId, firstTeamId)
       if (updated) {
         io.to(`live-match:${matchId}`).emit('liveMatch:update', updated)
-        pendingFlipResolvers.delete(matchId)
       }
     })
 
@@ -144,9 +136,6 @@ const registerSocketHandlers = (io) => {
   liveMatchEmitter.on('update', (match) => {
     if (!match) return
     io.to(`live-match:${match.id}`).emit('liveMatch:update', match)
-    if (match.coinToss?.status === 'flipped' || match.coinToss?.status === 'decided') {
-      pendingFlipResolvers.delete(match.id)
-    }
   })
 }
 
