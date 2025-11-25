@@ -835,7 +835,7 @@ function AppShell() {
         liveMatchCreationRef.current.add(bracketMatch.id)
         const [teamAId, teamBId] = bracketMatch.teams
 
-        if (tournament.backendId && session.type === 'admin') {
+        if (tournament.backendId && session?.token) {
           try {
             const createResult = await postJson(
               '/live-matches',

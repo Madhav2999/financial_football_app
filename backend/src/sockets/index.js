@@ -69,7 +69,7 @@ const registerSocketHandlers = (io) => {
       socket.leave(`live-match:${matchId}`)
     })
 
-    socket.on('liveMatch:coinToss', ({ matchId, forceWinnerId = null }) => {
+    socket.on('liveMatch:coinToss', ({ matchId, forceWinnerId }) => {
       const match = joinMatch(matchId)
       if (!match || !canControlMatch(socket, match)) return
       if (match.coinToss?.status !== 'ready') return
