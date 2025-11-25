@@ -4,6 +4,7 @@ import AdminMatchesTab from './admin/AdminMatchesTab'
 import AdminStandingsTab from './admin/AdminStandingsTab'
 import AdminAnalyticsTab from './admin/AdminAnalyticsTab'
 import AdminApprovalsTab from './admin/AdminApprovalsTab'
+import AdminArchiveTab from './admin/AdminArchiveTab'
 
 const NAV_ITEMS = [
   { to: 'overview', label: 'Overview' },
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
   { to: 'matches', label: 'Matches' },
   { to: 'standings', label: 'Standings' },
   { to: 'analytics', label: 'Analytics' },
+  { to: 'archive', label: 'Archive' },
 ]
 
 export default function AdminDashboard(props) {
@@ -44,6 +46,8 @@ export default function AdminDashboard(props) {
     analyticsSummary,
     analyticsQuestions,
     onDownloadArchive,
+    fetchArchives,
+    onDeleteTournamentArchive,
   } = props
 
   return (
@@ -154,6 +158,16 @@ export default function AdminDashboard(props) {
                   teams={teams}
                   summary={analyticsSummary}
                   questions={analyticsQuestions}
+                />
+              }
+            />
+            <Route
+              path="archive"
+              element={
+                <AdminArchiveTab
+                  onFetchArchives={fetchArchives}
+                  onDownload={onDownloadArchive}
+                  onDelete={onDeleteTournamentArchive}
                 />
               }
             />

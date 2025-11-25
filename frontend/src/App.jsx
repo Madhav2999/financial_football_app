@@ -73,6 +73,7 @@ function AppShell() {
   const [, setMatchSettings] = useState(null)
   const [analyticsSummary, setAnalyticsSummary] = useState(null)
   const [analyticsQuestions, setAnalyticsQuestions] = useState([])
+  const [archivedTournaments, setArchivedTournaments] = useState([])
   const finalizedMatchesRef = useRef(new Set())
   const rosterSeedKeyRef = useRef('')
   const rosterHydratedRef = useRef(false)
@@ -490,11 +491,11 @@ function AppShell() {
     return postJson('/auth/reset-password', { token, newPassword, role })
   }
 
-  const handleDownloadTournamentArchive = () => {
-    if (!tournament || !matchHistory.length) return
+  const handleDownloadTournamentArchive = (targetTournament = tournament, matches = matchHistory, questions = analyticsQuestions) => {
+    if (!targetTournament) return
     const matchRows = [
       ['MatchId', 'HomeTeamId', 'AwayTeamId', 'WinnerId', 'HomeScore', 'AwayScore', 'CompletedAt'],
-      ...matchHistory.map((match) => {
+      ...(matches || []).map((match) => {
         const [home, away] = match.teams || []
         return [
           match.id,
@@ -510,12 +511,12 @@ function AppShell() {
 
     const questionRows = [
       ['Prompt', 'Category', 'TimesAsked', 'AvgAccuracy'],
-      ...analyticsQuestions.map((q) => [q.prompt, q.category ?? '', q.totalAsked ?? 0, q.accuracy ?? '']),
+      ...(questions || []).map((q) => [q.prompt, q.category ?? '', q.totalAsked ?? 0, q.accuracy ?? '']),
     ]
 
     const topRows = [
-      ['Tournament', tournament.name || 'Tournament', 'Status', tournament.status || ''],
-      ['ChampionId', tournament.champions?.winners || '', 'CompletedAt', tournament.completedAt || ''],
+      ['Tournament', targetTournament.name || 'Tournament', 'Status', targetTournament.status || ''],
+      ['ChampionId', targetTournament.champions?.winners || '', 'CompletedAt', targetTournament.completedAt || ''],
       [],
       ['Matches'],
     ]
@@ -534,6 +535,22 @@ function AppShell() {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
   }
+  const fetchArchives = useCallback(async () => {
+    const result = await requestJson('/admin/tournaments', { auth: true })
+    const tournaments = Array.isArray(result?.tournaments) ? result.tournaments : []
+    const completed = tournaments.filter((item) => item.status === 'completed')
+    setArchivedTournaments(completed)
+    return completed
+  }, [requestJson])
+
+  const deleteTournamentArchive = useCallback(
+    async (tournamentId) => {
+      const result = await requestJson(`/admin/tournaments/${tournamentId}`, { method: 'DELETE', auth: true })
+      setArchivedTournaments((prev) => prev.filter((item) => item.id !== tournamentId))
+      return result
+    },
+    [requestJson],
+  )
   const loadAdminData = useCallback(async () => {
     if (session.type !== 'admin') return null
 
@@ -955,7 +972,6 @@ function AppShell() {
 
   const handleToggleTeamSelection = useCallback(
     (teamId) => {
-      if (tournament?.status === 'completed') return
       if (tournamentLaunched) {
         return
       }
@@ -978,14 +994,6 @@ function AppShell() {
           orderedSelection.length === previous.length &&
           orderedSelection.every((id, index) => id === previous[index])
 
-        if (!unchanged && tournament && !tournamentLaunched) {
-          const selectionKey = createSelectionKey(orderedSelection)
-          if (selectionKey !== rosterSeedKeyRef.current) {
-            rosterSeedKeyRef.current = ''
-            setTournament(null)
-          }
-        }
-
         return unchanged ? previous : orderedSelection
       })
     },
@@ -993,7 +1001,7 @@ function AppShell() {
   )
 
   const handleMatchMaking = useCallback(() => {
-    if (tournamentLaunched) {
+    if (tournamentLaunched && tournament?.status !== 'completed') {
       return
     }
 
@@ -1030,13 +1038,13 @@ function AppShell() {
         })),
       )
 
-    const resetProgress = () => {
-      finalizedMatchesRef.current = new Set()
-      setActiveMatches([])
-      setMatchHistory([])
-      setRecentResult(null)
-      setTournamentLaunched(false)
-    }
+  const resetProgress = () => {
+    finalizedMatchesRef.current = new Set()
+    setActiveMatches([])
+    setMatchHistory([])
+    setRecentResult(null)
+    setTournamentLaunched(false)
+  }
 
     const createTournamentViaApi = async () => {
       try {
@@ -1802,6 +1810,8 @@ function AppShell() {
               analyticsSummary={analyticsSummary}
               analyticsQuestions={analyticsQuestions}
               onDownloadArchive={handleDownloadTournamentArchive}
+              fetchArchives={fetchArchives}
+              onDeleteTournamentArchive={deleteTournamentArchive}
             />
           </ProtectedRoute>
         }

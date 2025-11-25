@@ -10,6 +10,9 @@ import {
 } from '../db/models/index.js'
 import { requireAdmin } from '../middleware/auth.js'
 import { seedModerators, seedQuestions, seedTeams } from '../seeds/initialData.js'
+import { sanitizeTournament } from '../services/tournamentState.js'
+import LiveMatch from '../db/models/liveMatch.js'
+import Tournament from '../db/models/tournament.js'
 
 const adminRouter = Router()
 
@@ -389,5 +392,29 @@ adminRouter.delete('/moderators/:id', async (req, res, next) => {
   }
 })
 
+
+
+adminRouter.get('/tournaments', async (_req, res, next) => {
+  try {
+    const tournaments = await Tournament.find().sort({ createdAt: -1 })
+    res.json({ tournaments: tournaments.map(sanitizeTournament) })
+  } catch (error) {
+    next(error)
+  }
+})
+
+adminRouter.delete('/tournaments/:id', async (req, res, next) => {
+  try {
+    const tournament = await Tournament.findById(req.params.id)
+    if (!tournament) {
+      return res.status(404).json({ message: 'Tournament not found' })
+    }
+    await LiveMatch.deleteMany({ tournamentId: tournament._id.toString() })
+    await tournament.deleteOne()
+    return res.json({ message: 'Tournament and related live matches deleted', tournament: sanitizeTournament(tournament) })
+  } catch (error) {
+    next(error)
+  }
+})
 
 export default adminRouter
