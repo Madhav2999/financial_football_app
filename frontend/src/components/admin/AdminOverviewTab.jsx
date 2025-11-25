@@ -92,7 +92,7 @@ export default function AdminOverviewTab({
         selectedTeamIds={selectedTeamIds}
         limit={matchMakingLimit}
         tournamentSeeded={Boolean(tournament)}
-        tournamentLaunched={tournamentLaunched || tournamentCompleted}
+        tournamentLaunched={tournamentLaunched && !tournamentCompleted}
         canEdit
         onToggleTeam={onToggleTeamSelection}
         onSubmit={onMatchMake}

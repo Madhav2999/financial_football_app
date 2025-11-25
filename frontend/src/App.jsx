@@ -65,9 +65,7 @@ function AppShell() {
   const [matchHistory, setMatchHistory] = useState([])
   const [recentResult, setRecentResult] = useState(null)
   const [authError, setAuthError] = useState(null)
-  const [selectedTeamIds, setSelectedTeamIds] = useState(() =>
-    buildDefaultTeamSelection(INITIAL_TEAM_STATE.map(normalizeTeamRecord), TOURNAMENT_TEAM_LIMIT),
-  )
+  const [selectedTeamIds, setSelectedTeamIds] = useState([])
   const [tournament, setTournament] = useState(null)
   const [tournamentLaunched, setTournamentLaunched] = useState(false)
   const [teamRegistrations, setTeamRegistrations] = useState([])
@@ -108,23 +106,7 @@ function AppShell() {
       const rosterOrder = teams.map((team) => team.id)
       const limit = Math.min(TOURNAMENT_TEAM_LIMIT, availableIds.length)
       const filtered = rosterOrder.filter((id) => previous.includes(id)).slice(0, limit)
-
-      const minimumRequired = Math.min(limit, MIN_TOURNAMENT_TEAM_COUNT)
-      const canMeetMinimum = availableIds.length >= MIN_TOURNAMENT_TEAM_COUNT
-      let nextSelection = filtered
-
-      if (canMeetMinimum && filtered.length < minimumRequired) {
-        const toAdd = rosterOrder
-          .filter((id) => !filtered.includes(id))
-          .slice(0, minimumRequired - filtered.length)
-        nextSelection = [...filtered, ...toAdd]
-      }
-
-      const unchanged =
-        nextSelection.length === previous.length &&
-        nextSelection.every((id, index) => id === previous[index])
-
-      return unchanged ? previous : nextSelection
+      return filtered
     })
   }, [teams])
 
