@@ -90,6 +90,7 @@ function TournamentMatchQueue({
           })()
 
           const winner = match.winnerId ? teams.find((team) => team.id === match.winnerId) ?? null : null
+          const tournamentLive = tournament?.status === 'live'
           const disallowedStatuses = new Set(['active', 'in-progress', 'live', 'completed'])
           const canGrantBye =
             Boolean(onGrantBye) &&
@@ -97,7 +98,8 @@ function TournamentMatchQueue({
             !isActive &&
             isReady &&
             !disallowedStatuses.has(match.status) &&
-            !isLinked
+            !isLinked &&
+            !tournamentLive
 
           const handleByeClick = (teamId, teamName) => {
             if (!teamId) return

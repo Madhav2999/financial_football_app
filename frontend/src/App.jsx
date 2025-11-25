@@ -74,6 +74,7 @@ function AppShell() {
   const [analyticsSummary, setAnalyticsSummary] = useState(null)
   const [analyticsQuestions, setAnalyticsQuestions] = useState([])
   const [archivedTournaments, setArchivedTournaments] = useState([])
+  const [socketConnected, setSocketConnected] = useState(true)
   const finalizedMatchesRef = useRef(new Set())
   const rosterSeedKeyRef = useRef('')
   const rosterHydratedRef = useRef(false)
@@ -254,10 +255,15 @@ function AppShell() {
       })
 
       socket.on('connect', () => {
+        setSocketConnected(true)
         socket.emit('tournament:subscribe')
         activeMatchesRef.current.forEach((match) => {
           socket.emit('liveMatch:join', { matchId: match.id })
         })
+      })
+
+      socket.on('disconnect', () => {
+        setSocketConnected(false)
       })
 
       socket.on('match:settings', (settings) => setMatchSettings(settings))
@@ -1827,6 +1833,7 @@ function AppShell() {
               teams={teams}
               tournament={tournament}
               moderators={moderators}
+              socketConnected={socketConnected}
               selectedTeamIds={selectedTeamIds}
               matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
               tournamentLaunched={tournamentLaunched}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMatchTimer, formatSeconds } from '../../hooks/useMatchTimer'
 
-export default function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
+export default function CurrentMatchCard({ match, teamId, teams, onAnswer, socketConnected }) {
   if (match.status === 'completed') {
     return null
   }
@@ -230,6 +230,11 @@ export default function CurrentMatchCard({ match, teamId, teams, onAnswer }) {
             {thisTeam.name} vs {opponent?.name}
           </h2>
         </div>
+        {!socketConnected ? (
+          <span className="rounded-full border border-amber-500/60 bg-amber-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-amber-200">
+            Connection lost. Refresh to continue.
+          </span>
+        ) : null}
 
         <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-3 rounded-full border border-white/25 px-4 py-2 text-sm text-slate-100">

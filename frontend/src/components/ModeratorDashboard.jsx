@@ -59,6 +59,7 @@ export default function ModeratorDashboard({
   teams,
   tournament,
   moderators,
+  socketConnected,
   onFlipCoin,
   onSelectFirst,
   onPauseMatch,
@@ -138,6 +139,11 @@ export default function ModeratorDashboard({
         <div className="mx-auto max-w-7xl space-y-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <AssignmentHeader moderator={moderator} />
+            {!socketConnected ? (
+              <span className="rounded-full border border-amber-500/60 bg-amber-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-amber-200">
+                Connection lost. Please refresh.
+              </span>
+            ) : null}
             <button
               type="button"
               onClick={onLogout}

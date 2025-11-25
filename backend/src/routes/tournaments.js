@@ -161,6 +161,11 @@ router.post('/:id/matches/:matchId/bye', async (req, res, next) => {
     const tournament = await loadTournamentOr404(req, res)
     if (!tournament) return null
 
+    const docStatus = tournament.status
+    if (docStatus === 'live' || docStatus === 'completed') {
+      return res.status(409).json({ message: 'Cannot grant a bye after the tournament has launched.' })
+    }
+
     const { teamId } = req.body ?? {}
     if (!teamId) {
       return res.status(400).json({ message: 'teamId is required to grant a bye.' })
