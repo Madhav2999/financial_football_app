@@ -72,9 +72,26 @@ const registerSocketHandlers = (io) => {
     socket.on('liveMatch:coinToss', ({ matchId, forceWinnerId = null }) => {
       const match = joinMatch(matchId)
       if (!match || !canControlMatch(socket, match)) return
+      if (match.coinToss?.status !== 'ready') return
+
+      // Broadcast a short "flipping" phase so UIs animate consistently.
+      const flippingState = {
+        ...match,
+        coinToss: {
+          ...match.coinToss,
+          status: 'flipping',
+          winnerId: null,
+          resultFace: null,
+          decision: null,
+        },
+      }
+      io.to(`live-match:${matchId}`).emit('liveMatch:update', flippingState)
+
       const updated = flipCoin(matchId, forceWinnerId)
       if (updated) {
-        io.to(`live-match:${matchId}`).emit('liveMatch:update', updated)
+        setTimeout(() => {
+          io.to(`live-match:${matchId}`).emit('liveMatch:update', updated)
+        }, 1800)
       }
     })
 
