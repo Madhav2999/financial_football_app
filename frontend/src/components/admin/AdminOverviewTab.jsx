@@ -70,6 +70,7 @@ export default function AdminOverviewTab({
   onToggleTeamSelection,
   onMatchMake,
   onLaunchTournament,
+  onDownloadArchive,
   onDismissRecent,
 }) {
   const launchReadyCount = useMemo(() => {
@@ -82,6 +83,8 @@ export default function AdminOverviewTab({
     }).length
   }, [tournament])
 
+  const tournamentCompleted = tournament?.status === 'completed'
+
   return (
     <div className="space-y-8">
       <RosterSelectionPanel
@@ -89,7 +92,7 @@ export default function AdminOverviewTab({
         selectedTeamIds={selectedTeamIds}
         limit={matchMakingLimit}
         tournamentSeeded={Boolean(tournament)}
-        tournamentLaunched={tournamentLaunched}
+        tournamentLaunched={tournamentLaunched || tournamentCompleted}
         canEdit
         onToggleTeam={onToggleTeamSelection}
         onSubmit={onMatchMake}
@@ -121,6 +124,31 @@ export default function AdminOverviewTab({
             >
               Dismiss
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {tournamentCompleted ? (
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5 text-sm text-slate-200 shadow shadow-slate-900/30">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-emerald-300">Tournament archived</p>
+              <p className="text-base font-semibold text-white">
+                Champion: {tournament.champions?.winners || 'Unrecorded'}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                Bracket completed. You can download the archive and start a new tournament.
+              </p>
+            </div>
+            {onDownloadArchive ? (
+              <button
+                type="button"
+                onClick={onDownloadArchive}
+                className="rounded-full border border-sky-500/60 bg-sky-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-sky-200 transition hover:border-sky-400 hover:text-white"
+              >
+                Download archive CSV
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}

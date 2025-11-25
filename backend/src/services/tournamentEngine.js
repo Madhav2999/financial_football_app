@@ -697,6 +697,7 @@ export function grantMatchBye(state, matchId, teamId) {
   if (!canGrantBye(state, matchId)) return state
   const match = state.matches[matchId]
   if (!match) return state
+  if (match.matchRefId) return state
   const [teamAId, teamBId] = match.teams
   if (teamId !== teamAId && teamId !== teamBId) {
     return state

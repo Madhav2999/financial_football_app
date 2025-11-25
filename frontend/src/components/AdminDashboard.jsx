@@ -43,6 +43,7 @@ export default function AdminDashboard(props) {
     onDeleteModerator,
     analyticsSummary,
     analyticsQuestions,
+    onDownloadArchive,
   } = props
 
   return (
@@ -107,6 +108,7 @@ export default function AdminDashboard(props) {
                   onToggleTeamSelection={onToggleTeamSelection}
                   onMatchMake={onMatchMake}
                   onLaunchTournament={onLaunchTournament}
+                  onDownloadArchive={onDownloadArchive}
                   onDismissRecent={onDismissRecent}
                 />
               }

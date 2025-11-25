@@ -23,9 +23,11 @@ const toObjectId = (value) => {
   }
 }
 
-async function drawQuestions(count) {
+async function drawQuestions(count, tournamentId = null) {
   const pipeline = [{ $sample: { size: count } }]
-  const docs = await Question.aggregate(pipeline)
+  const tournamentKey = tournamentId ? tournamentId.toString() : null
+  const baseFilter = tournamentKey ? { $or: [{ 'metadata.currentTournamentId': { $ne: tournamentKey } }, { 'metadata.currentTournamentId': { $exists: false } }] } : {}
+  const docs = await Question.aggregate([{ $match: baseFilter }, ...pipeline])
   const timestamp = Date.now()
   await Promise.all(
     docs.map((doc) =>
@@ -34,6 +36,7 @@ async function drawQuestions(count) {
         {
           $set: { lastUsedAt: new Date() },
           $inc: { 'stats.timesAsked': 1 },
+          ...(tournamentKey ? { $set: { 'metadata.currentTournamentId': tournamentKey } } : {}),
         },
       ),
     ),
@@ -358,7 +361,7 @@ const finalizeMatch = async (match) => {
 }
 
 export const createLiveMatch = async ({ teamAId, teamBId, moderatorId = null, tournamentMatchId, tournamentId }) => {
-  const questionQueue = await drawQuestions(QUESTIONS_PER_TEAM * 2)
+  const questionQueue = await drawQuestions(QUESTIONS_PER_TEAM * 2, tournamentId)
   const id = generateMatchId()
   const match = {
     id,

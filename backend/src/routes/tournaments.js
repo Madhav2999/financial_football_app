@@ -168,7 +168,7 @@ router.post('/:id/matches/:matchId/bye', async (req, res, next) => {
 
     const nextState = grantMatchBye(tournament.state, req.params.matchId, teamId)
     if (nextState === tournament.state) {
-      return res.status(409).json({ message: 'Match not eligible for a bye at this stage.' })
+      return res.status(409).json({ message: 'Match not eligible for a bye at this stage (must be pending and unattached).' })
     }
     await persistTournamentState(tournament, nextState)
     return res.json({ tournament: sanitizeTournament(tournament) })

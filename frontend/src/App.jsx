@@ -24,6 +24,7 @@ import LoginPage from './components/LoginPage'
 import ModeratorDashboard from './components/ModeratorDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import TeamDashboard from './components/TeamDashboard'
+import ResetPasswordPage from './components/authentication/ResetPasswordPage'
 import {
   initializeTournament,
   recordMatchResult,
@@ -83,6 +84,16 @@ function AppShell() {
   const eventSourceRef = useRef(null)
   const liveMatchCreationRef = useRef(new Set())
   const coinFlipAnimRef = useRef(new Map())
+  const upsertActiveMatch = useCallback((match) => {
+    if (!match?.id) return
+    setActiveMatches((previous) => {
+      const existing = previous.find((item) => item.id === match.id)
+      if (existing) {
+        return previous.map((item) => (item.id === match.id ? { ...existing, ...match } : item))
+      }
+      return [...previous, match]
+    })
+  }, [])
 
   const navigate = useNavigate()
 
@@ -129,6 +140,13 @@ function AppShell() {
 
   useEffect(() => {
     activeMatchesRef.current = activeMatches
+  }, [activeMatches])
+
+  useEffect(() => {
+    const unique = Array.from(new Map(activeMatches.map((m) => [m.id, m])).values())
+    if (unique.length !== activeMatches.length) {
+      setActiveMatches(unique)
+    }
   }, [activeMatches])
 
   useEffect(() => {
@@ -217,16 +235,14 @@ function AppShell() {
           const winnerId = match.winnerId ?? lastHistory?.winnerId ?? null
           const loserId = match.loserId ?? lastHistory?.loserId ?? null
           const scores = lastHistory?.scores ?? match.scores ?? {}
-          if (!existing.has(match.id)) {
-            existing.set(match.id, {
-              id: match.id,
-              teams: match.teams ?? [],
-              scores,
-              winnerId,
-              loserId,
-              completedAt,
-            })
-          }
+          existing.set(match.id, {
+            id: match.id,
+            teams: match.teams ?? [],
+            scores,
+            winnerId,
+            loserId,
+            completedAt,
+          })
         })
       const next = Array.from(existing.values())
       next.sort((left, right) => new Date(right.completedAt || 0) - new Date(left.completedAt || 0))
@@ -239,7 +255,7 @@ function AppShell() {
       const mapped = mapTournamentFromApi(apiTournament)
       if (!mapped) return null
       setTournament(mapped)
-      setTournamentLaunched(mapped.status === 'active' || mapped.status === 'live' || Boolean(mapped.startedAt))
+      setTournamentLaunched(mapped.status === 'active' || mapped.status === 'live')
       applyRecordsToTeams(mapped.records)
       syncMatchHistoryFromTournament(mapped)
       return mapped
@@ -273,14 +289,7 @@ function AppShell() {
         const isFlipUpdate = match.coinToss?.status === 'flipped' || match.coinToss?.status === 'decided'
         const wasFlipping = prior?.coinToss?.status === 'flipping'
         const flipStart = coinFlipAnimRef.current.get(match.id)
-        const applyUpdate = () =>
-          setActiveMatches((previous) => {
-            const existing = previous.find((item) => item.id === match.id)
-            if (existing) {
-              return previous.map((item) => (item.id === match.id ? { ...existing, ...match } : item))
-            }
-            return [...previous, match]
-          })
+        const applyUpdate = () => upsertActiveMatch(match)
 
         if (isFlipUpdate && wasFlipping && flipStart) {
           const elapsed = Date.now() - flipStart
@@ -495,6 +504,54 @@ function AppShell() {
     return postJson('/auth/forgot-password/moderator', payload)
   }
 
+  const handleResetPassword = async (token, newPassword, role) => {
+    return postJson('/auth/reset-password', { token, newPassword, role })
+  }
+
+  const handleDownloadTournamentArchive = () => {
+    if (!tournament || !matchHistory.length) return
+    const matchRows = [
+      ['MatchId', 'HomeTeamId', 'AwayTeamId', 'WinnerId', 'HomeScore', 'AwayScore', 'CompletedAt'],
+      ...matchHistory.map((match) => {
+        const [home, away] = match.teams || []
+        return [
+          match.id,
+          home || '',
+          away || '',
+          match.winnerId || '',
+          match.scores?.[home] ?? 0,
+          match.scores?.[away] ?? 0,
+          match.completedAt || '',
+        ]
+      }),
+    ]
+
+    const questionRows = [
+      ['Prompt', 'Category', 'TimesAsked', 'AvgAccuracy'],
+      ...analyticsQuestions.map((q) => [q.prompt, q.category ?? '', q.totalAsked ?? 0, q.accuracy ?? '']),
+    ]
+
+    const topRows = [
+      ['Tournament', tournament.name || 'Tournament', 'Status', tournament.status || ''],
+      ['ChampionId', tournament.champions?.winners || '', 'CompletedAt', tournament.completedAt || ''],
+      [],
+      ['Matches'],
+    ]
+
+    const toCsv = (rows) =>
+      rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
+
+    const csv = [toCsv(topRows), toCsv(matchRows), '', 'Question Analytics', toCsv(questionRows)].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'tournament-archive.csv'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
   const loadAdminData = useCallback(async () => {
     if (session.type !== 'admin') return null
 
@@ -596,7 +653,10 @@ function AppShell() {
     try {
       const result = await requestJson('/matches/history?limit=100', { auth: true })
       const matches = Array.isArray(result?.matches) ? result.matches : []
-      const sorted = [...matches].sort(
+      const deduped = Array.from(
+        matches.reduce((map, match) => map.set(match.id, match), new Map()).values(),
+      )
+      const sorted = deduped.sort(
         (left, right) => new Date(right.completedAt || 0) - new Date(left.completedAt || 0),
       )
       setMatchHistory(sorted)
@@ -615,10 +675,7 @@ function AppShell() {
       try {
         const result = await requestJson(`/live-matches/${match.matchRefId}`, { auth: true })
         if (result?.match) {
-          setActiveMatches((previous) => {
-            if (previous.some((live) => live.id === result.match.id)) return previous
-            return [...previous, result.match]
-          })
+          upsertActiveMatch(result.match)
           joinLiveMatchRoom(result.match.id)
         }
       } catch (error) {
@@ -851,7 +908,7 @@ function AppShell() {
 
             const liveMatch = createResult?.match
             if (liveMatch) {
-              setActiveMatches((previous) => [...previous, liveMatch])
+              upsertActiveMatch(liveMatch)
               joinLiveMatchRoom(liveMatch.id)
 
               try {
@@ -887,7 +944,7 @@ function AppShell() {
           tournamentMatchId: bracketMatch.id,
           moderatorId: bracketMatch.moderatorId ?? null,
         })
-        setActiveMatches((previous) => [...previous, liveMatch])
+        upsertActiveMatch(liveMatch)
         joinLiveMatchRoom(liveMatch.id)
         setTournament((previous) => (previous ? attachLiveMatch(previous, bracketMatch.id, liveMatch.id) : previous))
       }
@@ -916,6 +973,7 @@ function AppShell() {
 
   const handleToggleTeamSelection = useCallback(
     (teamId) => {
+      if (tournament?.status === 'completed') return
       if (tournamentLaunched) {
         return
       }
@@ -1707,6 +1765,7 @@ function AppShell() {
           <PublicMatchViewer matches={activeMatches} teams={teams} moderators={moderators} />
         }
       />
+      <Route path="/reset-password" element={<ResetPasswordPage onResetPassword={handleResetPassword} />} />
       <Route
         path="/login"
         element={
@@ -1760,6 +1819,7 @@ function AppShell() {
               onDeleteModerator={deleteModeratorAccount}
               analyticsSummary={analyticsSummary}
               analyticsQuestions={analyticsQuestions}
+              onDownloadArchive={handleDownloadTournamentArchive}
             />
           </ProtectedRoute>
         }

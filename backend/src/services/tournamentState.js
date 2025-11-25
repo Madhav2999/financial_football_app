@@ -1,4 +1,5 @@
 import Tournament from '../db/models/tournament.js'
+import Question from '../db/models/question.js'
 import { publishTournamentUpdate } from './tournamentEvents.js'
 
 const sanitizeTournament = (doc) => ({
@@ -28,6 +29,16 @@ const persistTournamentState = async (tournamentDoc, nextState) => {
   tournamentDoc.markModified('state')
   syncTournamentStatus(tournamentDoc, nextState)
   await tournamentDoc.save()
+  if (nextState.status === 'completed') {
+    try {
+      await Question.updateMany(
+        { 'metadata.currentTournamentId': tournamentDoc._id.toString() },
+        { $unset: { 'metadata.currentTournamentId': '' } },
+      )
+    } catch (error) {
+      console.error('Failed to reset question tournament flags', error)
+    }
+  }
   publishTournamentUpdate(sanitizeTournament(tournamentDoc))
   return tournamentDoc
 }

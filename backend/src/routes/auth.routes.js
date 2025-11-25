@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import { Moderator, ModeratorRegistration, Team, TeamRegistration } from '../db/models/index.js'
 import { security } from '../config/index.js'
 import { addTokenToBlacklist } from '../middleware/auth.js'
+import sendEmail from '../utils/email.js'
 
 const authRouter = Router()
 const {
@@ -301,10 +302,16 @@ authRouter.post('/forgot-password/team', async (req, res, next) => {
     const resetToken = signResetToken({ id: team._id.toString(), role: 'team' })
     const resetUrl = buildResetUrl(resetToken, 'team')
 
-    // Simulate email delivery in development by returning and logging the reset URL
-    /* eslint-disable no-console */
-    console.log(`Team password reset link for ${trimmedContactEmail}: ${resetUrl}`)
-    /* eslint-enable no-console */
+    try {
+      await sendEmail({
+        to: trimmedContactEmail,
+        subject: 'Reset your Financial Football password',
+        text: `Reset your password using this link: ${resetUrl}`,
+        html: `<p>Reset your password using this link:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
+      })
+    } catch (err) {
+      console.error('Failed to send reset email', err)
+    }
 
     return res.json({
       message: 'If that email is registered, a reset link has been sent.',
@@ -335,9 +342,16 @@ authRouter.post('/forgot-password/moderator', async (req, res, next) => {
     const resetToken = signResetToken({ id: moderator._id.toString(), role: 'moderator' })
     const resetUrl = buildResetUrl(resetToken, moderator.role)
 
-    /* eslint-disable no-console */
-    console.log(`Moderator password reset link for ${trimmedEmail}: ${resetUrl}`)
-    /* eslint-enable no-console */
+    try {
+      await sendEmail({
+        to: trimmedEmail,
+        subject: 'Reset your Financial Football password',
+        text: `Reset your password using this link: ${resetUrl}`,
+        html: `<p>Reset your password using this link:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
+      })
+    } catch (err) {
+      console.error('Failed to send reset email', err)
+    }
 
     return res.json({
       message: 'If that email is registered, a reset link has been sent.',
@@ -359,6 +373,35 @@ authRouter.post('/logout', (req, res) => {
   const token = authHeader.replace('Bearer ', '')
   addTokenToBlacklist(token)
   return res.json({ message: 'Logged out. Please delete any stored tokens.' })
+})
+
+authRouter.post('/reset-password', async (req, res, next) => {
+  const { token, newPassword } = req.body || {}
+  if (!isNonEmptyString(token) || !isNonEmptyString(newPassword)) {
+    return res.status(400).json({ message: 'token and newPassword are required' })
+  }
+
+  try {
+    const payload = jwt.verify(token, secret)
+    if (payload.purpose !== 'password-reset') {
+      return res.status(400).json({ message: 'Invalid reset token' })
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword.trim(), 10)
+
+    if (payload.role === 'team') {
+      const updated = await Team.findByIdAndUpdate(payload.sub, { passwordHash }, { new: true })
+      if (!updated) return res.status(404).json({ message: 'User not found' })
+      return res.json({ message: 'Password updated', role: 'team' })
+    }
+
+    const updated = await Moderator.findByIdAndUpdate(payload.sub, { passwordHash }, { new: true })
+    if (!updated) return res.status(404).json({ message: 'User not found' })
+    return res.json({ message: 'Password updated', role: updated.role })
+  } catch (error) {
+    console.error('Reset token error', error)
+    return res.status(400).json({ message: 'Invalid or expired token' })
+  }
 })
 
 export default authRouter
