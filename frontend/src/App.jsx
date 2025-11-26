@@ -499,6 +499,7 @@ function AppShell() {
 
   const handleDownloadTournamentArchive = (targetTournament = tournament, matches = matchHistory, questions = analyticsQuestions) => {
     if (!targetTournament) return
+    const snapshotQuestions = targetTournament.state?.questionStats?.questions
     const matchRows = [
       ['MatchId', 'HomeTeamId', 'AwayTeamId', 'WinnerId', 'HomeScore', 'AwayScore', 'CompletedAt'],
       ...(matches || []).map((match) => {
@@ -517,7 +518,7 @@ function AppShell() {
 
     const questionRows = [
       ['Prompt', 'Category', 'TimesAsked', 'AvgAccuracy'],
-      ...(questions || []).map((q) => [q.prompt, q.category ?? '', q.totalAsked ?? 0, q.accuracy ?? '']),
+      ...((snapshotQuestions ?? questions ?? []).map((q) => [q.prompt, q.category ?? '', q.totalAsked ?? 0, q.accuracy ?? ''])),
     ]
 
     const topRows = [
@@ -1868,6 +1869,7 @@ function AppShell() {
               tournament={tournament}
               tournamentLaunched={tournamentLaunched}
               moderators={moderators}
+              socketConnected={socketConnected}
               onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
               onSelectFirst={(matchId, firstTeamId) =>
                 handleSelectFirst(matchId, activeTeam.id, firstTeamId)

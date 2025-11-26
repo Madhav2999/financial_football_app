@@ -100,6 +100,7 @@ export default function TeamDashboard({
   tournament,
   tournamentLaunched,
   moderators = [],
+  socketConnected,
   onAnswer,
   onSelectFirst,
   onLogout,
@@ -232,15 +233,20 @@ export default function TeamDashboard({
                     ? 'text-slate-200 hover:text-white'
                     : 'cursor-not-allowed text-slate-500'
                 }`}
+                >
+                  Game Room
+                </button>
+              </div>
+              {!socketConnected ? (
+                <span className="rounded-full border border-amber-500/60 bg-amber-500/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">
+                  Connection lost. Refresh to continue.
+                </span>
+              ) : null}
+              <button
+                onClick={onLogout}
+                className="rounded-2xl border border-white/25 bg-transparent px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-white/40"
+                type="button"
               >
-                Game Room
-              </button>
-            </div>
-            <button
-              onClick={onLogout}
-              className="rounded-2xl border border-white/25 bg-transparent px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-white/40"
-              type="button"
-            >
               Log out
             </button>
           </div>
