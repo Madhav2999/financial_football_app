@@ -51,11 +51,16 @@ export default function AdminDashboard(props) {
   } = props
 
   return (
-    <div className="absolute inset-0 min-h-screen bg-slate-850 text-slate-100" style={{
-          backgroundImage: 'url(/assets/admin-background.jpg)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}>
+    <div
+      className="min-h-screen bg-slate-850 text-slate-100"
+      style={{
+        backgroundImage: 'url(/assets/admin-background.jpg)',
+        backgroundSize: '100% auto',
+        backgroundPosition: 'top center',
+        backgroundRepeat: 'repeat-y',
+      }}
+    >
+      <div className="pointer-events-none fixed inset-0 bg-black/15" aria-hidden="true" />
       <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>

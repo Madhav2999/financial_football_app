@@ -158,8 +158,8 @@ export default function TeamDashboard({
   const tournamentStatusLabel = tournamentActive
     ? 'Tournament Live'
     : tournamentLaunched
-    ? 'Tournament syncing'
-    : 'Awaiting kickoff'
+      ? 'Tournament syncing'
+      : 'Awaiting kickoff'
 
   const handleSelectFirstTeam = (matchId, firstTeamId) => {
     onSelectFirst?.(matchId, firstTeamId)
@@ -182,7 +182,7 @@ export default function TeamDashboard({
       "
     >
       <video
-        className="fixed inset-0 -z-10 h-dvh w-screen md:h-screen object-cover object-center brightness-40 contrast-120"
+        className="fixed inset-0 -z-10 h-dvh w-screen md:h-screen object-cover object-center brightness-30 contrast-125"
         src="/assets/american-football.mp4"
         autoPlay
         muted
@@ -190,6 +190,7 @@ export default function TeamDashboard({
         playsInline
         aria-hidden="true"
       />
+      <div className="fixed inset-0 -z-10 bg-black/55" aria-hidden="true" />
 
       <header className="border-b border-white/10 bg-transparent">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
@@ -214,11 +215,10 @@ export default function TeamDashboard({
               <button
                 type="button"
                 onClick={() => setViewMode('overview')}
-                className={`rounded-xl px-4 py-2 font-semibold transition ${
-                  viewMode === 'overview'
+                className={`rounded-xl px-4 py-2 font-semibold transition ${viewMode === 'overview'
                     ? 'bg-sky-500 text-white shadow shadow-sky-500/40'
                     : 'text-slate-200 hover:text-white'
-                }`}
+                  }`}
               >
                 Overview
               </button>
@@ -226,27 +226,26 @@ export default function TeamDashboard({
                 type="button"
                 onClick={() => tournamentActive && setViewMode('game-room')}
                 disabled={!tournamentActive}
-                className={`rounded-xl px-4 py-2 font-semibold transition ${
-                  showGameRoom
+                className={`rounded-xl px-4 py-2 font-semibold transition ${showGameRoom
                     ? 'bg-emerald-500 text-white shadow shadow-emerald-500/40'
                     : tournamentActive
-                    ? 'text-slate-200 hover:text-white'
-                    : 'cursor-not-allowed text-slate-500'
-                }`}
-                >
-                  Game Room
-                </button>
-              </div>
-              {!socketConnected ? (
-                <span className="rounded-full border border-amber-500/60 bg-amber-500/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">
-                  Connection lost. Refresh to continue.
-                </span>
-              ) : null}
-              <button
-                onClick={onLogout}
-                className="rounded-2xl border border-white/25 bg-transparent px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-white/40"
-                type="button"
+                      ? 'text-slate-200 hover:text-white'
+                      : 'cursor-not-allowed text-slate-500'
+                  }`}
               >
+                Game Room
+              </button>
+            </div>
+            {!socketConnected ? (
+              <span className="rounded-full border border-amber-500/60 bg-amber-500/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">
+                Connection lost. Refresh to continue.
+              </span>
+            ) : null}
+            <button
+              onClick={onLogout}
+              className="rounded-2xl border border-white/25 bg-transparent px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-white/40"
+              type="button"
+            >
               Log out
             </button>
           </div>
@@ -334,16 +333,19 @@ export default function TeamDashboard({
             )}
           </div>
         ) : (
-          <OverviewPanel
-            team={team}
-            teams={teams}
-            tournamentLaunched={tournamentLaunched}
-            upcomingMatch={upcomingMatch}
-            moderators={safeModerators}
-          />
+          <>
+            <OverviewPanel
+              team={team}
+              teams={teams}
+              tournamentLaunched={tournamentLaunched}
+              upcomingMatch={upcomingMatch}
+              moderators={safeModerators}
+            />
+            <AnalyticsSection team={team} teams={teams} history={history} />
+          </>
         )}
 
-        <AnalyticsSection team={team} teams={teams} history={history} />
+
       </main>
     </div>
   )

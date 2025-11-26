@@ -207,7 +207,7 @@ export default function CurrentMatchCard({ match, teamId, teams, onAnswer, socke
           muted
           preload="auto"
           aria-hidden="true"
-          className={`absolute left-1/2 top-1/2 max-h-56 w-auto -translate-x-1/2 -translate-y-1/2 transform rounded-3xl shadow-2xl shadow-emerald-500/40 transition-all duration-300 ${
+          className={`absolute left-1/2 top-1/2 max-h-72 w-auto -translate-x-1/2 -translate-y-1/2 transform rounded-3xl shadow-2xl shadow-emerald-500/40 transition-all duration-300 ${
             activeVideo === 'correct' ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
           }`}
         />
@@ -218,7 +218,7 @@ export default function CurrentMatchCard({ match, teamId, teams, onAnswer, socke
           muted
           preload="auto"
           aria-hidden="true"
-          className={`absolute left-1/2 top-1/2 max-h-56 w-auto -translate-x-1/2 -translate-y-1/2 transform rounded-3xl shadow-2xl shadow-rose-500/40 transition-all duration-300 ${
+          className={`absolute left-1/2 top-1/2 max-h-72 w-auto -translate-x-1/2 -translate-y-1/2 transform rounded-3xl shadow-2xl shadow-rose-500/40 transition-all duration-300 ${
             activeVideo === 'wrong' ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
           }`}
         />
@@ -230,11 +230,11 @@ export default function CurrentMatchCard({ match, teamId, teams, onAnswer, socke
             {thisTeam.name} vs {opponent?.name}
           </h2>
         </div>
-        {!socketConnected ? (
+        {/* {!socketConnected ? (
           <span className="rounded-full border border-amber-500/60 bg-amber-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-amber-200">
             Connection lost. Refresh to continue.
           </span>
-        ) : null}
+        ) : null} */}
 
         <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-3 rounded-full border border-white/25 px-4 py-2 text-sm text-slate-100">
