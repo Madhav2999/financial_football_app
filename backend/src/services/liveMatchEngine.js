@@ -27,7 +27,15 @@ async function drawQuestions(count, tournamentId = null) {
   const pipeline = [{ $sample: { size: count } }]
   const tournamentKey = tournamentId ? tournamentId.toString() : null
   const baseFilter = tournamentKey ? { $or: [{ 'metadata.currentTournamentId': { $ne: tournamentKey } }, { 'metadata.currentTournamentId': { $exists: false } }] } : {}
-  const docs = await Question.aggregate([{ $match: baseFilter }, ...pipeline])
+  let docs = await Question.aggregate([{ $match: baseFilter }, ...pipeline])
+  // Fallback: if we don't have enough unseen questions for this tournament, allow reuse to fill the queue.
+  if (docs.length < count) {
+    const remaining = count - docs.length
+    const excludeIds = docs.map((doc) => doc._id)
+    const fallbackFilter = excludeIds.length ? { _id: { $nin: excludeIds } } : {}
+    const fallback = await Question.aggregate([{ $match: fallbackFilter }, { $sample: { size: remaining } }])
+    docs = [...docs, ...fallback]
+  }
   const timestamp = Date.now()
   await Promise.all(
     docs.map((doc) =>

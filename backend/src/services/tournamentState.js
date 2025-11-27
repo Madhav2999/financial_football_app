@@ -30,6 +30,13 @@ const buildQuestionMetrics = (question) => {
   const incorrectCount = stats.incorrectCount ?? 0
   const totalAnswered = correctCount + incorrectCount
   const accuracy = totalAnswered ? Math.round((correctCount / totalAnswered) * 1000) / 10 : null
+  const byTeam = Array.isArray(stats.byTeam)
+    ? stats.byTeam.map((entry) => ({
+        team: entry.team?.toString?.() ?? entry.team,
+        correct: entry.correct ?? 0,
+        incorrect: entry.incorrect ?? 0,
+      }))
+    : []
 
   return {
     id: question._id.toString(),
@@ -41,6 +48,7 @@ const buildQuestionMetrics = (question) => {
     incorrectCount,
     totalAnswered,
     accuracy,
+    byTeam,
     tags: question.tags ?? [],
     lastUsedAt: question.lastUsedAt,
   }

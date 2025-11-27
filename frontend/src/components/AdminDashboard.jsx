@@ -45,6 +45,7 @@ export default function AdminDashboard(props) {
     onDeleteModerator,
     analyticsSummary,
     analyticsQuestions,
+    analyticsQuestionHistory,
     onDownloadArchive,
     fetchArchives,
     onDeleteTournamentArchive,
@@ -163,6 +164,7 @@ export default function AdminDashboard(props) {
                   teams={teams}
                   summary={analyticsSummary}
                   questions={analyticsQuestions}
+                  analyticsQuestionHistory={analyticsQuestionHistory}
                 />
               }
             />

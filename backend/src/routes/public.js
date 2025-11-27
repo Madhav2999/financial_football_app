@@ -78,18 +78,6 @@ publicRouter.get('/tournaments', async (req, res, next) => {
   }
 })
 
-publicRouter.get('/tournaments/:id', async (req, res, next) => {
-  try {
-    const tournament = await Tournament.findById(req.params.id)
-    if (!tournament) {
-      return res.status(404).json({ message: 'Tournament not found' })
-    }
-    return res.json({ tournament: sanitizeTournament(tournament) })
-  } catch (error) {
-    return next(error)
-  }
-})
-
 publicRouter.get('/tournaments/stream', async (req, res) => {
   res.set({
     'Content-Type': 'text/event-stream',
@@ -117,5 +105,19 @@ publicRouter.get('/tournaments/stream', async (req, res) => {
     res.end()
   })
 })
+
+publicRouter.get('/tournaments/:id', async (req, res, next) => {
+  try {
+    const tournament = await Tournament.findById(req.params.id)
+    if (!tournament) {
+      return res.status(404).json({ message: 'Tournament not found' })
+    }
+    return res.json({ tournament: sanitizeTournament(tournament) })
+  } catch (error) {
+    return next(error)
+  }
+})
+
+
 
 export default publicRouter

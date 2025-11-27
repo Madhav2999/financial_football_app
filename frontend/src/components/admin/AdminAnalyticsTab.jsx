@@ -105,7 +105,7 @@ function TeamAnalyticsPanel({ teams }) {
   )
 }
 
-export default function AdminAnalyticsTab({ history, teams, summary, questions }) {
+export default function AdminAnalyticsTab({ history, teams, summary, questions, analyticsQuestionHistory = [] }) {
   const answeredByYear = useMemo(() => {
     if (!Array.isArray(history) || !history.length) return []
     const counts = history.reduce((map, match) => {
@@ -119,6 +119,18 @@ export default function AdminAnalyticsTab({ history, teams, summary, questions }
   }, [history])
 
   const answeredMax = answeredByYear.reduce((max, entry) => Math.max(max, entry.count), 0) || 1
+
+  const questionHistoryByPrompt = useMemo(() => {
+    const map = new Map()
+    analyticsQuestionHistory.forEach((entry) => {
+      const key = entry.questionId || entry.prompt
+      if (!key) return
+      const current = map.get(key) || { prompt: entry.prompt, entries: [] }
+      current.entries.push(entry)
+      map.set(key, current)
+    })
+    return Array.from(map.values())
+  }, [analyticsQuestionHistory])
 
   const averageResponseSeconds = useMemo(() => {
     // Placeholder until response time is captured; display static note.
@@ -145,14 +157,40 @@ export default function AdminAnalyticsTab({ history, teams, summary, questions }
     ]
 
     const questionRows = [
-      ['Prompt', 'Category', 'Times Asked', 'Avg Accuracy'],
-      ...(questions || []).map((q) => [q.prompt, q.category ?? '', q.totalAsked ?? 0, q.accuracy ?? '']),
+      ['Prompt', 'Category', 'Times Asked', 'Correct', 'Incorrect', 'Avg Accuracy'],
+      ...(questions || []).map((q) => [
+        q.prompt,
+        q.category ?? '',
+        q.totalAsked ?? 0,
+        q.correctCount ?? 0,
+        q.incorrectCount ?? 0,
+        q.accuracy ?? '',
+      ]),
+    ]
+
+    const historyRows = [
+      ['Tournament', 'Question', 'Times Asked', 'Correct', 'Incorrect', 'Accuracy'],
+      ...analyticsQuestionHistory.map((entry) => [
+        entry.tournamentName ?? entry.tournamentId ?? '',
+        entry.prompt ?? '',
+        entry.totalAsked ?? 0,
+        entry.correctCount ?? 0,
+        entry.incorrectCount ?? 0,
+        entry.accuracy ?? '',
+      ]),
     ]
 
     const toCsv = (rows) => rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
 
     const blob = new Blob(
-      [`Matches (year-wise)\n`, toCsv(matchRows), `\n\nQuestion Analytics\n`, toCsv(questionRows)],
+      [
+        `Matches (year-wise)\n`,
+        toCsv(matchRows),
+        `\n\nQuestion Analytics\n`,
+        toCsv(questionRows),
+        `\n\nQuestion Accuracy by Tournament\n`,
+        toCsv(historyRows),
+      ],
       { type: 'text/csv;charset=utf-8;' },
     )
     const url = URL.createObjectURL(blob)
@@ -244,6 +282,38 @@ export default function AdminAnalyticsTab({ history, teams, summary, questions }
               )
             })}
           </svg>
+        </div>
+      ) : null}
+
+      {questionHistoryByPrompt.length ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-white">Question Accuracy by Tournament</h2>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">bar chart</p>
+          </div>
+          <div className="space-y-4 rounded-3xl border border-slate-800 bg-slate-950/60 p-5 shadow shadow-slate-900/30">
+            {questionHistoryByPrompt.slice(0, 6).map((question) => (
+              <div key={question.prompt} className="space-y-2">
+                <p className="text-sm font-semibold text-white line-clamp-2">{question.prompt}</p>
+                <div className="space-y-1">
+                  {question.entries.slice(0, 4).map((entry, idx) => {
+                    const pct = entry.accuracy != null ? Math.min(100, Math.max(0, entry.accuracy)) : 0
+                    return (
+                      <div key={`${entry.tournamentId}-${idx}`} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs text-slate-300">
+                          <span>{entry.tournamentName ?? entry.tournamentId}</span>
+                          <span>{entry.accuracy != null ? `${entry.accuracy}%` : '—'}</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-slate-800">
+                          <div className="h-2 rounded-full bg-sky-400" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
 

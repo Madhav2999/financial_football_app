@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { InlineCoinFlipAnimation } from '../MatchPanels'
 
 export default function CoinTossStatusCard({ match, teamId, teams, onSelectFirst }) {
@@ -14,10 +15,42 @@ export default function CoinTossStatusCard({ match, teamId, teams, onSelectFirst
   const isWinner = winnerId === teamId
   const decision = match.coinToss.decision
   const selectedFirstTeam = decision ? teams.find((team) => team.id === decision.firstTeamId) : null
+  const prevStatusRef = useRef(status)
+  const [displayStatus, setDisplayStatus] = useState(status)
+  const flipTimerRef = useRef(null)
+
+  useEffect(() => {
+    if (flipTimerRef.current) {
+      clearTimeout(flipTimerRef.current)
+      flipTimerRef.current = null
+    }
+
+    // If we joined late and immediately got a "flipped", briefly show a spin then reveal
+    if (status === 'flipped' && prevStatusRef.current !== 'flipping' && prevStatusRef.current !== 'flipped') {
+      setDisplayStatus('flipping')
+      flipTimerRef.current = setTimeout(() => {
+        setDisplayStatus('flipped')
+        flipTimerRef.current = null
+      }, 1800)
+    } else {
+      setDisplayStatus(status)
+    }
+
+    prevStatusRef.current = status
+
+    return () => {
+      if (flipTimerRef.current) {
+        clearTimeout(flipTimerRef.current)
+        flipTimerRef.current = null
+      }
+    }
+  }, [status])
+
+  const effectiveStatus = displayStatus
 
   let statusContent = null
 
-  if (status === 'ready') {
+  if (effectiveStatus === 'ready') {
     statusContent = (
       <div className="space-y-2">
         <p className="text-base font-semibold text-white">Coin toss incoming</p>
@@ -26,14 +59,14 @@ export default function CoinTossStatusCard({ match, teamId, teams, onSelectFirst
         </p>
       </div>
     )
-  } else if (status === 'flipping') {
+  } else if (effectiveStatus === 'flipping') {
     statusContent = (
       <div className="space-y-2">
         <p className="text-base font-semibold text-white">Coin is in the air...</p>
         <p className="text-slate-300">Hang tight while we reveal who gains control of the opening question.</p>
       </div>
     )
-  } else if (status === 'flipped') {
+  } else if (effectiveStatus === 'flipped') {
     statusContent = (
       <div className="space-y-3">
         <p className="text-base font-semibold text-white">
@@ -92,7 +125,7 @@ export default function CoinTossStatusCard({ match, teamId, teams, onSelectFirst
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.85fr),1.15fr]">
         <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/60 p-6 text-center">
           <InlineCoinFlipAnimation
-            status={status}
+            status={effectiveStatus}
             teamAName={teamA?.name ?? 'Team A'}
             teamBName={teamB?.name ?? 'Team B'}
             resultFace={resultFace}
@@ -100,7 +133,7 @@ export default function CoinTossStatusCard({ match, teamId, teams, onSelectFirst
           <p className="mt-4 text-xs uppercase tracking-widest text-slate-400">
             Heads - {teamA?.name ?? 'Team A'} | Tails - {teamB?.name ?? 'Team B'}
           </p>
-          {resultFaceLabel && status !== 'flipping' ? (
+          {resultFaceLabel && effectiveStatus !== 'flipping' ? (
             <p className="mt-2 text-sm font-semibold text-white">Result: {resultFaceLabel}</p>
           ) : null}
         </div>

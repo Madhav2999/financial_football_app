@@ -73,6 +73,7 @@ function AppShell() {
   const [, setMatchSettings] = useState(null)
   const [analyticsSummary, setAnalyticsSummary] = useState(null)
   const [analyticsQuestions, setAnalyticsQuestions] = useState([])
+  const [analyticsQuestionHistory, setAnalyticsQuestionHistory] = useState([])
   const [archivedTournaments, setArchivedTournaments] = useState([])
   const [socketConnected, setSocketConnected] = useState(true)
   const finalizedMatchesRef = useRef(new Set())
@@ -517,8 +518,15 @@ function AppShell() {
     ]
 
     const questionRows = [
-      ['Prompt', 'Category', 'TimesAsked', 'AvgAccuracy'],
-      ...((snapshotQuestions ?? questions ?? []).map((q) => [q.prompt, q.category ?? '', q.totalAsked ?? 0, q.accuracy ?? ''])),
+      ['Prompt', 'Category', 'TimesAsked', 'Correct', 'Incorrect', 'AvgAccuracy'],
+      ...((snapshotQuestions ?? questions ?? []).map((q) => [
+        q.prompt,
+        q.category ?? '',
+        q.totalAsked ?? 0,
+        q.correctCount ?? 0,
+        q.incorrectCount ?? 0,
+        q.accuracy ?? '',
+      ])),
     ]
 
     const topRows = [
@@ -693,9 +701,13 @@ function AppShell() {
   const loadAnalytics = useCallback(async () => {
     if (session.type !== 'admin') return
     try {
-      const result = await requestJson('/analytics/questions', { auth: true })
-      setAnalyticsSummary(result?.summary ?? null)
-      setAnalyticsQuestions(Array.isArray(result?.questions) ? result.questions : [])
+      const [questionsResult, historyResult] = await Promise.all([
+        requestJson('/analytics/questions', { auth: true }),
+        requestJson('/analytics/questions/history', { auth: true }),
+      ])
+      setAnalyticsSummary(questionsResult?.summary ?? null)
+      setAnalyticsQuestions(Array.isArray(questionsResult?.questions) ? questionsResult.questions : [])
+      setAnalyticsQuestionHistory(Array.isArray(historyResult?.history) ? historyResult.history : [])
     } catch (error) {
       console.error('Failed to load analytics', error)
     }
@@ -872,6 +884,9 @@ function AppShell() {
     if (!tournamentLaunched || !tournament) {
       return
     }
+    if (session.type !== 'admin') {
+      return
+    }
     const activeTournamentMatches = new Set(
       activeMatches
         .filter((match) => match.status !== 'completed' && match.tournamentMatchId)
@@ -957,7 +972,72 @@ function AppShell() {
     }
 
     launchMatches()
-  }, [activeMatches, applyTournamentFromApi, postJson, session.type, tournament, tournamentLaunched])
+  }, [activeMatches, applyTournamentFromApi, postJson, session?.token, tournament, tournamentLaunched])
+
+  // Moderators: ensure their assigned matches are created/attached if admin is offline
+  useEffect(() => {
+    if (!tournamentLaunched || !tournament) return
+    if (session.type !== 'moderator' || !activeModerator) return
+
+    const assignedMatches = Object.values(tournament.matches ?? {}).filter(
+      (match) =>
+        match.moderatorId === activeModerator.id &&
+        match.status !== 'completed' &&
+        match.teams?.every((teamId) => Boolean(teamId)) &&
+        !match.matchRefId,
+    )
+    if (!assignedMatches.length) return
+
+    const ensureMatches = async () => {
+      for (const bracketMatch of assignedMatches) {
+        if (liveMatchCreationRef.current.has(bracketMatch.id)) continue
+        liveMatchCreationRef.current.add(bracketMatch.id)
+        const [teamAId, teamBId] = bracketMatch.teams
+        try {
+          const createResult = await postJson(
+            '/live-matches',
+            {
+              teamAId,
+              teamBId,
+              tournamentMatchId: bracketMatch.id,
+              tournamentId: tournament.backendId,
+              moderatorId: bracketMatch.moderatorId ?? activeModerator.id,
+            },
+            { auth: true },
+          )
+          const liveMatch = createResult?.match
+          if (liveMatch) {
+            upsertActiveMatch(liveMatch)
+            joinLiveMatchRoom(liveMatch.id)
+            try {
+              const attachResult = await postJson(
+                `/tournaments/${tournament.backendId}/matches/${bracketMatch.id}/attach`,
+                { liveMatchId: liveMatch.id },
+                { auth: true },
+              )
+              if (attachResult?.tournament) {
+                applyTournamentFromApi(attachResult.tournament)
+              } else {
+                setTournament((previous) =>
+                  previous ? attachLiveMatch(previous, bracketMatch.id, liveMatch.id) : previous,
+                )
+              }
+            } catch (error) {
+              console.error('Moderator failed to attach live match; keeping local state', error)
+              setTournament((previous) =>
+                previous ? attachLiveMatch(previous, bracketMatch.id, liveMatch.id) : previous,
+              )
+            }
+          }
+        } catch (error) {
+          console.error('Moderator failed to create live match; will retry if needed', error)
+          liveMatchCreationRef.current.delete(bracketMatch.id)
+        }
+      }
+    }
+
+    ensureMatches()
+  }, [activeModerator, joinLiveMatchRoom, postJson, tournament, tournamentLaunched, session.type, upsertActiveMatch])
 
   const handleLaunchTournament = async () => {
     if (!tournament) return
@@ -1816,6 +1896,7 @@ function AppShell() {
               onDeleteModerator={deleteModeratorAccount}
               analyticsSummary={analyticsSummary}
               analyticsQuestions={analyticsQuestions}
+              analyticsQuestionHistory={analyticsQuestionHistory}
               onDownloadArchive={handleDownloadTournamentArchive}
               fetchArchives={fetchArchives}
               onDeleteTournamentArchive={deleteTournamentArchive}

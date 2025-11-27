@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { Moderator, Team, Tournament } from '../db/models/index.js'
-import { requireAdmin } from '../middleware/auth.js'
+import { requireAdmin, requireUser } from '../middleware/auth.js'
 import {
   attachLiveMatch,
   detachLiveMatch,
@@ -16,8 +16,6 @@ import { sanitizeTournament, persistTournamentState } from '../services/tourname
 
 const router = Router()
 
-router.use(requireAdmin)
-
 const mapTeamForEngine = (teamDoc) => ({
   id: teamDoc._id.toString(),
   name: teamDoc.name,
@@ -29,6 +27,19 @@ const mapModeratorForEngine = (moderatorDoc) => ({
   id: moderatorDoc._id.toString(),
   name: moderatorDoc.displayName || moderatorDoc.loginId,
 })
+
+const canAttachMatch = (state, matchId, user) => {
+  if (!user) return false
+  if (user.role === 'admin') return true
+  const match = state?.matches?.[matchId]
+  if (!match) return false
+  if (user.role === 'moderator') {
+    // allow if this moderator is assigned, or if no moderator is assigned yet
+    if (!match.moderatorId) return true
+    if (match.moderatorId === user.sub) return true
+  }
+  return false
+}
 
 const loadTournamentOr404 = async (req, res) => {
   const tournament = await Tournament.findById(req.params.id)
@@ -43,7 +54,7 @@ const loadTournamentOr404 = async (req, res) => {
   return tournament
 }
 
-router.post('/', async (req, res, next) => {
+router.post('/', requireAdmin, async (req, res, next) => {
   try {
     const { name, teamIds, moderatorIds } = req.body ?? {}
     const requestedTeamIds = Array.isArray(teamIds) ? teamIds : []
@@ -93,7 +104,7 @@ router.post('/', async (req, res, next) => {
   }
 })
 
-router.get('/', async (req, res, next) => {
+router.get('/', requireAdmin, async (req, res, next) => {
   try {
     const tournaments = await Tournament.find().sort({ createdAt: -1 })
     return res.json({ tournaments: tournaments.map(sanitizeTournament) })
@@ -102,7 +113,7 @@ router.get('/', async (req, res, next) => {
   }
 })
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', requireAdmin, async (req, res, next) => {
   try {
     const tournament = await Tournament.findById(req.params.id)
     if (!tournament) {
@@ -114,7 +125,7 @@ router.get('/:id', async (req, res, next) => {
   }
 })
 
-router.post('/:id/launch', async (req, res, next) => {
+router.post('/:id/launch', requireAdmin, async (req, res, next) => {
   try {
     const tournament = await loadTournamentOr404(req, res)
     if (!tournament) return null
@@ -133,7 +144,7 @@ router.post('/:id/launch', async (req, res, next) => {
   }
 })
 
-router.post('/:id/matches/:matchId/result', async (req, res, next) => {
+router.post('/:id/matches/:matchId/result', requireAdmin, async (req, res, next) => {
   try {
     const tournament = await loadTournamentOr404(req, res)
     if (!tournament) return null
@@ -156,7 +167,7 @@ router.post('/:id/matches/:matchId/result', async (req, res, next) => {
   }
 })
 
-router.post('/:id/matches/:matchId/bye', async (req, res, next) => {
+router.post('/:id/matches/:matchId/bye', requireAdmin, async (req, res, next) => {
   try {
     const tournament = await loadTournamentOr404(req, res)
     if (!tournament) return null
@@ -182,7 +193,7 @@ router.post('/:id/matches/:matchId/bye', async (req, res, next) => {
   }
 })
 
-router.post('/:id/matches/:matchId/attach', async (req, res, next) => {
+router.post('/:id/matches/:matchId/attach', requireUser, async (req, res, next) => {
   try {
     const tournament = await loadTournamentOr404(req, res)
     if (!tournament) return null
@@ -190,6 +201,10 @@ router.post('/:id/matches/:matchId/attach', async (req, res, next) => {
     const { liveMatchId } = req.body ?? {}
     if (!liveMatchId) {
       return res.status(400).json({ message: 'liveMatchId is required.' })
+    }
+
+    if (!canAttachMatch(tournament.state, req.params.matchId, req.user)) {
+      return res.status(403).json({ message: 'Insufficient permissions to attach this match.' })
     }
 
     const nextState = attachLiveMatch(tournament.state, req.params.matchId, liveMatchId)
@@ -200,7 +215,7 @@ router.post('/:id/matches/:matchId/attach', async (req, res, next) => {
   }
 })
 
-router.post('/:id/matches/:matchId/detach', async (req, res, next) => {
+router.post('/:id/matches/:matchId/detach', requireAdmin, async (req, res, next) => {
   try {
     const tournament = await loadTournamentOr404(req, res)
     if (!tournament) return null
@@ -213,7 +228,7 @@ router.post('/:id/matches/:matchId/detach', async (req, res, next) => {
   }
 })
 
-router.get('/:id/stages', async (req, res, next) => {
+router.get('/:id/stages', requireAdmin, async (req, res, next) => {
   try {
     const tournament = await loadTournamentOr404(req, res)
     if (!tournament) return null
@@ -224,7 +239,7 @@ router.get('/:id/stages', async (req, res, next) => {
   }
 })
 
-router.get('/:id/stages/:stageId/matches', async (req, res, next) => {
+router.get('/:id/stages/:stageId/matches', requireAdmin, async (req, res, next) => {
   try {
     const tournament = await loadTournamentOr404(req, res)
     if (!tournament) return null

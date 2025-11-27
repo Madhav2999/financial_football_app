@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { requireAdmin } from '../middleware/auth.js'
 import { Question } from '../db/models/index.js'
+import Tournament from '../db/models/tournament.js'
 
 const router = Router()
 
@@ -73,6 +74,44 @@ router.get('/questions', async (req, res, next) => {
       },
       questions: metrics,
     })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Historical question accuracy per tournament (using snapshots stored on completion)
+router.get('/questions/history', async (req, res, next) => {
+  try {
+    const tournaments = await Tournament.find({ 'state.questionStats.questions': { $exists: true, $ne: [] } })
+      .select(['name', 'state.status', 'state.questionStats'])
+      .sort({ createdAt: -1 })
+
+    const history = []
+    tournaments.forEach((tournamentDoc) => {
+      const tournamentId = tournamentDoc._id.toString()
+      const tournamentName = tournamentDoc.name
+      const questions = tournamentDoc.state?.questionStats?.questions ?? []
+      questions.forEach((entry) => {
+        history.push({
+          tournamentId,
+          tournamentName,
+          questionId: entry.id || entry._id?.toString?.(),
+          prompt: entry.prompt,
+          category: entry.category,
+          totalAsked: entry.totalAsked ?? 0,
+          correctCount: entry.correctCount ?? 0,
+          incorrectCount: entry.incorrectCount ?? 0,
+          accuracy:
+            entry.totalAnswered != null
+              ? entry.totalAnswered
+                ? Math.round((entry.correctCount / entry.totalAnswered) * 1000) / 10
+                : null
+              : entry.accuracy ?? null,
+        })
+      })
+    })
+
+    res.json({ history })
   } catch (error) {
     next(error)
   }
