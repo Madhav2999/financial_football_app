@@ -94,6 +94,65 @@ const upsertByLoginId = async (Model, payload, uniqueKey = 'loginId') => {
   return { matchedCount: result.matchedCount || 0, upsertedCount: result.upsertedCount || 0 }
 }
 
+const normalizeQuestionDoc = (doc) => {
+  if (!doc) return null
+  const answers = Array.isArray(doc.answers) && doc.answers.length
+    ? doc.answers
+    : ['A', 'B', 'C', 'D']
+        .map((key) => {
+          const text = doc[`answer${key}`] || doc[`option${key}`]
+          return text ? { key, text } : null
+        })
+        .filter(Boolean)
+
+  if (!doc.prompt || !doc.correctAnswerKey || answers.length === 0) {
+    return null
+  }
+
+  return {
+    prompt: String(doc.prompt).trim(),
+    answers,
+    correctAnswerKey: doc.correctAnswerKey,
+    category: doc.category || '',
+    difficulty: doc.difficulty || '',
+    tags: Array.isArray(doc.tags)
+      ? doc.tags
+      : typeof doc.tags === 'string' && doc.tags.trim()
+      ? doc.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+      : [],
+    stats: {
+      timesAsked: 0,
+      correctCount: 0,
+      incorrectCount: 0,
+      byTeam: [],
+    },
+    metadata: doc.metadata || {},
+  }
+}
+
+const parseCsvQuestions = (csvText) => {
+  if (!csvText) return []
+  const lines = csvText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  if (!lines.length) return []
+  const headers = lines[0].split(',').map((h) => h.trim())
+  const rows = lines.slice(1)
+  const docs = rows
+    .map((line) => {
+      const cols = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''))
+      const obj = {}
+      headers.forEach((header, idx) => {
+        obj[header] = cols[idx] ?? ''
+      })
+      return obj
+    })
+    .map((raw) => normalizeQuestionDoc(raw))
+    .filter(Boolean)
+  return docs
+}
+
 const ensureTeamRecord = async (teamId) => {
   if (!teamId) return null
   return TeamRecord.findOneAndUpdate(
@@ -190,6 +249,38 @@ adminRouter.post('/seed/questions', async (req, res, next) => {
     }))
     const result = await Question.bulkWrite(operations, { ordered: false })
     res.json({ message: 'Questions seeded', matchedCount: result.matchedCount || 0, upsertedCount: result.upsertedCount || 0 })
+  } catch (error) {
+    next(error)
+  }
+})
+
+adminRouter.post('/questions/import', async (req, res, next) => {
+  try {
+    let docs = []
+    if (Array.isArray(req.body?.questions) && req.body.questions.length) {
+      docs = req.body.questions.map((doc) => normalizeQuestionDoc(doc)).filter(Boolean)
+    } else if (typeof req.body?.csv === 'string') {
+      docs = parseCsvQuestions(req.body.csv)
+    }
+
+    if (!docs.length) {
+      return res.status(400).json({ message: 'No valid questions provided.' })
+    }
+
+    const operations = docs.map((doc) => ({
+      updateOne: {
+        filter: { prompt: doc.prompt },
+        update: { $setOnInsert: doc },
+        upsert: true,
+      },
+    }))
+
+    const result = await Question.bulkWrite(operations, { ordered: false })
+    res.json({
+      message: 'Questions imported',
+      matchedCount: result.matchedCount || 0,
+      upsertedCount: result.upsertedCount || 0,
+    })
   } catch (error) {
     next(error)
   }
@@ -327,6 +418,9 @@ adminRouter.delete('/teams/:id', async (req, res, next) => {
     if (registration) {
       // 2️⃣ Update metadata before deleting
       registration.status = 'rejected'
+      if (!registration.metadata || typeof registration.metadata.set !== 'function') {
+        registration.metadata = new Map()
+      }
       registration.metadata.set('deletedAt', new Date())
       registration.metadata.set('deletionReason', 'Team account removed by admin')
 
@@ -370,6 +464,9 @@ adminRouter.delete('/moderators/:id', async (req, res, next) => {
     if (registration) {
       // 2️⃣ Update metadata before deletion
       registration.status = 'rejected'
+      if (!registration.metadata || typeof registration.metadata.set !== 'function') {
+        registration.metadata = new Map()
+      }
       registration.metadata.set('deletedAt', new Date())
       registration.metadata.set('deletionReason', 'Moderator account removed by admin')
 

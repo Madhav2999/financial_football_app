@@ -5,6 +5,7 @@ import AdminStandingsTab from './admin/AdminStandingsTab'
 import AdminAnalyticsTab from './admin/AdminAnalyticsTab'
 import AdminApprovalsTab from './admin/AdminApprovalsTab'
 import AdminArchiveTab from './admin/AdminArchiveTab'
+import AdminQuestionsTab from './admin/AdminQuestionsTab'
 
 const NAV_ITEMS = [
   { to: 'overview', label: 'Overview' },
@@ -13,6 +14,7 @@ const NAV_ITEMS = [
   { to: 'standings', label: 'Standings' },
   { to: 'analytics', label: 'Analytics' },
   { to: 'archive', label: 'Archive' },
+  { to: 'questions', label: 'Questions' },
 ]
 
 export default function AdminDashboard(props) {
@@ -49,6 +51,7 @@ export default function AdminDashboard(props) {
     onDownloadArchive,
     fetchArchives,
     onDeleteTournamentArchive,
+    onImportQuestions,
   } = props
 
   return (
@@ -177,6 +180,10 @@ export default function AdminDashboard(props) {
                   onDelete={onDeleteTournamentArchive}
                 />
               }
+            />
+            <Route
+              path="questions"
+              element={<AdminQuestionsTab onImport={onImportQuestions} />}
             />
             <Route path="*" element={<Navigate to="overview" replace />} />
           </Routes>

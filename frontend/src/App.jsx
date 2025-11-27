@@ -550,6 +550,32 @@ function AppShell() {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
   }
+  const importQuestions = useCallback(
+    async (payload) => {
+      const body =
+        typeof payload === 'string'
+          ? { csv: payload }
+          : Array.isArray(payload)
+          ? { questions: payload }
+          : payload?.csv
+          ? { csv: payload.csv }
+          : payload?.questions
+          ? { questions: payload.questions }
+          : null
+
+      if (!body) {
+        throw new Error('No questions provided')
+      }
+
+      const result = await requestJson('/admin/questions/import', {
+        method: 'POST',
+        auth: true,
+        body,
+      })
+      return result
+    },
+    [requestJson],
+  )
   const fetchArchives = useCallback(async () => {
     const result = await requestJson('/admin/tournaments', { auth: true })
     const tournaments = Array.isArray(result?.tournaments) ? result.tournaments : []
@@ -1900,6 +1926,7 @@ function AppShell() {
               onDownloadArchive={handleDownloadTournamentArchive}
               fetchArchives={fetchArchives}
               onDeleteTournamentArchive={deleteTournamentArchive}
+              onImportQuestions={importQuestions}
             />
           </ProtectedRoute>
         }
