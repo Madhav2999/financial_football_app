@@ -15,6 +15,7 @@ const moderatorRegistrationSchema = new Schema(
       default: 'pending',
     },
     linkedModeratorId: { type: Schema.Types.ObjectId, ref: 'Moderator' },
+    avatarUrl: { type: String },
     metadata: { type: Map, of: Schema.Types.Mixed },
   },
   { timestamps: true },

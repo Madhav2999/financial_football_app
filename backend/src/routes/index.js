@@ -7,6 +7,7 @@ import tournamentsRouter from './tournaments.js'
 import liveMatchesRouter from './liveMatches.js'
 import analyticsRouter from './analytics.js'
 import matchesRouter from './matches.js'
+import profileRouter from './profile.js'
 
 const router = Router()
 
@@ -35,5 +36,6 @@ router.use('/tournaments', tournamentsRouter)
 router.use('/live-matches', liveMatchesRouter)
 router.use('/analytics', analyticsRouter)
 router.use('/matches', matchesRouter)
+router.use('/profile', profileRouter)
 
 export default router

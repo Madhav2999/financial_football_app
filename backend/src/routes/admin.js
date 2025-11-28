@@ -94,6 +94,7 @@ const upsertByLoginId = async (Model, payload, uniqueKey = 'loginId') => {
   return { matchedCount: result.matchedCount || 0, upsertedCount: result.upsertedCount || 0 }
 }
 
+
 const normalizeQuestionDoc = (doc) => {
   if (!doc) return null
   const answers = Array.isArray(doc.answers) && doc.answers.length
@@ -285,6 +286,56 @@ adminRouter.post('/questions/import', async (req, res, next) => {
     next(error)
   }
 })
+// Admin set password for team/moderator
+adminRouter.post('/teams/:id/password', async (req, res, next) => {
+  try {
+    const { password } = req.body ?? {}
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required' })
+    }
+    const team = await Team.findById(req.params.id).select('+passwordHash')
+    if (!team) {
+      return res.status(404).json({ message: 'Team not found' })
+    }
+    team.passwordHash = await bcrypt.hash(password, 10)
+    await team.save()
+    res.json({ message: 'Password updated', team: sanitizeTeam(team) })
+  } catch (error) {
+    next(error)
+  }
+})
+
+adminRouter.post('/moderators/:id/password', async (req, res, next) => {
+  try {
+    const { password } = req.body ?? {}
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required' })
+    }
+    const moderator = await Moderator.findById(req.params.id).select('+passwordHash')
+    if (!moderator) {
+      return res.status(404).json({ message: 'Moderator not found' })
+    }
+    moderator.passwordHash = await bcrypt.hash(password, 10)
+    await moderator.save()
+    res.json({ message: 'Password updated', moderator: sanitizeModerator(moderator) })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Profiles list
+adminRouter.get('/profiles', async (_req, res, next) => {
+  try {
+    const teams = await Team.find().sort({ createdAt: -1 })
+    const moderators = await Moderator.find().sort({ createdAt: -1 })
+    res.json({
+      teams: teams.map(sanitizeTeam),
+      moderators: moderators.map(sanitizeModerator),
+    })
+  } catch (error) {
+    next(error)
+  }
+})
 
 adminRouter.post('/registrations/:id/approve', async (req, res, next) => {
   try {
@@ -311,6 +362,7 @@ adminRouter.post('/registrations/:id/approve', async (req, res, next) => {
       name: registration.teamName,
       loginId: registration.loginId,
       passwordHash: registration.passwordHash,
+      avatarUrl: registration.avatarUrl,
       metadata: {
         organization: registration.organization,
         contactName: registration.contactName,
@@ -375,6 +427,7 @@ adminRouter.post('/registrations/moderators/:id/approve', async (req, res, next)
       passwordHash: registration.passwordHash,
       displayName: registration.displayName,
       permissions: registration.permissions,
+      avatarUrl: registration.avatarUrl,
     })
 
     registration.status = 'approved'

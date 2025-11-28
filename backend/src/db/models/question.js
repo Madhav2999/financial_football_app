@@ -22,6 +22,16 @@ const questionSchema = new Schema(
       timesAsked: { type: Number, default: 0 },
       correctCount: { type: Number, default: 0 },
       incorrectCount: { type: Number, default: 0 },
+      byTeam: {
+        type: [
+          {
+            team: { type: Schema.Types.ObjectId, ref: 'Team' },
+            correct: { type: Number, default: 0 },
+            incorrect: { type: Number, default: 0 },
+          },
+        ],
+        default: [],
+      },
     },
     metadata: { type: Map, of: Schema.Types.Mixed },
   },

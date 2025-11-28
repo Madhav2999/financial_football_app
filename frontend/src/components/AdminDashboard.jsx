@@ -6,6 +6,7 @@ import AdminAnalyticsTab from './admin/AdminAnalyticsTab'
 import AdminApprovalsTab from './admin/AdminApprovalsTab'
 import AdminArchiveTab from './admin/AdminArchiveTab'
 import AdminQuestionsTab from './admin/AdminQuestionsTab'
+import AdminProfilesTab from './admin/AdminProfilesTab'
 
 const NAV_ITEMS = [
   { to: 'overview', label: 'Overview' },
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
   { to: 'analytics', label: 'Analytics' },
   { to: 'archive', label: 'Archive' },
   { to: 'questions', label: 'Questions' },
+  { to: 'profiles', label: 'Profiles' },
 ]
 
 export default function AdminDashboard(props) {
@@ -52,6 +54,10 @@ export default function AdminDashboard(props) {
     fetchArchives,
     onDeleteTournamentArchive,
     onImportQuestions,
+    profiles,
+    onSetProfilePassword,
+    onDeleteTeamProfile,
+    onDeleteModeratorProfile,
   } = props
 
   return (
@@ -184,6 +190,18 @@ export default function AdminDashboard(props) {
             <Route
               path="questions"
               element={<AdminQuestionsTab onImport={onImportQuestions} />}
+            />
+            <Route
+              path="profiles"
+              element={
+                <AdminProfilesTab
+                  teams={profiles?.teams || teams}
+                  moderators={profiles?.moderators || moderators}
+                  onSetPassword={onSetProfilePassword}
+                  onDeleteTeam={onDeleteTeamProfile}
+                  onDeleteModerator={onDeleteModeratorProfile}
+                />
+              }
             />
             <Route path="*" element={<Navigate to="overview" replace />} />
           </Routes>

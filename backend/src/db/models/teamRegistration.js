@@ -17,6 +17,7 @@ const teamRegistrationSchema = new Schema(
       default: 'pending',
     },
     linkedTeamId: { type: Schema.Types.ObjectId, ref: 'Team' },
+    avatarUrl: { type: String },
     metadata: { type: Map, of: Schema.Types.Mixed },
   },
   { timestamps: true },

@@ -59,6 +59,7 @@ export default function ModeratorDashboard({
   teams,
   tournament,
   moderators,
+  onUploadAvatar,
   socketConnected,
   onFlipCoin,
   onSelectFirst,
@@ -143,6 +144,34 @@ export default function ModeratorDashboard({
               <span className="rounded-full border border-amber-500/60 bg-amber-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-amber-200">
                 Connection lost. Please refresh.
               </span>
+            ) : null}
+            {moderator?.avatarUrl ? (
+              <img
+                src={moderator.avatarUrl}
+                alt={moderator.displayName || moderator.loginId}
+                className="h-10 w-10 rounded-full object-cover ring-1 ring-white/20"
+              />
+            ) : null}
+            {onUploadAvatar ? (
+              <label className="flex cursor-pointer items-center gap-2 rounded-2xl border border-white/20 bg-slate-900/40 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-200">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const reader = new FileReader()
+                    reader.onload = () => {
+                      if (typeof reader.result === 'string') {
+                        onUploadAvatar(reader.result).catch((err) => console.error('Avatar upload failed', err))
+                      }
+                    }
+                    reader.readAsDataURL(file)
+                  }}
+                />
+                <span>Update Avatar</span>
+              </label>
             ) : null}
             <button
               type="button"

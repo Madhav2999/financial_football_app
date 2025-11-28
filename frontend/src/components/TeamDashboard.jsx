@@ -100,12 +100,14 @@ export default function TeamDashboard({
   tournament,
   tournamentLaunched,
   moderators = [],
+  onUploadAvatar,
   socketConnected,
   onAnswer,
   onSelectFirst,
   onLogout,
 }) {
   const [viewMode, setViewMode] = useState('overview')
+  const [avatarStatus, setAvatarStatus] = useState(null)
   const safeModerators = useMemo(
     () => (Array.isArray(moderators) ? moderators : []),
     [moderators],
@@ -200,6 +202,13 @@ export default function TeamDashboard({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {team.avatarUrl ? (
+              <img
+                src={team.avatarUrl}
+                alt={team.name}
+                className="h-10 w-10 rounded-full object-cover ring-1 ring-white/20"
+              />
+            ) : null}
             <span className="rounded-full border border-white/20 bg-slate-900/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-200">
               {tournamentStatusLabel}
             </span>
@@ -211,6 +220,50 @@ export default function TeamDashboard({
                 <span>{team.losses}</span>
               </div>
             </div>
+            {team.avatarUrl ? (
+              <img
+                src={team.avatarUrl}
+                alt={team.name}
+                className="h-10 w-10 rounded-full object-cover ring-1 ring-white/20"
+              />
+            ) : null}
+            {avatarStatus ? (
+              <span className="rounded-full border border-emerald-500/60 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-200">
+                {avatarStatus}
+              </span>
+            ) : null}
+            {onUploadAvatar ? (
+              <label className="flex cursor-pointer items-center gap-2 rounded-2xl border border-white/20 bg-slate-900/40 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const reader = new FileReader()
+                    reader.onload = () => {
+                      if (typeof reader.result === 'string') {
+                        setAvatarStatus('Updating avatar...')
+                        onUploadAvatar(reader.result)
+                          .then((url) => {
+                            setAvatarStatus(url ? 'Avatar updated' : 'Update failed')
+                          })
+                          .catch((err) => {
+                            console.error('Avatar upload failed', err)
+                            setAvatarStatus('Update failed')
+                          })
+                          .finally(() => {
+                            setTimeout(() => setAvatarStatus(null), 2000)
+                          })
+                      }
+                    }
+                    reader.readAsDataURL(file)
+                  }}
+                />
+                <span>Update Avatar</span>
+              </label>
+            ) : null}
             <div className="flex items-center gap-2 rounded-2xl border border-white/20 bg-slate-900/40 p-1 text-sm">
               <button
                 type="button"

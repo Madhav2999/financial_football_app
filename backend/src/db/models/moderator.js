@@ -11,6 +11,7 @@ const moderatorSchema = new Schema(
     role: { type: String, enum: ['moderator', 'admin'], default: 'moderator' },
     active: { type: Boolean, default: true },
     permissions: [{ type: String }],
+    avatarUrl: { type: String },
   },
   { timestamps: true }
 )

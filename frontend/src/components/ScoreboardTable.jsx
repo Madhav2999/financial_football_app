@@ -8,7 +8,7 @@ function getTeamStatus(team) {
   return 'In contention'
 }
 
-export default function ScoreboardTable({ teams, highlightTeamId }) {
+export default function ScoreboardTable({ teams, highlightTeamId, showAvatars = false }) {
   const sortedTeams = [...teams].sort((a, b) => {
     if (b.wins !== a.wins) return b.wins - a.wins
     if (a.losses !== b.losses) return a.losses - b.losses
@@ -37,7 +37,18 @@ export default function ScoreboardTable({ teams, highlightTeamId }) {
                   : 'hover:bg-slate-800/60'
               }`}
             >
-              <td className="px-6 py-4 font-semibold">{team.name}</td>
+              <td className="px-6 py-4 font-semibold">
+                <div className="flex items-center gap-3">
+                  {showAvatars && team.avatarUrl ? (
+                    <img
+                      src={team.avatarUrl}
+                      alt={team.name}
+                      className="h-8 w-8 rounded-full object-cover ring-1 ring-white/20"
+                    />
+                  ) : null}
+                  <span>{team.name}</span>
+                </div>
+              </td>
               <td className="px-6 py-4">{team.wins}</td>
               <td className="px-6 py-4">{team.losses}</td>
               <td className="px-6 py-4">{team.totalScore}</td>

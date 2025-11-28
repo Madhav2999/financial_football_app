@@ -30,6 +30,7 @@ export function normalizeModeratorRecord(moderator) {
     name: displayName,
     role: moderator.role || 'moderator',
     permissions: moderator.permissions || [],
+    avatarUrl: moderator.avatarUrl,
   }
 }
 

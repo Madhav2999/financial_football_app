@@ -74,6 +74,41 @@ function AppShell() {
   const [analyticsSummary, setAnalyticsSummary] = useState(null)
   const [analyticsQuestions, setAnalyticsQuestions] = useState([])
   const [analyticsQuestionHistory, setAnalyticsQuestionHistory] = useState([])
+  const [profiles, setProfiles] = useState({ teams: [], moderators: [] })
+  const API_BASE = 'http://localhost:5000/api'
+  const SOCKET_BASE = API_BASE.replace(/\/api$/, '')
+  const apiBaseHost = useMemo(() => API_BASE.replace(/\/api$/, ''), [API_BASE])
+  const normalizeAvatar = useCallback(
+    (url) => {
+      if (!url) return url
+      return url.startsWith('http') ? url : `${apiBaseHost}${url}`
+    },
+    [apiBaseHost],
+  )
+  useEffect(() => {
+    setTeams((prev) => {
+      let changed = false
+      const next = prev.map((team) => {
+        if (team?.avatarUrl && !team.avatarUrl.startsWith('http')) {
+          changed = true
+          return { ...team, avatarUrl: normalizeAvatar(team.avatarUrl) }
+        }
+        return team
+      })
+      return changed ? next : prev
+    })
+    setModerators((prev) => {
+      let changed = false
+      const next = prev.map((mod) => {
+        if (mod?.avatarUrl && !mod.avatarUrl.startsWith('http')) {
+          changed = true
+          return { ...mod, avatarUrl: normalizeAvatar(mod.avatarUrl) }
+        }
+        return mod
+      })
+      return changed ? next : prev
+    })
+  }, [normalizeAvatar])
   const [archivedTournaments, setArchivedTournaments] = useState([])
   const [socketConnected, setSocketConnected] = useState(true)
   const finalizedMatchesRef = useRef(new Set())
@@ -137,9 +172,6 @@ function AppShell() {
   useEffect(() => {
     writeStoredSession(session)
   }, [session])
-
-  const API_BASE = 'http://localhost:5000/api'
-  const SOCKET_BASE = API_BASE.replace(/\/api$/, '')
 
   const withApiBase = useCallback(
     (path) => {
@@ -576,6 +608,70 @@ function AppShell() {
     },
     [requestJson],
   )
+
+  const loadProfiles = useCallback(async () => {
+    if (session.type !== 'admin') return
+    try {
+      const result = await requestJson('/admin/profiles', { auth: true })
+      setProfiles({
+        teams: Array.isArray(result?.teams)
+          ? result.teams.map((team) => ({ ...team, avatarUrl: normalizeAvatar(team.avatarUrl) }))
+          : [],
+        moderators: Array.isArray(result?.moderators)
+          ? result.moderators.map((mod) => ({ ...mod, avatarUrl: normalizeAvatar(mod.avatarUrl) }))
+          : [],
+      })
+    } catch (error) {
+      console.error('Failed to load profiles', error)
+    }
+  }, [normalizeAvatar, requestJson, session.type])
+
+  const setProfilePassword = useCallback(
+    async (type, id, password) => {
+      const endpoint =
+        type === 'team' ? `/admin/teams/${id}/password` : `/admin/moderators/${id}/password`
+      await requestJson(endpoint, { method: 'POST', auth: true, body: { password } })
+      await loadProfiles()
+    },
+    [loadProfiles, requestJson],
+  )
+
+  const uploadAvatar = useCallback(
+    async (data) => {
+      const body =
+        typeof data === 'string'
+          ? { data }
+          : data?.data
+          ? { data: data.data }
+          : null
+      if (!body) throw new Error('No avatar data provided')
+      const result = await requestJson('/profile/avatar', { method: 'POST', auth: true, body })
+      const rawUrl = result?.url
+      if (!rawUrl) return null
+      const absoluteUrl = normalizeAvatar(rawUrl)
+
+      if (session.type === 'team' && session.teamId) {
+        setTeams((prev) => prev.map((team) => (team.id === session.teamId ? { ...team, avatarUrl: absoluteUrl } : team)))
+        setProfiles((prev) => ({
+          ...prev,
+          teams: prev.teams.map((team) => (team.id === session.teamId ? { ...team, avatarUrl: absoluteUrl } : team)),
+        }))
+      } else if (session.type === 'moderator' && session.moderatorId) {
+        setModerators((prev) =>
+          prev.map((mod) => (mod.id === session.moderatorId ? { ...mod, avatarUrl: absoluteUrl } : mod)),
+        )
+        setProfiles((prev) => ({
+          ...prev,
+          moderators: prev.moderators.map((mod) =>
+            mod.id === session.moderatorId ? { ...mod, avatarUrl: absoluteUrl } : mod,
+          ),
+        }))
+      }
+
+      return absoluteUrl
+    },
+    [API_BASE, requestJson, session.moderatorId, session.teamId, session.type],
+  )
   const fetchArchives = useCallback(async () => {
     const result = await requestJson('/admin/tournaments', { auth: true })
     const tournaments = Array.isArray(result?.tournaments) ? result.tournaments : []
@@ -883,7 +979,8 @@ function AppShell() {
   useEffect(() => {
     if (session.type !== 'admin') return
     loadAnalytics()
-  }, [loadAnalytics, session.type])
+    loadProfiles()
+  }, [loadAnalytics, loadProfiles, session.type])
 
   useEffect(() => {
     const streamUrl = withApiBase('/public/tournaments/stream')
@@ -1927,6 +2024,10 @@ function AppShell() {
               fetchArchives={fetchArchives}
               onDeleteTournamentArchive={deleteTournamentArchive}
               onImportQuestions={importQuestions}
+              profiles={profiles}
+              onSetProfilePassword={setProfilePassword}
+              onDeleteTeamProfile={deleteTeamAccount}
+              onDeleteModeratorProfile={deleteModeratorAccount}
             />
           </ProtectedRoute>
         }
@@ -1943,6 +2044,7 @@ function AppShell() {
               tournament={tournament}
               moderators={moderators}
               socketConnected={socketConnected}
+              onUploadAvatar={uploadAvatar}
               selectedTeamIds={selectedTeamIds}
               matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
               tournamentLaunched={tournamentLaunched}
@@ -1977,6 +2079,7 @@ function AppShell() {
               tournament={tournament}
               tournamentLaunched={tournamentLaunched}
               moderators={moderators}
+              onUploadAvatar={uploadAvatar}
               socketConnected={socketConnected}
               onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
               onSelectFirst={(matchId, firstTeamId) =>

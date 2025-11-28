@@ -4,6 +4,8 @@ import express from 'express'
 import cors from 'cors'
 import mongoose from 'mongoose'
 import { Server as SocketIOServer } from 'socket.io'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { database, security } from './config/index.js'
 import authMiddleware from './middleware/auth.js'
 import apiRouter from './routes/index.js'
@@ -12,9 +14,12 @@ import registerSocketHandlers from './sockets/index.js'
 import { initializeLiveMatches } from './services/liveMatchEngine.js'
 
 const app = express()
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const uploadsDir = path.join(__dirname, '..', 'uploads')
 
 app.use(express.json({ limit: '1mb' }))
 app.use(cors({ origin: security.allowedOrigins, credentials: true }))
+app.use('/uploads', express.static(uploadsDir))
 app.use(authMiddleware)
 app.use('/api', apiRouter)
 
