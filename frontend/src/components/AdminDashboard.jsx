@@ -66,7 +66,7 @@ export default function AdminDashboard(props) {
     >
       <div className="pointer-events-none fixed inset-0 bg-black/15" aria-hidden="true" />
       <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Admin Control Booth</p>
             <h1 className="text-3xl font-semibold text-white">Tournament Moderator</h1>
@@ -80,7 +80,7 @@ export default function AdminDashboard(props) {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-10 pt-8 lg:flex-row">
+      <div className="mx-auto flex w-full max-w-8xl flex-col gap-6 px-6 pb-10 pt-8 lg:flex-row">
         <aside className="w-full rounded-3xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg shadow-slate-900/40 lg:w-64">
           <nav aria-label="Admin dashboard sections" className="space-y-1">
             {NAV_ITEMS.map((item) => (
