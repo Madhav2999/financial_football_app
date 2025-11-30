@@ -77,7 +77,11 @@ export default function AdminProfilesTab({
             {onDelete ? (
               <button
                 type="button"
-                onClick={() => onDelete(entry.id)}
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to delete this profile?')) {
+                    onDelete(entry.id)
+                  }
+                }}
                 className="rounded-full border border-rose-700/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-rose-100 hover:border-rose-500"
               >
                 Delete

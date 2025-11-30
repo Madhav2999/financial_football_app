@@ -108,7 +108,7 @@ function AppShell() {
       })
       return changed ? next : prev
     })
-  }, [normalizeAvatar])
+  }, [normalizeAvatar, teams, moderators])
   const [archivedTournaments, setArchivedTournaments] = useState([])
   const [socketConnected, setSocketConnected] = useState(true)
   const finalizedMatchesRef = useRef(new Set())
@@ -740,7 +740,7 @@ function AppShell() {
       setTeams((previous) => {
         const previousMap = new Map(previous.map((team) => [team.id, team]))
         return teamResult.teams
-          .map((team) => normalizeTeamRecord(team))
+          .map((team) => normalizeTeamRecord({ ...team, avatarUrl: normalizeAvatar(team.avatarUrl) }))
           .filter(Boolean)
           .map((team) => {
             const existing = previousMap.get(team.id)
@@ -900,6 +900,27 @@ function AppShell() {
       return result
     },
     [loadAdminData, requestJson],
+  )
+
+  const deleteProfileTeam = useCallback(
+    async (teamId) => {
+      await deleteTeamAccount(teamId)
+      setProfiles((prev) => ({
+        ...prev,
+        teams: prev.teams.filter((team) => team.id !== teamId),
+      }))
+    },
+    [deleteTeamAccount],
+  )
+  const deleteProfileModerator = useCallback(
+    async (moderatorId) => {
+      await deleteModeratorAccount(moderatorId)
+      setProfiles((prev) => ({
+        ...prev,
+        moderators: prev.moderators.filter((mod) => mod.id !== moderatorId),
+      }))
+    },
+    [deleteModeratorAccount],
   )
 
   const handleLogout = useCallback(async () => {

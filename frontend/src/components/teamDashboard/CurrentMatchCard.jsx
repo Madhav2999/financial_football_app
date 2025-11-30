@@ -258,7 +258,7 @@ export default function CurrentMatchCard({ match, teamId, teams, onAnswer, socke
         <div className="space-y-4">
           <p className="text-xs uppercase tracking-wider text-slate-100">Category</p>
           <p className="text-lg font-bold text-white">{question?.category ?? 'Awaiting question details'}</p>
-          <p className="text-base leading-relaxed text-slate-100">
+          <p className="text-base leading-relaxed text-slate-100 select-none">
             {question?.prompt ?? 'The moderator will share the next prompt shortly.'}
           </p>
 
