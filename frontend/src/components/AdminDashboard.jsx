@@ -72,10 +72,10 @@ export default function AdminDashboard(props) {
     >
       <div className="pointer-events-none fixed inset-0 bg-black/15" aria-hidden="true" />
       <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-6">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Admin Control Booth</p>
-            <h1 className="text-3xl font-semibold text-white">Tournament Moderator</h1>
+        <div className="mx-auto flex max-w-8xl flex-wrap items-center justify-between gap-4 px-6 py-6">
+          <div className='flex flex-row gap-2'>
+            <img src="/assets/ff-logo-2.png" alt="" className='h-20 w-20' />
+            <h1 className="text-3xl font-semibold text-white pt-5">Tournament Admin Dashboard</h1>
           </div>
           <button
             onClick={onLogout}

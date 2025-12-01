@@ -209,8 +209,8 @@ export default function AdminAnalyticsTab({ history, teams, summary, questions, 
       value: summary?.totalQuestions ?? 0,
     },
     {
-      label: 'Times Asked',
-      value: summary?.totalAsked ?? 0,
+      label: 'Total Matches',
+      value: history?.length ?? 0,
     },
     {
       label: 'Avg Accuracy',
