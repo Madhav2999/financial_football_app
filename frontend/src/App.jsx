@@ -75,7 +75,7 @@ function AppShell() {
   const [analyticsQuestions, setAnalyticsQuestions] = useState([])
   const [analyticsQuestionHistory, setAnalyticsQuestionHistory] = useState([])
   const [profiles, setProfiles] = useState({ teams: [], moderators: [] })
-  const API_BASE = 'http://localhost:5000/api'
+  const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api'
   const SOCKET_BASE = API_BASE.replace(/\/api$/, '')
   const apiBaseHost = useMemo(() => API_BASE.replace(/\/api$/, ''), [API_BASE])
   const normalizeAvatar = useCallback(
