@@ -370,12 +370,12 @@ function AppShell() {
         return previous.map((item) =>
           item.id === normalized.id
             ? {
-                ...normalized,
-                wins: existing.wins ?? normalized.wins,
-                losses: existing.losses ?? normalized.losses,
-                totalScore: existing.totalScore ?? normalized.totalScore,
-                eliminated: existing.eliminated ?? normalized.eliminated,
-              }
+              ...normalized,
+              wins: existing.wins ?? normalized.wins,
+              losses: existing.losses ?? normalized.losses,
+              totalScore: existing.totalScore ?? normalized.totalScore,
+              eliminated: existing.eliminated ?? normalized.eliminated,
+            }
             : item,
         )
       }
@@ -537,14 +537,18 @@ function AppShell() {
     const championId = targetTournament.champions?.winners || ''
     const championName = championId ? getTeamName(championId) : ''
     const matchRows = [
-      ['MatchId', 'HomeTeamId', 'AwayTeamId', 'WinnerId', 'HomeScore', 'AwayScore', 'CompletedAt'],
+      ['MatchId', 'HomeTeamId', 'HomeTeamName', 'AwayTeamId', 'AwayTeamName', 'WinnerId', 'WinnerName', 'HomeScore', 'AwayScore', 'CompletedAt'],
       ...(matches || []).map((match) => {
         const [home, away] = match.teams || []
+        const winnerId = match.winnerId || ''
         return [
           match.id,
           home || '',
+          getTeamName(home),
           away || '',
-          match.winnerId || '',
+          getTeamName(away),
+          winnerId,
+          getTeamName(winnerId),
           match.scores?.[home] ?? 0,
           match.scores?.[away] ?? 0,
           match.completedAt || '',
@@ -592,12 +596,12 @@ function AppShell() {
         typeof payload === 'string'
           ? { csv: payload }
           : Array.isArray(payload)
-          ? { questions: payload }
-          : payload?.csv
-          ? { csv: payload.csv }
-          : payload?.questions
-          ? { questions: payload.questions }
-          : null
+            ? { questions: payload }
+            : payload?.csv
+              ? { csv: payload.csv }
+              : payload?.questions
+                ? { questions: payload.questions }
+                : null
 
       if (!body) {
         throw new Error('No questions provided')
@@ -646,8 +650,8 @@ function AppShell() {
         typeof data === 'string'
           ? { data }
           : data?.data
-          ? { data: data.data }
-          : null
+            ? { data: data.data }
+            : null
       if (!body) throw new Error('No avatar data provided')
       const result = await requestJson('/profile/avatar', { method: 'POST', auth: true, body })
       const rawUrl = result?.url
@@ -709,12 +713,12 @@ function AppShell() {
         const existing = previousMap.get(normalized.id)
         return existing
           ? {
-              ...normalized,
-              wins: existing.wins ?? normalized.wins,
-              losses: existing.losses ?? normalized.losses,
-              totalScore: existing.totalScore ?? normalized.totalScore,
-              eliminated: existing.eliminated ?? normalized.eliminated,
-            }
+            ...normalized,
+            wins: existing.wins ?? normalized.wins,
+            losses: existing.losses ?? normalized.losses,
+            totalScore: existing.totalScore ?? normalized.totalScore,
+            eliminated: existing.eliminated ?? normalized.eliminated,
+          }
           : normalized
       })
     })
@@ -750,12 +754,12 @@ function AppShell() {
             const existing = previousMap.get(team.id)
             return existing
               ? {
-                  ...team,
-                  wins: existing.wins ?? team.wins,
-                  losses: existing.losses ?? team.losses,
-                  totalScore: existing.totalScore ?? team.totalScore,
-                  eliminated: existing.eliminated ?? team.eliminated,
-                }
+                ...team,
+                wins: existing.wins ?? team.wins,
+                losses: existing.losses ?? team.losses,
+                totalScore: existing.totalScore ?? team.totalScore,
+                eliminated: existing.eliminated ?? team.eliminated,
+              }
               : team
           })
       })
@@ -1273,13 +1277,13 @@ function AppShell() {
         })),
       )
 
-  const resetProgress = () => {
-    finalizedMatchesRef.current = new Set()
-    setActiveMatches([])
-    setMatchHistory([])
-    setRecentResult(null)
-    setTournamentLaunched(false)
-  }
+    const resetProgress = () => {
+      finalizedMatchesRef.current = new Set()
+      setActiveMatches([])
+      setMatchHistory([])
+      setRecentResult(null)
+      setTournamentLaunched(false)
+    }
 
     const createTournamentViaApi = async () => {
       try {
@@ -1451,9 +1455,9 @@ function AppShell() {
         previous.map((item) =>
           item.id === matchId
             ? {
-                ...item,
-                coinToss: { ...item.coinToss, status: 'flipping', resultFace: null, winnerId: null },
-              }
+              ...item,
+              coinToss: { ...item.coinToss, status: 'flipping', resultFace: null, winnerId: null },
+            }
             : item,
         ),
       )
@@ -2057,7 +2061,7 @@ function AppShell() {
           </ProtectedRoute>
         }
       />
-      
+
       <Route
         path="/moderator"
         element={
