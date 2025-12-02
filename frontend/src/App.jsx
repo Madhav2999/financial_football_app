@@ -533,6 +533,9 @@ function AppShell() {
   const handleDownloadTournamentArchive = (targetTournament = tournament, matches = matchHistory, questions = analyticsQuestions) => {
     if (!targetTournament) return
     const snapshotQuestions = targetTournament.state?.questionStats?.questions
+    const getTeamName = (id) => teams.find((team) => team.id === id)?.name || id || ''
+    const championId = targetTournament.champions?.winners || ''
+    const championName = championId ? getTeamName(championId) : ''
     const matchRows = [
       ['MatchId', 'HomeTeamId', 'AwayTeamId', 'WinnerId', 'HomeScore', 'AwayScore', 'CompletedAt'],
       ...(matches || []).map((match) => {
@@ -563,7 +566,8 @@ function AppShell() {
 
     const topRows = [
       ['Tournament', targetTournament.name || 'Tournament', 'Status', targetTournament.status || ''],
-      ['ChampionId', targetTournament.champions?.winners || '', 'CompletedAt', targetTournament.completedAt || ''],
+      ['ChampionId', championId, 'ChampionName', championName],
+      ['CompletedAt', targetTournament.completedAt || '', '', ''],
       [],
       ['Matches'],
     ]
