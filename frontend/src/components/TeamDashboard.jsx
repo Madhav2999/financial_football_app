@@ -210,7 +210,7 @@ export default function TeamDashboard({
               />
             ) : null}
             <a
-              href="https://res.cloudinary.com/dusnwmabc/raw/upload/v1/media-consent-form.pdf"
+              href="https://drive.google.com/file/d/1RStK7_4Y-tqvMBv_iwxE6CjawFLbD4yX/view?usp=sharing"
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-full border border-amber-400/60 bg-amber-500/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-200 hover:border-amber-300 hover:text-amber-100"
