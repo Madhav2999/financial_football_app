@@ -812,7 +812,10 @@ function AppShell() {
   const hydrateLiveMatchesFromBackend = useCallback(async () => {
     if (!tournament?.matches) return
     const missing = Object.values(tournament.matches).filter(
-      (match) => match.matchRefId && !activeMatches.some((live) => live.id === match.matchRefId),
+      (match) =>
+        match.matchRefId &&
+        match.status !== 'completed' &&
+        !activeMatches.some((live) => live.id === match.matchRefId),
     )
     if (!missing.length) return
     for (const match of missing) {
@@ -1004,6 +1007,31 @@ function AppShell() {
   useEffect(() => {
     hydrateLiveMatchesFromBackend()
   }, [hydrateLiveMatchesFromBackend])
+
+  // On socket reconnect, rejoin rooms and refetch active live matches to catch up timers/state
+  useEffect(() => {
+    const socket = ensureSocket()
+    if (!socket) return
+    const handleReconnect = () => {
+      const active = activeMatchesRef.current || []
+      active.forEach((match) => {
+        socket.emit('liveMatch:join', { matchId: match.id })
+        requestJson(`/live-matches/${match.id}`, { auth: true })
+          .then((result) => {
+            if (result?.match) {
+              upsertActiveMatch(result.match)
+            }
+          })
+          .catch(() => {
+            // ignore errors; match may be completed/removed
+          })
+      })
+    }
+    socket.on('connect', handleReconnect)
+    return () => {
+      socket.off('connect', handleReconnect)
+    }
+  }, [ensureSocket, requestJson, upsertActiveMatch])
 
   useEffect(() => {
     if (session.type !== 'admin') return
