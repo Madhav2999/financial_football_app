@@ -31,7 +31,13 @@ app.use((err, req, res, _next) => {
 const server = http.createServer(app)
 const io = new SocketIOServer(server, {
   cors: { origin: security.allowedOrigins, credentials: true },
-})
+  transports: ['websocket', 'polling'],
+  pingInterval: 25000,
+  pingTimeout: 60000,
+  perMessageDeflate: false,
+  allowEIO3: true
+});
+
 
 registerSocketHandlers(io)
 
