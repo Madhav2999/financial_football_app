@@ -85,12 +85,12 @@ const registerSocketHandlers = (io) => {
           decision: null,
         },
       }
-      io.to(`live-match:${matchId}`).emit('liveMatch:update', flippingState)
+      io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...flippingState, serverNow: Date.now() })
 
       const updated = flipCoin(matchId, forceWinnerId)
       if (updated) {
         setTimeout(() => {
-          io.to(`live-match:${matchId}`).emit('liveMatch:update', updated)
+          io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...updated, serverNow: Date.now() })
         }, 1800)
       }
     })
@@ -100,7 +100,7 @@ const registerSocketHandlers = (io) => {
       if (!match || !canControlMatch(socket, match, deciderId)) return
       const updated = decideFirst(matchId, deciderId, firstTeamId)
       if (updated) {
-        io.to(`live-match:${matchId}`).emit('liveMatch:update', updated)
+        io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...updated, serverNow: Date.now() })
       }
     })
 
@@ -109,7 +109,7 @@ const registerSocketHandlers = (io) => {
       if (!match || !canAnswer(socket, match, teamId)) return
       const updated = await submitAnswer(matchId, teamId, answerKey)
       if (updated) {
-        io.to(`live-match:${matchId}`).emit('liveMatch:update', updated)
+        io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...updated, serverNow: Date.now() })
       }
     })
 
@@ -118,7 +118,7 @@ const registerSocketHandlers = (io) => {
       if (!match || !canControlMatch(socket, match)) return
       const updated = pauseMatch(matchId)
       if (updated) {
-        io.to(`live-match:${matchId}`).emit('liveMatch:update', updated)
+        io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...updated, serverNow: Date.now() })
       }
     })
 
@@ -127,7 +127,7 @@ const registerSocketHandlers = (io) => {
       if (!match || !canControlMatch(socket, match)) return
       const updated = resumeMatch(matchId)
       if (updated) {
-        io.to(`live-match:${matchId}`).emit('liveMatch:update', updated)
+        io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...updated, serverNow: Date.now() })
       }
     })
 
@@ -136,7 +136,7 @@ const registerSocketHandlers = (io) => {
       if (!match || !canControlMatch(socket, match)) return
       const updated = resetMatch(matchId)
       if (updated) {
-        io.to(`live-match:${matchId}`).emit('liveMatch:update', updated)
+        io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...updated, serverNow: Date.now() })
       }
     })
 
@@ -155,7 +155,7 @@ const registerSocketHandlers = (io) => {
 
   liveMatchEmitter.on('update', (match) => {
     if (!match) return
-    io.to(`live-match:${match.id}`).emit('liveMatch:update', match)
+    io.to(`live-match:${match.id}`).emit('liveMatch:update', { ...match, serverNow: Date.now() })
   })
 }
 

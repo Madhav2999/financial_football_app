@@ -307,6 +307,10 @@ function AppShell() {
           setActiveMatches((previous) => previous.filter((item) => item.id !== match.id))
           return
         }
+        // propagate serverNow onto timer for clock offset handling
+        if (match.serverNow && match.timer) {
+          match.timer = { ...match.timer, serverNow: match.serverNow }
+        }
         const prior = activeMatchesRef.current.find((item) => item.id === match.id)
         const isFlipUpdate = match.coinToss?.status === 'flipped' || match.coinToss?.status === 'decided'
         const wasFlipping = prior?.coinToss?.status === 'flipping'
@@ -822,11 +826,16 @@ function AppShell() {
       try {
         const result = await requestJson(`/live-matches/${match.matchRefId}`, { auth: true })
         if (result?.match) {
+          if (result.match.timer) {
+            result.match.timer = { ...result.match.timer, serverNow: Date.now() }
+          }
           upsertActiveMatch(result.match)
           joinLiveMatchRoom(result.match.id)
         }
       } catch (error) {
-        console.error(`Failed to hydrate live match ${match.matchRefId}`, error)
+        if (error?.message !== 'Live match not found') {
+          console.error(`Failed to hydrate live match ${match.matchRefId}`, error)
+        }
       }
     }
   }, [activeMatches, joinLiveMatchRoom, requestJson, tournament?.matches])
