@@ -21,10 +21,8 @@ export const uploadImage = async (dataUri, filenameHint = 'avatar') => {
   }
   const result = await cloudinary.uploader.upload(dataUri, {
     folder: CLOUDINARY_UPLOAD_FOLDER,
-    resource_type: 'auto',
-    // let Cloudinary generate a unique public_id to avoid overwriting previous uploads
-    use_filename: false,
-    unique_filename: true,
+    resource_type: 'image',
+    public_id: filenameHint ? filenameHint.replace(/\s+/g, '-').toLowerCase() : undefined,
     overwrite: false,
   })
   return result?.secure_url || result?.url
