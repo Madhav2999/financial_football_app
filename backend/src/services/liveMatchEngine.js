@@ -13,6 +13,19 @@ const matches = new Map()
 const timerHandles = new Map()
 const liveMatchEvents = new EventEmitter()
 
+const withRunningTimerRemaining = (match) => {
+  if (!match?.timer || match.timer.status !== 'running') return match
+  const now = Date.now()
+  const remainingMs = Math.max(0, (match.timer.deadline ?? now) - now)
+  return {
+    ...match,
+    timer: {
+      ...match.timer,
+      remainingMs,
+    },
+  }
+}
+
 const generateMatchId = () => `match-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 const toObjectId = (value) => {
   if (!value) return null
@@ -204,14 +217,16 @@ const persistLiveMatchSnapshot = async (match) => {
 }
 
 const emitUpdate = (match) => {
-  liveMatchEvents.emit('update', match)
+  const hydrated = withRunningTimerRemaining(match)
+  liveMatchEvents.emit('update', hydrated)
 }
 
 const setMatch = (match) => {
-  matches.set(match.id, match)
-  persistLiveMatchSnapshot(match)
-  emitUpdate(match)
-  return match
+  const hydrated = withRunningTimerRemaining(match)
+  matches.set(hydrated.id, hydrated)
+  persistLiveMatchSnapshot(hydrated)
+  emitUpdate(hydrated)
+  return hydrated
 }
 
 const getMatch = (matchId) => matches.get(matchId) ?? null
@@ -239,6 +254,7 @@ const scheduleTimer = (match) => {
   const updatedMatch = { ...match, timer: updatedTimer }
   matches.set(match.id, updatedMatch)
   persistLiveMatchSnapshot(updatedMatch)
+  emitUpdate(updatedMatch)
   const handle = setTimeout(() => {
     handleTimerExpire(match.id).catch((error) => console.error('Timer expire failed', error))
   }, remainingMs)
