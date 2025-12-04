@@ -284,7 +284,6 @@ function AppShell() {
     if (!socketRef.current) {
       const socket = io(SOCKET_BASE, {
         autoConnect: true,
-        transports: ['websocket', 'polling'],
         auth: session?.token ? { token: session.token } : {},
       })
 
