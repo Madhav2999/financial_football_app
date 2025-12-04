@@ -11,16 +11,6 @@ const DURATION_BY_TYPE = {
 
 export function useMatchTimer(timer) {
   const [now, setNow] = useState(Date.now())
-  const [clockSkew, setClockSkew] = useState(0)
-
-  useEffect(() => {
-    // Capture server/client clock skew once per timer payload.
-    if (timer?.serverNow) {
-      setClockSkew(timer.serverNow - Date.now())
-    } else {
-      setClockSkew(0)
-    }
-  }, [timer?.serverNow])
 
   useEffect(() => {
     if (!timer || timer.status !== 'running' || !timer.deadline) {
@@ -40,12 +30,11 @@ export function useMatchTimer(timer) {
   const totalMs = timer?.durationMs ?? defaultDuration
 
   let remainingMs = totalMs
-  const adjustedNow = now + clockSkew
 
   if (!timer) {
     remainingMs = 0
   } else if (timer.status === 'running' && timer.deadline) {
-    remainingMs = Math.max(0, timer.deadline - adjustedNow)
+    remainingMs = Math.max(0, timer.deadline - now)
   } else if (timer.status === 'paused') {
     remainingMs = Math.max(0, timer.remainingMs ?? totalMs)
   } else if (timer.status === 'idle') {
