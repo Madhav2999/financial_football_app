@@ -612,6 +612,10 @@ function AppShell() {
         bronzeId = losersCompleted[0]?.loserId || ''
       }
 
+      // Champion aligns to gold.
+      const championId = goldId
+      const championName = championId ? getTeamName(championId) : ''
+
       const podiumRows = [
         ['GoldId', goldId, 'GoldName', getTeamName(goldId)],
         ['SilverId', silverId, 'SilverName', getTeamName(silverId)],
