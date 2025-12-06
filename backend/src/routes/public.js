@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { Moderator, Team, TeamRecord, Tournament } from '../db/models/index.js'
 import { subscribeToTournamentUpdates } from '../services/tournamentEvents.js'
+import { sanitizeTournament } from '../services/tournamentState.js'
 
 const publicRouter = Router()
 
@@ -31,17 +32,6 @@ const sanitizeModerator = (moderatorDoc) => ({
   displayName: moderatorDoc.displayName,
   role: moderatorDoc.role,
   permissions: moderatorDoc.permissions,
-})
-
-const sanitizeTournament = (doc) => ({
-  id: doc._id.toString(),
-  name: doc.name,
-  status: doc.status,
-  teams: doc.teams?.map((teamId) => teamId.toString()) ?? [],
-  settings: doc.settings ?? {},
-  createdAt: doc.createdAt,
-  updatedAt: doc.updatedAt,
-  state: doc.state ?? null,
 })
 
 publicRouter.get('/teams', async (req, res, next) => {
