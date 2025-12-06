@@ -2,6 +2,63 @@ import Tournament from '../db/models/tournament.js'
 import Question from '../db/models/question.js'
 import { publishTournamentUpdate } from './tournamentEvents.js'
 
+const toId = (value) => (value && value.toString ? value.toString() : value ?? null)
+
+const sanitizeState = (state) => {
+  if (!state) return null
+
+  const sanitizeMatches = (matches = {}) => {
+    const next = {}
+    Object.entries(matches).forEach(([matchId, match]) => {
+      const history = Array.isArray(match.history)
+        ? match.history.map((entry) => ({
+            ...entry,
+            winnerId: toId(entry.winnerId),
+            loserId: toId(entry.loserId),
+          }))
+        : []
+      next[matchId] = {
+        ...match,
+        id: match.id || matchId,
+        stageId: match.stageId,
+        bracket: match.bracket,
+        teams: Array.isArray(match.teams) ? match.teams.map(toId) : [],
+        winnerId: toId(match.winnerId),
+        loserId: toId(match.loserId),
+        moderatorId: toId(match.moderatorId),
+        matchRefId: match.matchRefId ? match.matchRefId.toString() : match.matchRefId ?? null,
+        history,
+      }
+    })
+    return next
+  }
+
+  const sanitizeStages = (stages = {}) => {
+    const next = {}
+    Object.entries(stages).forEach(([stageId, stage]) => {
+      next[stageId] = {
+        ...stage,
+        id: stage.id || stageId,
+        matchIds: Array.isArray(stage.matchIds) ? stage.matchIds.map(String) : [],
+      }
+    })
+    return next
+  }
+
+  return {
+    ...state,
+    matches: sanitizeMatches(state.matches),
+    stages: sanitizeStages(state.stages),
+    championId: toId(state.championId),
+    champions: state.champions
+      ? {
+          winners: toId(state.champions.winners),
+          losers: toId(state.champions.losers),
+        }
+      : state.champions,
+  }
+}
+
 const sanitizeTournament = (doc) => ({
   id: doc._id.toString(),
   name: doc.name,
@@ -10,7 +67,7 @@ const sanitizeTournament = (doc) => ({
   settings: doc.settings ?? {},
   createdAt: doc.createdAt,
   updatedAt: doc.updatedAt,
-  state: doc.state ?? null,
+  state: sanitizeState(doc.state),
 })
 
 const syncTournamentStatus = (tournamentDoc, state) => {
