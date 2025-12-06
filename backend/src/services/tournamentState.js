@@ -11,12 +11,27 @@ const sanitizeState = (state) => {
     const next = {}
     Object.entries(matches).forEach(([matchId, match]) => {
       const history = Array.isArray(match.history)
-        ? match.history.map((entry) => ({
-            ...entry,
-            winnerId: toId(entry.winnerId),
-            loserId: toId(entry.loserId),
-          }))
+        ? match.history.map((entry) => {
+            const scoreEntries = entry?.scores ? Object.entries(entry.scores) : []
+            const normalizedScores = scoreEntries.reduce((acc, [teamId, val]) => {
+              // handle mongo number objects {$numberInt: "..."} etc.
+              const num =
+                typeof val === 'object' && val !== null
+                  ? Number(val.$numberInt ?? val.$numberDouble ?? val.$numberLong ?? val)
+                  : Number(val ?? 0)
+              acc[teamId] = Number.isFinite(num) ? num : 0
+              return acc
+            }, {})
+            return {
+              ...entry,
+              winnerId: toId(entry.winnerId),
+              loserId: toId(entry.loserId),
+              scores: normalizedScores,
+            }
+          })
         : []
+      const lastHistory = history.length ? history[history.length - 1] : null
+      const completedAt = match.completedAt || lastHistory?.timestamp || null
       next[matchId] = {
         ...match,
         id: match.id || matchId,
@@ -28,6 +43,7 @@ const sanitizeState = (state) => {
         moderatorId: toId(match.moderatorId),
         matchRefId: match.matchRefId ? match.matchRefId.toString() : match.matchRefId ?? null,
         history,
+        completedAt,
       }
     })
     return next
