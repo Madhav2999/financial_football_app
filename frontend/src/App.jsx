@@ -546,10 +546,43 @@ function AppShell() {
 
       if (!targetTournament) return
 
-      // 2) Fetch completed matches and filter to the target tournament (for scores).
-      const matchesResp = await requestJson('/matches/history?limit=300', { auth: true })
-      const allMatches = Array.isArray(matchesResp?.matches) ? matchesResp.matches : []
-      const matchesForTournament = allMatches.filter((m) => m.tournamentId === targetTournament.id)
+      const getTeamName = (id) => teams.find((team) => team.id === id)?.name || id || ''
+
+      // 2) Use tournament state matches directly (instead of global history).
+      const matchesState = Object.values(targetTournament.state?.matches ?? {})
+      const stagesState = targetTournament.state?.stages ?? {}
+      const stageOrder = (match) => stagesState[match.stageId]?.order ?? 0
+      const matchTimestamp = (match) => {
+        const lastHistory = Array.isArray(match.history) && match.history.length ? match.history[match.history.length - 1] : null
+        return match.completedAt || lastHistory?.timestamp || 0
+      }
+      const sortedMatches = [...matchesState].sort((a, b) => {
+        const orderDiff = stageOrder(a) - stageOrder(b)
+        if (orderDiff !== 0) return orderDiff
+        return matchTimestamp(a) - matchTimestamp(b)
+      })
+
+      const matchRows = [
+        ['MatchId', 'HomeTeamId', 'HomeTeamName', 'AwayTeamId', 'AwayTeamName', 'WinnerId', 'WinnerName', 'HomeScore', 'AwayScore', 'CompletedAt'],
+        ...sortedMatches.map((match) => {
+          const [home, away] = match.teams || []
+          const winnerId = match.winnerId || ''
+          const lastHistory = Array.isArray(match.history) && match.history.length ? match.history[match.history.length - 1] : null
+          const scores = lastHistory?.scores ?? match.scores ?? {}
+          return [
+            match.id,
+            home || '',
+            getTeamName(home),
+            away || '',
+            getTeamName(away),
+            winnerId,
+            getTeamName(winnerId),
+            scores?.[home] ?? 0,
+            scores?.[away] ?? 0,
+            lastHistory?.timestamp || '',
+          ]
+        }),
+      ]
 
       // 3) Pick question stats for this tournament.
       const questionsFromHistory =
@@ -557,14 +590,12 @@ function AppShell() {
       const snapshotQuestions = targetTournament.state?.questionStats?.questions
       const questions = snapshotQuestions || questionsFromHistory || analyticsQuestions || []
 
-      const getTeamName = (id) => teams.find((team) => team.id === id)?.name || id || ''
-      const championId = targetTournament.champions?.winners || ''
+      const championId = targetTournament.state?.championId || targetTournament.champions?.winners || ''
       const championName = championId ? getTeamName(championId) : ''
 
       // Derive podium (gold/silver/bronze) from tournament state.
-      const matchesState = Object.values(targetTournament.state?.matches ?? {})
-      const stagesState = Object.values(targetTournament.state?.stages ?? {})
-      const getTimestamp = (m) => m?.completedAt || m?.history?.[m.history.length - 1]?.timestamp || 0
+      const stagesArray = Object.values(stagesState)
+      const getTimestamp = (m) => m?.completedAt || (m?.history?.length ? m.history[m.history.length - 1]?.timestamp : 0) || 0
       const finalsCompleted = matchesState.filter((m) => m.bracket === 'finals' && m.status === 'completed')
       const finalMatch = finalsCompleted.sort((a, b) => getTimestamp(b) - getTimestamp(a))[0] || null
       const goldId = finalMatch?.winnerId || championId || ''
@@ -572,7 +603,7 @@ function AppShell() {
 
       let bronzeId = ''
       if (teams.length >= 3) {
-        const losersStages = stagesState
+        const losersStages = stagesArray
           .filter((s) => s.bracket === 'losers')
           .sort((a, b) => (b.order ?? 0) - (a.order ?? 0))
         for (const stage of losersStages) {
@@ -591,26 +622,6 @@ function AppShell() {
         ['SilverId', silverId, 'SilverName', getTeamName(silverId)],
         ['BronzeId', bronzeId, 'BronzeName', getTeamName(bronzeId)],
         [],
-      ]
-
-      const matchRows = [
-        ['MatchId', 'HomeTeamId', 'HomeTeamName', 'AwayTeamId', 'AwayTeamName', 'WinnerId', 'WinnerName', 'HomeScore', 'AwayScore', 'CompletedAt'],
-        ...(matchesForTournament || []).map((match) => {
-          const [home, away] = match.teams || []
-          const winnerId = match.winnerId || ''
-          return [
-            match.id,
-            home || '',
-            getTeamName(home),
-            away || '',
-            getTeamName(away),
-            winnerId,
-            getTeamName(winnerId),
-            match.scores?.[home] ?? 0,
-            match.scores?.[away] ?? 0,
-            match.completedAt || '',
-          ]
-        }),
       ]
 
       const questionRows = [
