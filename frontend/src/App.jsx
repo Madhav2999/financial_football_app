@@ -596,7 +596,10 @@ function AppShell() {
       // Derive podium (gold/silver/bronze) from matches only.
       const getTimestamp = (m) => m?.completedAt || (m?.history?.length ? m.history[m.history.length - 1]?.timestamp : 0) || 0
       const finalsCompleted = matchesState
-        .filter((m) => m.bracket === 'finals' && m.status === 'completed')
+        .filter((m) => {
+          const key = m.id || ''
+          return m.status === 'completed' && key.startsWith('final')
+        })
         .sort((a, b) => {
           const roundA = a.meta?.roundNumber ?? 0
           const roundB = b.meta?.roundNumber ?? 0
@@ -610,7 +613,10 @@ function AppShell() {
       let bronzeId = ''
       if (teams.length >= 3) {
         const losersCompleted = matchesState
-          .filter((m) => m.bracket === 'losers' && m.status === 'completed')
+          .filter((m) => {
+            const key = m.id || ''
+            return m.status === 'completed' && key.startsWith('losers')
+          })
           .sort((a, b) => getTimestamp(b) - getTimestamp(a))
         bronzeId = losersCompleted[0]?.loserId || ''
       }

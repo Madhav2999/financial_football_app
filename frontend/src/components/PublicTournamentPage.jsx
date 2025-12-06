@@ -126,10 +126,14 @@ export default function PublicTournamentPage({
     if (!tournament || !Array.isArray(teams)) return null;
     const teamName = (id) => teams.find((t) => t.id === id)?.name || id || "TBD";
     const matchesState = Object.values(tournament.state?.matches ?? {});
+    const champions = tournament.state?.champions || {};
     const getTimestamp = (m) => m?.completedAt || (m?.history?.[m.history.length - 1]?.timestamp) || 0;
 
     const finalsCompleted = matchesState
-      .filter((m) => m.bracket === "finals" && m.status === "completed")
+      .filter((m) => {
+        const key = m.id || "";
+        return m.status === "completed" && key.startsWith("final");
+      })
       .sort((a, b) => {
         const roundA = a.meta?.roundNumber ?? 0;
         const roundB = b.meta?.roundNumber ?? 0;
@@ -138,13 +142,16 @@ export default function PublicTournamentPage({
       });
     const finalMatch = finalsCompleted[0] || null;
 
-    const goldId = finalMatch?.winnerId || null;
-    const silverId = finalMatch?.loserId || null;
+    const goldId = finalMatch?.winnerId || champions.winners || tournament.state?.championId || null;
+    const silverId = finalMatch?.loserId || champions.losers || null;
 
     let bronzeId = null;
     if (teams.length >= 3) {
       const losersCompleted = matchesState
-        .filter((m) => m.bracket === "losers" && m.status === "completed")
+        .filter((m) => {
+          const key = m.id || "";
+          return m.status === "completed" && key.startsWith("losers");
+        })
         .sort((a, b) => getTimestamp(b) - getTimestamp(a));
       bronzeId = losersCompleted[0]?.loserId || null;
     }
