@@ -644,6 +644,48 @@ function AppShell() {
     [requestJson],
   )
 
+  const fetchAllQuestions = useCallback(
+    async ({ page = 1, limit = 20 } = {}) => {
+      const params = new URLSearchParams({ page, limit })
+      const result = await requestJson(`/allquestions?${params.toString()}`, { auth: true })
+      return Array.isArray(result?.questions) ? result.questions : []
+    },
+    [requestJson],
+  )
+
+  const searchQuestions = useCallback(
+    async ({ text = '', category, difficulty, tag, sort = 'recent', page = 1, limit = 20 } = {}) => {
+      const params = new URLSearchParams({ text, sort, page, limit })
+      if (category) params.set('category', category)
+      if (difficulty) params.set('difficulty', difficulty)
+      if (tag) params.set('tag', tag)
+      const result = await requestJson(`/allquestions/search?${params.toString()}`, { auth: true })
+      return {
+        questions: Array.isArray(result?.questions) ? result.questions : [],
+        total: result?.total ?? 0,
+        page: result?.page ?? page,
+        totalPages: result?.totalPages ?? 1,
+      }
+    },
+    [requestJson],
+  )
+
+  const updateQuestion = useCallback(
+    async (id, payload) => {
+      if (!id) throw new Error('Question id is required')
+      return requestJson(`/allquestions/${id}`, { method: 'PUT', auth: true, body: payload })
+    },
+    [requestJson],
+  )
+
+  const deleteQuestion = useCallback(
+    async (id) => {
+      if (!id) throw new Error('Question id is required')
+      return requestJson(`/allquestions/${id}`, { method: 'DELETE', auth: true })
+    },
+    [requestJson],
+  )
+
   const loadProfiles = useCallback(async () => {
     if (session.type !== 'admin') return
     try {
@@ -2108,6 +2150,10 @@ function AppShell() {
               fetchArchives={fetchArchives}
               onDeleteTournamentArchive={deleteTournamentArchive}
               onImportQuestions={importQuestions}
+              onFetchAllQuestions={fetchAllQuestions}
+              onSearchQuestions={searchQuestions}
+              onUpdateQuestion={updateQuestion}
+              onDeleteQuestion={deleteQuestion}
               profiles={profiles}
               onSetProfilePassword={setProfilePassword}
               onDeleteTeamProfile={deleteTeamAccount}

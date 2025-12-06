@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { to: 'analytics', label: 'Analytics' },
   { to: 'archive', label: 'Archive' },
   { to: 'questions', label: 'Questions' },
+  { to: 'all-questions', label: 'All Questions' },
   { to: 'profiles', label: 'Profiles' },
 ]
 
@@ -55,6 +56,10 @@ export default function AdminDashboard(props) {
     fetchArchives,
     onDeleteTournamentArchive,
     onImportQuestions,
+    onFetchAllQuestions,
+    onSearchQuestions,
+    onUpdateQuestion,
+    onDeleteQuestion,
     profiles,
     onSetProfilePassword,
     onDeleteTeamProfile,
@@ -191,6 +196,17 @@ export default function AdminDashboard(props) {
             <Route
               path="questions"
               element={<AdminQuestionsTab onImport={onImportQuestions} />}
+            />
+            <Route
+              path="all-questions"
+              element={
+                <AdminAllQuestionsTab
+                  getQuestions={onFetchAllQuestions}
+                  onSearch={onSearchQuestions}
+                  onUpdate={onUpdateQuestion}
+                  onDelete={onDeleteQuestion}
+                />
+              }
             />
             <Route
               path="profiles"
