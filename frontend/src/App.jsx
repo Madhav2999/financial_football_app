@@ -598,7 +598,7 @@ function AppShell() {
       const finalsCompleted = matchesState
         .filter((m) => m.bracket === 'finals' && m.status === 'completed')
         .sort((a, b) => {
-          const roundA = m.meta?.roundNumber ?? 0
+          const roundA = a.meta?.roundNumber ?? 0
           const roundB = b.meta?.roundNumber ?? 0
           if (roundA !== roundB) return roundB - roundA
           return getTimestamp(b) - getTimestamp(a)
