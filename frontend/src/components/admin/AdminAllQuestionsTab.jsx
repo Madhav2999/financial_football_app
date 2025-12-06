@@ -185,7 +185,7 @@ export default function AdminAllQuestionsTab({ getQuestions, onSearch, onUpdate,
                 key={q.id}
                 className="rounded-3xl border border-slate-800 bg-slate-950/60 p-5 text-sm text-slate-200 shadow shadow-slate-900/30"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="items-start justify-between gap-3">
                   <div className="space-y-2">
                     <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Prompt</p>
                     {isEditing ? (
