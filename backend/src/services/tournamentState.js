@@ -32,6 +32,7 @@ const sanitizeState = (state) => {
         : []
       const lastHistory = history.length ? history[history.length - 1] : null
       const completedAt = match.completedAt || lastHistory?.timestamp || null
+      const scores = lastHistory?.scores || match.scores || {}
       next[matchId] = {
         ...match,
         id: match.id || matchId,
@@ -43,6 +44,7 @@ const sanitizeState = (state) => {
         moderatorId: toId(match.moderatorId),
         matchRefId: match.matchRefId ? match.matchRefId.toString() : match.matchRefId ?? null,
         history,
+        scores,
         completedAt,
       }
     })

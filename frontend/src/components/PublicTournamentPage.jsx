@@ -127,13 +127,14 @@ export default function PublicTournamentPage({
     const teamName = (id) => teams.find((t) => t.id === id)?.name || id || "TBD";
     const matchesState = Object.values(tournament.state?.matches ?? {});
     const stagesState = Object.values(tournament.state?.stages ?? {});
+    const champions = tournament.state?.champions || tournament.champions || {};
     const getTimestamp = (m) => m?.completedAt || m?.history?.[m.history.length - 1]?.timestamp || 0;
 
     const finalsCompleted = matchesState.filter((m) => m.bracket === "finals" && m.status === "completed");
     const finalMatch = finalsCompleted.sort((a, b) => getTimestamp(b) - getTimestamp(a))[0] || null;
 
-    const goldId = finalMatch?.winnerId || tournament.champions?.winners || null;
-    const silverId = finalMatch?.loserId || null;
+    const goldId = finalMatch?.winnerId || champions.winners || tournament.state?.championId || null;
+    const silverId = finalMatch?.loserId || champions.losers || null;
 
     let bronzeId = null;
     if (teams.length >= 3) {

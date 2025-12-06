@@ -592,14 +592,15 @@ function AppShell() {
 
       const championId = targetTournament.state?.championId || targetTournament.champions?.winners || ''
       const championName = championId ? getTeamName(championId) : ''
+      const champions = targetTournament.state?.champions || targetTournament.champions || {}
 
       // Derive podium (gold/silver/bronze) from tournament state.
       const stagesArray = Object.values(stagesState)
       const getTimestamp = (m) => m?.completedAt || (m?.history?.length ? m.history[m.history.length - 1]?.timestamp : 0) || 0
       const finalsCompleted = matchesState.filter((m) => m.bracket === 'finals' && m.status === 'completed')
       const finalMatch = finalsCompleted.sort((a, b) => getTimestamp(b) - getTimestamp(a))[0] || null
-      const goldId = finalMatch?.winnerId || championId || ''
-      const silverId = finalMatch?.loserId || ''
+      const goldId = finalMatch?.winnerId || champions.winners || championId || ''
+      const silverId = finalMatch?.loserId || champions.losers || ''
 
       let bronzeId = ''
       if (teams.length >= 3) {
