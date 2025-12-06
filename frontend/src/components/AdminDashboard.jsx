@@ -7,6 +7,7 @@ import AdminApprovalsTab from './admin/AdminApprovalsTab'
 import AdminArchiveTab from './admin/AdminArchiveTab'
 import AdminQuestionsTab from './admin/AdminQuestionsTab'
 import AdminProfilesTab from './admin/AdminProfilesTab'
+import AdminAllQuestionsTab from './admin/AdminAllQuestionsTab'
 
 const NAV_ITEMS = [
   { to: 'overview', label: 'Overview' },

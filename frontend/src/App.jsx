@@ -534,66 +534,89 @@ function AppShell() {
     return postJson('/auth/reset-password', { token, newPassword, role })
   }
 
-  const handleDownloadTournamentArchive = (targetTournament = tournament, matches = matchHistory, questions = analyticsQuestions) => {
-    if (!targetTournament) return
-    const snapshotQuestions = targetTournament.state?.questionStats?.questions
-    const getTeamName = (id) => teams.find((team) => team.id === id)?.name || id || ''
-    const championId = targetTournament.champions?.winners || ''
-    const championName = championId ? getTeamName(championId) : ''
-    const matchRows = [
-      ['MatchId', 'HomeTeamId', 'HomeTeamName', 'AwayTeamId', 'AwayTeamName', 'WinnerId', 'WinnerName', 'HomeScore', 'AwayScore', 'CompletedAt'],
-      ...(matches || []).map((match) => {
-        const [home, away] = match.teams || []
-        const winnerId = match.winnerId || ''
-        return [
-          match.id,
-          home || '',
-          getTeamName(home),
-          away || '',
-          getTeamName(away),
-          winnerId,
-          getTeamName(winnerId),
-          match.scores?.[home] ?? 0,
-          match.scores?.[away] ?? 0,
-          match.completedAt || '',
-        ]
-      }),
-    ]
+  const handleDownloadTournamentArchive = useCallback(
+    async (tournamentId = tournament?.id) => {
+      let targetTournament = tournament
 
-    const questionRows = [
-      ['Prompt', 'Category', 'TimesAsked', 'Correct', 'Incorrect', 'AvgAccuracy'],
-      ...((snapshotQuestions ?? questions ?? []).map((q) => [
-        q.prompt,
-        q.category ?? '',
-        q.totalAsked ?? 0,
-        q.correctCount ?? 0,
-        q.incorrectCount ?? 0,
-        q.accuracy ?? '',
-      ])),
-    ]
+      // 1) Fetch the specific tournament if an id is provided and it's not the current one in state.
+      if (tournamentId && (!targetTournament || targetTournament.id !== tournamentId)) {
+        const result = await requestJson(`/tournaments/${tournamentId}`, { auth: true })
+        targetTournament = result?.tournament ? mapTournamentFromApi(result.tournament) : null
+      }
 
-    const topRows = [
-      ['Tournament', targetTournament.name || 'Tournament', 'Status', targetTournament.status || ''],
-      ['ChampionId', championId, 'ChampionName', championName],
-      ['CompletedAt', targetTournament.completedAt || '', '', ''],
-      [],
-      ['Matches'],
-    ]
+      if (!targetTournament) return
 
-    const toCsv = (rows) =>
-      rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
+      // 2) Fetch completed matches and filter to the target tournament.
+      const matchesResp = await requestJson('/matches/history?limit=200', { auth: true })
+      const allMatches = Array.isArray(matchesResp?.matches) ? matchesResp.matches : []
+      const matchesForTournament = allMatches.filter((m) => m.tournamentId === targetTournament.id)
 
-    const csv = [toCsv(topRows), toCsv(matchRows), '', 'Question Analytics', toCsv(questionRows)].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'tournament-archive.csv'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
+      // 3) Pick question stats for this tournament.
+      const questionsFromHistory =
+        analyticsQuestionHistory.find((entry) => entry.tournamentId === targetTournament.id)?.questions ?? null
+      const snapshotQuestions = targetTournament.state?.questionStats?.questions
+      const questions = snapshotQuestions || questionsFromHistory || analyticsQuestions || []
+
+      const getTeamName = (id) => teams.find((team) => team.id === id)?.name || id || ''
+      const championId = targetTournament.champions?.winners || ''
+      const championName = championId ? getTeamName(championId) : ''
+
+      const matchRows = [
+        ['MatchId', 'HomeTeamId', 'HomeTeamName', 'AwayTeamId', 'AwayTeamName', 'WinnerId', 'WinnerName', 'HomeScore', 'AwayScore', 'CompletedAt'],
+        ...(matchesForTournament || []).map((match) => {
+          const [home, away] = match.teams || []
+          const winnerId = match.winnerId || ''
+          return [
+            match.id,
+            home || '',
+            getTeamName(home),
+            away || '',
+            getTeamName(away),
+            winnerId,
+            getTeamName(winnerId),
+            match.scores?.[home] ?? 0,
+            match.scores?.[away] ?? 0,
+            match.completedAt || '',
+          ]
+        }),
+      ]
+
+      const questionRows = [
+        ['Prompt', 'Category', 'TimesAsked', 'Correct', 'Incorrect', 'AvgAccuracy'],
+        ...(questions.map((q) => [
+          q.prompt,
+          q.category ?? '',
+          q.totalAsked ?? 0,
+          q.correctCount ?? 0,
+          q.incorrectCount ?? 0,
+          q.accuracy ?? '',
+        ])),
+      ]
+
+      const topRows = [
+        ['Tournament', targetTournament.name || 'Tournament', 'Status', targetTournament.status || ''],
+        ['ChampionId', championId, 'ChampionName', championName],
+        ['CompletedAt', targetTournament.completedAt || '', '', ''],
+        [],
+        ['Matches'],
+      ]
+
+      const toCsv = (rows) =>
+        rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
+
+      const csv = [toCsv(topRows), toCsv(matchRows), '', 'Question Analytics', toCsv(questionRows)].join('\n')
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${(targetTournament.name || 'tournament')}-archive.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    },
+    [analyticsQuestionHistory, analyticsQuestions, requestJson, teams, tournament],
+  )
   const importQuestions = useCallback(
     async (payload) => {
       const body =
@@ -826,16 +849,11 @@ function AppShell() {
       try {
         const result = await requestJson(`/live-matches/${match.matchRefId}`, { auth: true })
         if (result?.match) {
-          if (result.match.timer) {
-            result.match.timer = { ...result.match.timer, serverNow: Date.now() }
-          }
           upsertActiveMatch(result.match)
           joinLiveMatchRoom(result.match.id)
         }
       } catch (error) {
-        if (error?.message !== 'Live match not found') {
-          console.error(`Failed to hydrate live match ${match.matchRefId}`, error)
-        }
+        console.error(`Failed to hydrate live match ${match.matchRefId}`, error)
       }
     }
   }, [activeMatches, joinLiveMatchRoom, requestJson, tournament?.matches])

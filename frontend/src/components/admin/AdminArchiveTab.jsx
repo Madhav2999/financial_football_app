@@ -68,7 +68,7 @@ export default function AdminArchiveTab({ onFetchArchives, onDownload, onDelete 
                   {onDownload ? (
                     <button
                       type="button"
-                      onClick={() => onDownload(item)}
+                      onClick={() => onDownload(item.id)}
                       className="rounded-full border border-sky-500/60 bg-sky-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-sky-200 transition hover:border-sky-400 hover:text-white"
                     >
                       Download CSV
