@@ -122,6 +122,43 @@ export default function PublicTournamentPage({
   moderators = [],
   history = [],
 }) {
+  const podium = useMemo(() => {
+    if (!tournament || !Array.isArray(teams)) return null;
+    const teamName = (id) => teams.find((t) => t.id === id)?.name || id || "TBD";
+    const matchesState = Object.values(tournament.state?.matches ?? {});
+    const stagesState = Object.values(tournament.state?.stages ?? {});
+    const getTimestamp = (m) => m?.completedAt || m?.history?.[m.history.length - 1]?.timestamp || 0;
+
+    const finalsCompleted = matchesState.filter((m) => m.bracket === "finals" && m.status === "completed");
+    const finalMatch = finalsCompleted.sort((a, b) => getTimestamp(b) - getTimestamp(a))[0] || null;
+
+    const goldId = finalMatch?.winnerId || tournament.champions?.winners || null;
+    const silverId = finalMatch?.loserId || null;
+
+    let bronzeId = null;
+    if (teams.length >= 3) {
+      const losersStages = stagesState
+        .filter((s) => s.bracket === "losers")
+        .sort((a, b) => (b.order ?? 0) - (a.order ?? 0));
+      for (const stage of losersStages) {
+        const stageMatches = matchesState
+          .filter((m) => m.stageId === stage.id && m.status === "completed")
+          .sort((a, b) => getTimestamp(b) - getTimestamp(a));
+        if (stageMatches.length) {
+          bronzeId = stageMatches[0]?.loserId || null;
+          break;
+        }
+      }
+    }
+
+    if (!goldId && !silverId && !bronzeId) return null;
+    return {
+      gold: goldId ? { id: goldId, name: teamName(goldId) } : null,
+      silver: silverId ? { id: silverId, name: teamName(silverId) } : null,
+      bronze: bronzeId ? { id: bronzeId, name: teamName(bronzeId) } : null,
+    };
+  }, [tournament, teams]);
+
   const stageDetails = useMemo(() => {
     if (!tournament) {
       return [];
@@ -257,6 +294,39 @@ export default function PublicTournamentPage({
 
           {tournament && hasMatches ? (
             <section className="space-y-10">
+              {podium ? (
+                <div className="rounded-3xl border border-amber-400/30 bg-amber-400/5 p-6 shadow shadow-amber-500/20 backdrop-blur">
+                  <p className="text-xs uppercase tracking-[0.55em] text-amber-300">Podium</p>
+                  <div className="mt-4 grid gap-4 md:grid-cols-3">
+                    {["gold", "silver", "bronze"].map((medal) => {
+                      const entry = podium[medal];
+                      if (!entry) return (
+                        <div key={medal} className="rounded-2xl border border-white/10 bg-black/40 p-4 text-center text-slate-300">
+                          <p className="text-xs uppercase tracking-[0.45em]">{medal}</p>
+                          <p className="mt-2 text-sm">TBD</p>
+                        </div>
+                      );
+                      const color =
+                        medal === "gold"
+                          ? "text-amber-200 border-amber-300/60 bg-amber-300/10"
+                          : medal === "silver"
+                            ? "text-slate-100 border-slate-300/60 bg-slate-300/10"
+                            : "text-amber-400 border-amber-400/50 bg-amber-400/10";
+                      const label = medal === "gold" ? "1st" : medal === "silver" ? "2nd" : "3rd";
+                      return (
+                        <div
+                          key={medal}
+                          className={`rounded-2xl border ${color} p-4 text-center shadow-sm shadow-black/40`}
+                        >
+                          <p className="text-xs uppercase tracking-[0.5em]">{label}</p>
+                          <p className="mt-2 text-lg font-semibold text-white">{entry.name}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
               <div className="grid gap-8 lg:grid-cols-[1fr_auto_1fr]">
                 <div className="space-y-8">
                   {grouped.winners.map((stage) => (

@@ -546,8 +546,8 @@ function AppShell() {
 
       if (!targetTournament) return
 
-      // 2) Fetch completed matches and filter to the target tournament.
-      const matchesResp = await requestJson('/matches/history?limit=200', { auth: true })
+      // 2) Fetch completed matches and filter to the target tournament (for scores).
+      const matchesResp = await requestJson('/matches/history?limit=300', { auth: true })
       const allMatches = Array.isArray(matchesResp?.matches) ? matchesResp.matches : []
       const matchesForTournament = allMatches.filter((m) => m.tournamentId === targetTournament.id)
 
@@ -560,6 +560,38 @@ function AppShell() {
       const getTeamName = (id) => teams.find((team) => team.id === id)?.name || id || ''
       const championId = targetTournament.champions?.winners || ''
       const championName = championId ? getTeamName(championId) : ''
+
+      // Derive podium (gold/silver/bronze) from tournament state.
+      const matchesState = Object.values(targetTournament.state?.matches ?? {})
+      const stagesState = Object.values(targetTournament.state?.stages ?? {})
+      const getTimestamp = (m) => m?.completedAt || m?.history?.[m.history.length - 1]?.timestamp || 0
+      const finalsCompleted = matchesState.filter((m) => m.bracket === 'finals' && m.status === 'completed')
+      const finalMatch = finalsCompleted.sort((a, b) => getTimestamp(b) - getTimestamp(a))[0] || null
+      const goldId = finalMatch?.winnerId || championId || ''
+      const silverId = finalMatch?.loserId || ''
+
+      let bronzeId = ''
+      if (teams.length >= 3) {
+        const losersStages = stagesState
+          .filter((s) => s.bracket === 'losers')
+          .sort((a, b) => (b.order ?? 0) - (a.order ?? 0))
+        for (const stage of losersStages) {
+          const stageMatches = matchesState
+            .filter((m) => m.stageId === stage.id && m.status === 'completed')
+            .sort((a, b) => getTimestamp(b) - getTimestamp(a))
+          if (stageMatches.length) {
+            bronzeId = stageMatches[0]?.loserId || ''
+            break
+          }
+        }
+      }
+
+      const podiumRows = [
+        ['GoldId', goldId, 'GoldName', getTeamName(goldId)],
+        ['SilverId', silverId, 'SilverName', getTeamName(silverId)],
+        ['BronzeId', bronzeId, 'BronzeName', getTeamName(bronzeId)],
+        [],
+      ]
 
       const matchRows = [
         ['MatchId', 'HomeTeamId', 'HomeTeamName', 'AwayTeamId', 'AwayTeamName', 'WinnerId', 'WinnerName', 'HomeScore', 'AwayScore', 'CompletedAt'],
@@ -604,7 +636,16 @@ function AppShell() {
       const toCsv = (rows) =>
         rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
 
-      const csv = [toCsv(topRows), toCsv(matchRows), '', 'Question Analytics', toCsv(questionRows)].join('\n')
+      const csv = [
+        toCsv(topRows),
+        'Podium',
+        toCsv(podiumRows),
+        'Matches',
+        toCsv(matchRows),
+        '',
+        'Question Analytics',
+        toCsv(questionRows),
+      ].join('\n')
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
