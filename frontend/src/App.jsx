@@ -551,7 +551,7 @@ function AppShell() {
       // 2) Use tournament state matches directly (instead of global history).
       const matchesState = Object.values(targetTournament.state?.matches ?? {})
       const stagesState = targetTournament.state?.stages ?? {}
-      const stageOrder = (match) => stagesState[match.stageId]?.order ?? 0
+      const stageOrder = (match) => stagesState[match.stageId]?.order ?? Number.MAX_SAFE_INTEGER
       const matchTimestamp = (match) => {
         const lastHistory = Array.isArray(match.history) && match.history.length ? match.history[match.history.length - 1] : null
         return match.completedAt || lastHistory?.timestamp || 0
@@ -590,32 +590,26 @@ function AppShell() {
       const snapshotQuestions = targetTournament.state?.questionStats?.questions
       const questions = snapshotQuestions || questionsFromHistory || analyticsQuestions || []
 
-      const championId = targetTournament.state?.championId || targetTournament.champions?.winners || ''
-      const championName = championId ? getTeamName(championId) : ''
-      const champions = targetTournament.state?.champions || targetTournament.champions || {}
-
-      // Derive podium (gold/silver/bronze) from tournament state.
-      const stagesArray = Object.values(stagesState)
+      // Derive podium (gold/silver/bronze) from matches only.
       const getTimestamp = (m) => m?.completedAt || (m?.history?.length ? m.history[m.history.length - 1]?.timestamp : 0) || 0
-      const finalsCompleted = matchesState.filter((m) => m.bracket === 'finals' && m.status === 'completed')
-      const finalMatch = finalsCompleted.sort((a, b) => getTimestamp(b) - getTimestamp(a))[0] || null
-      const goldId = finalMatch?.winnerId || champions.winners || championId || ''
-      const silverId = finalMatch?.loserId || champions.losers || ''
+      const finalsCompleted = matchesState
+        .filter((m) => m.bracket === 'finals' && m.status === 'completed')
+        .sort((a, b) => {
+          const roundA = m.meta?.roundNumber ?? 0
+          const roundB = b.meta?.roundNumber ?? 0
+          if (roundA !== roundB) return roundB - roundA
+          return getTimestamp(b) - getTimestamp(a)
+        })
+      const finalMatch = finalsCompleted[0] || null
+      const goldId = finalMatch?.winnerId || ''
+      const silverId = finalMatch?.loserId || ''
 
       let bronzeId = ''
       if (teams.length >= 3) {
-        const losersStages = stagesArray
-          .filter((s) => s.bracket === 'losers')
-          .sort((a, b) => (b.order ?? 0) - (a.order ?? 0))
-        for (const stage of losersStages) {
-          const stageMatches = matchesState
-            .filter((m) => m.stageId === stage.id && m.status === 'completed')
-            .sort((a, b) => getTimestamp(b) - getTimestamp(a))
-          if (stageMatches.length) {
-            bronzeId = stageMatches[0]?.loserId || ''
-            break
-          }
-        }
+        const losersCompleted = matchesState
+          .filter((m) => m.bracket === 'losers' && m.status === 'completed')
+          .sort((a, b) => getTimestamp(b) - getTimestamp(a))
+        bronzeId = losersCompleted[0]?.loserId || ''
       }
 
       const podiumRows = [

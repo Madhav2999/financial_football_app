@@ -126,30 +126,27 @@ export default function PublicTournamentPage({
     if (!tournament || !Array.isArray(teams)) return null;
     const teamName = (id) => teams.find((t) => t.id === id)?.name || id || "TBD";
     const matchesState = Object.values(tournament.state?.matches ?? {});
-    const stagesState = Object.values(tournament.state?.stages ?? {});
-    const champions = tournament.state?.champions || tournament.champions || {};
-    const getTimestamp = (m) => m?.completedAt || m?.history?.[m.history.length - 1]?.timestamp || 0;
+    const getTimestamp = (m) => m?.completedAt || (m?.history?.[m.history.length - 1]?.timestamp) || 0;
 
-    const finalsCompleted = matchesState.filter((m) => m.bracket === "finals" && m.status === "completed");
-    const finalMatch = finalsCompleted.sort((a, b) => getTimestamp(b) - getTimestamp(a))[0] || null;
+    const finalsCompleted = matchesState
+      .filter((m) => m.bracket === "finals" && m.status === "completed")
+      .sort((a, b) => {
+        const roundA = m.meta?.roundNumber ?? 0;
+        const roundB = b.meta?.roundNumber ?? 0;
+        if (roundA !== roundB) return roundB - roundA;
+        return getTimestamp(b) - getTimestamp(a);
+      });
+    const finalMatch = finalsCompleted[0] || null;
 
-    const goldId = finalMatch?.winnerId || champions.winners || tournament.state?.championId || null;
-    const silverId = finalMatch?.loserId || champions.losers || null;
+    const goldId = finalMatch?.winnerId || null;
+    const silverId = finalMatch?.loserId || null;
 
     let bronzeId = null;
     if (teams.length >= 3) {
-      const losersStages = stagesState
-        .filter((s) => s.bracket === "losers")
-        .sort((a, b) => (b.order ?? 0) - (a.order ?? 0));
-      for (const stage of losersStages) {
-        const stageMatches = matchesState
-          .filter((m) => m.stageId === stage.id && m.status === "completed")
-          .sort((a, b) => getTimestamp(b) - getTimestamp(a));
-        if (stageMatches.length) {
-          bronzeId = stageMatches[0]?.loserId || null;
-          break;
-        }
-      }
+      const losersCompleted = matchesState
+        .filter((m) => m.bracket === "losers" && m.status === "completed")
+        .sort((a, b) => getTimestamp(b) - getTimestamp(a));
+      bronzeId = losersCompleted[0]?.loserId || null;
     }
 
     if (!goldId && !silverId && !bronzeId) return null;
