@@ -537,11 +537,13 @@ function AppShell() {
   const handleDownloadTournamentArchive = useCallback(
     async (tournamentId = tournament?.id) => {
       let targetTournament = tournament
+      let rawTournament = null
 
       // 1) Fetch the specific tournament if an id is provided and it's not the current one in state.
       if (tournamentId && (!targetTournament || targetTournament.id !== tournamentId)) {
         const result = await requestJson(`/tournaments/${tournamentId}`, { auth: true })
-        targetTournament = result?.tournament ? mapTournamentFromApi(result.tournament) : null
+        rawTournament = result?.tournament || null
+        targetTournament = rawTournament ? mapTournamentFromApi(rawTournament) : null
       }
 
       if (!targetTournament) return
@@ -549,8 +551,9 @@ function AppShell() {
       const getTeamName = (id) => teams.find((team) => team.id === id)?.name || id || ''
 
       // 2) Use tournament state matches directly (instead of global history).
-      const matchesState = Object.values(targetTournament.state?.matches ?? {})
-      const stagesState = targetTournament.state?.stages ?? {}
+      const stateSource = targetTournament.state || rawTournament?.state || {}
+      const matchesState = Object.values(stateSource.matches ?? {})
+      const stagesState = stateSource.stages ?? {}
       const stageOrder = (match) => stagesState[match.stageId]?.order ?? Number.MAX_SAFE_INTEGER
       const matchTimestamp = (match) => {
         const lastHistory = Array.isArray(match.history) && match.history.length ? match.history[match.history.length - 1] : null
