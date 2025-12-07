@@ -124,7 +124,7 @@ export default function PublicTournamentPage({
 }) {
   const podium = useMemo(() => {
     const teamName = (id) => teams.find((t) => t.id === id)?.name || id || 'TBD'
-    const matchesState = Object.values(tournament?.state?.matches ?? [])
+    const matchesState = Object.values(tournament?.matches ?? tournament?.state?.matches ?? [])
     const getTimestamp = (m) => m?.completedAt || (m?.history?.[m.history.length - 1]?.timestamp) || 0
 
     const finalsCompleted = matchesState
