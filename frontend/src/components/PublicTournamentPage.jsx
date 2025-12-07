@@ -128,7 +128,7 @@ export default function PublicTournamentPage({
     const getTimestamp = (m) => m?.completedAt || (m?.history?.[m.history.length - 1]?.timestamp) || 0
 
     const finalsCompleted = matchesState
-      .filter((m) => m.status === 'completed' && (m.id || '').startsWith('final'))
+      .filter((m) => (m.id || '').includes('final'))
       .sort((a, b) => {
         const roundA = a.meta?.roundNumber ?? 0
         const roundB = b.meta?.roundNumber ?? 0
@@ -143,7 +143,7 @@ export default function PublicTournamentPage({
     let bronzeId = null
     if (teams.length >= 3) {
       const losersCompleted = matchesState
-        .filter((m) => m.status === 'completed' && (m.id || '').startsWith('losers'))
+        .filter((m) => (m.id || '').includes('losers'))
         .sort((a, b) => getTimestamp(b) - getTimestamp(a))
       bronzeId = losersCompleted[0]?.loserId || null
       if (!bronzeId && finalMatch) bronzeId = finalMatch.loserId || null
