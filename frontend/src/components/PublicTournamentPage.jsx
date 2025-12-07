@@ -123,46 +123,39 @@ export default function PublicTournamentPage({
   history = [],
 }) {
   const podium = useMemo(() => {
-    if (!tournament || !Array.isArray(teams)) return null;
-    const teamName = (id) => teams.find((t) => t.id === id)?.name || id || "TBD";
-    const matchesState = Object.values(tournament.state?.matches ?? {});
-    const champions = tournament.state?.champions || {};
-    const getTimestamp = (m) => m?.completedAt || (m?.history?.[m.history.length - 1]?.timestamp) || 0;
+    const teamName = (id) => teams.find((t) => t.id === id)?.name || id || 'TBD'
+    const matchesState = Object.values(tournament?.state?.matches ?? [])
+    const getTimestamp = (m) => m?.completedAt || (m?.history?.[m.history.length - 1]?.timestamp) || 0
 
     const finalsCompleted = matchesState
-      .filter((m) => {
-        const key = m.id || "";
-        return m.status === "completed" && key.startsWith("final");
-      })
+      .filter((m) => m.status === 'completed' && (m.id || '').startsWith('final'))
       .sort((a, b) => {
-        const roundA = a.meta?.roundNumber ?? 0;
-        const roundB = b.meta?.roundNumber ?? 0;
-        if (roundA !== roundB) return roundB - roundA;
-        return getTimestamp(b) - getTimestamp(a);
-      });
-    const finalMatch = finalsCompleted[0] || null;
+        const roundA = a.meta?.roundNumber ?? 0
+        const roundB = b.meta?.roundNumber ?? 0
+        if (roundA !== roundB) return roundB - roundA
+        return getTimestamp(b) - getTimestamp(a)
+      })
+    const finalMatch = finalsCompleted[0] || null
 
-    const goldId = finalMatch?.winnerId || champions.winners || tournament.state?.championId || null;
-    const silverId = finalMatch?.loserId || champions.losers || null;
+    const goldId = finalMatch?.winnerId || null
+    const silverId = finalMatch?.loserId || null
 
-    let bronzeId = null;
+    let bronzeId = null
     if (teams.length >= 3) {
       const losersCompleted = matchesState
-        .filter((m) => {
-          const key = m.id || "";
-          return m.status === "completed" && key.startsWith("losers");
-        })
-        .sort((a, b) => getTimestamp(b) - getTimestamp(a));
-      bronzeId = losersCompleted[0]?.loserId || null;
+        .filter((m) => m.status === 'completed' && (m.id || '').startsWith('losers'))
+        .sort((a, b) => getTimestamp(b) - getTimestamp(a))
+      bronzeId = losersCompleted[0]?.loserId || null
+      if (!bronzeId && finalMatch) bronzeId = finalMatch.loserId || null
     }
 
-    if (!goldId && !silverId && !bronzeId) return null;
     return {
       gold: goldId ? { id: goldId, name: teamName(goldId) } : null,
       silver: silverId ? { id: silverId, name: teamName(silverId) } : null,
       bronze: bronzeId ? { id: bronzeId, name: teamName(bronzeId) } : null,
-    };
-  }, [tournament, teams]);
+    }
+  }, [tournament?.state?.matches, teams])
+
 
   const stageDetails = useMemo(() => {
     if (!tournament) {
