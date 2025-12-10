@@ -50,6 +50,7 @@ export default function AdminProfilesTab({
     const title = type === 'team' ? entry.name : entry.displayName || entry.loginId
     const key = `${type}-${entry.id}`
     const isExpanded = expanded.has(key)
+    const isPasswordOpen = selected?.type === type && selected?.id === entry.id
     const onDelete = type === 'team' ? onDeleteTeam : onDeleteModerator
 
     return (
@@ -69,7 +70,14 @@ export default function AdminProfilesTab({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setSelected({ type, id: entry.id })}
+              onClick={() => {
+                setSelected({ type, id: entry.id })
+                setExpanded((prev) => {
+                  const next = new Set(prev)
+                  next.add(key)
+                  return next
+                })
+              }}
               className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 hover:border-sky-400 hover:text-white"
             >
               Set password
@@ -97,15 +105,48 @@ export default function AdminProfilesTab({
           </div>
         </div>
         {isExpanded ? (
-          <div className="mt-3 grid gap-2 text-xs text-slate-300 md:grid-cols-2">
-            {type === 'team' ? (
-              <>
-                <span>Region: {entry.region || '—'}</span>
-                <span>Seed: {entry.seed ?? '—'}</span>
-              </>
+          <div className="mt-3 space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+            <div className="grid gap-2 text-xs text-slate-300 md:grid-cols-2">
+              {type === 'team' ? (
+                <>
+                  <span>Region: {entry.region || '-'}</span>
+                  <span>Seed: {entry.seed ?? '-'}</span>
+                </>
+              ) : null}
+              <span>Created: {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : '-'}</span>
+              <span>ID: {entry.id}</span>
+            </div>
+            {isPasswordOpen ? (
+              <div className="space-y-2 border-t border-slate-800 pt-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-200">Set new password</p>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-100"
+                  placeholder="New password"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white shadow shadow-emerald-500/30 hover:bg-emerald-400"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelected(null)
+                      setNewPassword('')
+                    }}
+                    className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-200 hover:border-slate-500"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : null}
-            <span>Created: {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : '—'}</span>
-            <span>ID: {entry.id}</span>
           </div>
         ) : null}
       </div>
@@ -122,38 +163,6 @@ export default function AdminProfilesTab({
         <h2 className="text-xl font-semibold text-white">Moderators</h2>
         <div className="mt-3 grid gap-3 md:grid-cols-2">{sortedMods.map((m) => renderCard(m, 'moderator'))}</div>
       </div>
-
-      {selected ? (
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-sm text-slate-200 shadow shadow-slate-900/30">
-          <p className="text-sm font-semibold text-white">Set new password</p>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-100"
-            placeholder="New password"
-          />
-          <div className="mt-3 flex gap-2">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white shadow shadow-emerald-500/30 hover:bg-emerald-400"
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSelected(null)
-                setNewPassword('')
-              }}
-              className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-200 hover:border-slate-500"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : null}
     </div>
   )
 }
