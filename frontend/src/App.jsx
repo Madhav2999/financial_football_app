@@ -75,6 +75,7 @@ function AppShell() {
   const [analyticsQuestions, setAnalyticsQuestions] = useState([])
   const [analyticsQuestionHistory, setAnalyticsQuestionHistory] = useState([])
   const [profiles, setProfiles] = useState({ teams: [], moderators: [] })
+  const [teamResultToast, setTeamResultToast] = useState(null)
   const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api'
   const SOCKET_BASE = API_BASE.replace(/\/api$/, '')
   const apiBaseHost = useMemo(() => API_BASE.replace(/\/api$/, ''), [API_BASE])
@@ -304,6 +305,11 @@ function AppShell() {
       socket.on('liveMatch:update', (match) => {
         if (!match?.id) return
         if (match.status === 'completed') {
+          if (session.type === 'team' && match.teams?.includes(session.teamId)) {
+            const won = match.winnerId && match.winnerId === session.teamId
+            setTeamResultToast({ message: won ? 'You won!' : 'You lost', ts: Date.now() })
+            setTimeout(() => setTeamResultToast(null), 1000)
+          }
           setActiveMatches((previous) => previous.filter((item) => item.id !== match.id))
           return
         }
@@ -2269,6 +2275,7 @@ function AppShell() {
               tournament={tournament}
               tournamentLaunched={tournamentLaunched}
               moderators={moderators}
+              resultToast={teamResultToast}
               onUploadAvatar={uploadAvatar}
               socketConnected={socketConnected}
               onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}

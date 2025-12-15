@@ -100,6 +100,7 @@ export default function TeamDashboard({
   tournament,
   tournamentLaunched,
   moderators = [],
+  resultToast,
   onUploadAvatar,
   socketConnected,
   onAnswer,
@@ -312,6 +313,13 @@ export default function TeamDashboard({
           </div>
         </div>
       </header>
+      {resultToast ? (
+        <div className="mx-auto mt-4 max-w-6xl px-6">
+          <div className="rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm font-semibold text-white shadow shadow-black/30">
+            {resultToast.message}
+          </div>
+        </div>
+      ) : null}
 
       <main className="mx-auto max-w-6xl px-6 py-8">
         {showGameRoom ? (

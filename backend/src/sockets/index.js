@@ -42,6 +42,13 @@ const canAnswer = (socket, match, teamId) => {
   return false
 }
 
+const slimMatch = (match) => {
+  if (!match) return match
+  // Remove heavy fields for lightweight updates
+  const { questionQueue, history, ...rest } = match
+  return rest
+}
+
 const registerSocketHandlers = (io) => {
   io.on('connection', (socket) => {
     socket.data.user = authenticateSocket(socket)
@@ -85,12 +92,12 @@ const registerSocketHandlers = (io) => {
           decision: null,
         },
       }
-      io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...flippingState, serverNow: Date.now() })
+      io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...slimMatch(flippingState), serverNow: Date.now() })
 
       const updated = flipCoin(matchId, forceWinnerId)
       if (updated) {
         setTimeout(() => {
-          io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...updated, serverNow: Date.now() })
+          io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...slimMatch(updated), serverNow: Date.now() })
         }, 1800)
       }
     })
@@ -109,7 +116,7 @@ const registerSocketHandlers = (io) => {
       if (!match || !canAnswer(socket, match, teamId)) return
       const updated = await submitAnswer(matchId, teamId, answerKey)
       if (updated) {
-        io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...updated, serverNow: Date.now() })
+        io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...slimMatch(updated), serverNow: Date.now() })
       }
     })
 
@@ -118,7 +125,7 @@ const registerSocketHandlers = (io) => {
       if (!match || !canControlMatch(socket, match)) return
       const updated = pauseMatch(matchId)
       if (updated) {
-        io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...updated, serverNow: Date.now() })
+        io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...slimMatch(updated), serverNow: Date.now() })
       }
     })
 
@@ -127,7 +134,7 @@ const registerSocketHandlers = (io) => {
       if (!match || !canControlMatch(socket, match)) return
       const updated = resumeMatch(matchId)
       if (updated) {
-        io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...updated, serverNow: Date.now() })
+        io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...slimMatch(updated), serverNow: Date.now() })
       }
     })
 
