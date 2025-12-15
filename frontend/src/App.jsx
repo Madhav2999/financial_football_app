@@ -2104,7 +2104,8 @@ function AppShell() {
   const handleDismissRecent = () => setRecentResult(null)
 
   return (
-    <Routes>
+    <>
+      <Routes>
       <Route
         path="/"
         element={
@@ -2295,5 +2296,13 @@ function AppShell() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+      {session.type === 'team' && teamResultToast ? (
+        <div className="pointer-events-none fixed left-1/2 top-6 z-[2000] w-full max-w-sm -translate-x-1/2 px-4">
+          <div className="rounded-2xl border border-white/20 bg-black/85 px-4 py-3 text-center text-sm font-semibold text-white shadow-xl shadow-black/40">
+            {teamResultToast.message}
+          </div>
+        </div>
+      ) : null}
+    </>
   )
 }
