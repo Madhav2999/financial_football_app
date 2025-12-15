@@ -315,11 +315,12 @@ function AppShell() {
 
             const isWinner = Boolean(match.winnerId) && match.winnerId === session.teamId
             const isLoser = Boolean(match.loserId) && match.loserId === session.teamId
-
+            console.log('hello')
             if (isWinner || isLoser) {
               const message = isWinner ? 'You won!' : 'You lost'
               setTeamResultToast({ message, ts: Date.now() })
               setTimeout(() => setTeamResultToast(null), 3000)
+              console.log('hello')
               console.debug('[toast fired]', { matchId: match.id, message })
             }
           }
