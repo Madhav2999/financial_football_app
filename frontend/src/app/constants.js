@@ -4,7 +4,7 @@ import {
   STEAL_QUESTION_DURATION_MS,
 } from '../constants/matchSettings'
 
-export const QUESTIONS_PER_TEAM = 10
+export const QUESTIONS_PER_TEAM = 1
 export const TOURNAMENT_TEAM_LIMIT = Number.POSITIVE_INFINITY
 export const MIN_TOURNAMENT_TEAM_COUNT = 2
 
