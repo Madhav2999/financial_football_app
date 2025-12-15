@@ -307,11 +307,9 @@ function AppShell() {
         if (match.status === 'completed') {
           if (session.type === 'team' && match.teams?.includes(session.teamId)) {
             const isWinner = match.winnerId && match.winnerId === session.teamId
-            const isLoser = match.loserId && match.loserId === session.teamId
-            if (isWinner || isLoser) {
-              setTeamResultToast({ message: isWinner ? 'You won!' : 'You lost', ts: Date.now() })
-              setTimeout(() => setTeamResultToast(null), 3000)
-            }
+            const message = isWinner ? 'You won!' : 'You lost'
+            setTeamResultToast({ message, ts: Date.now() })
+            setTimeout(() => setTeamResultToast(null), 3000)
           }
           setActiveMatches((previous) => previous.filter((item) => item.id !== match.id))
           return
