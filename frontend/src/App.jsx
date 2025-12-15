@@ -308,7 +308,7 @@ function AppShell() {
           if (session.type === 'team' && match.teams?.includes(session.teamId)) {
             const won = match.winnerId && match.winnerId === session.teamId
             setTeamResultToast({ message: won ? 'You won!' : 'You lost', ts: Date.now() })
-            setTimeout(() => setTeamResultToast(null), 1000)
+            setTimeout(() => setTeamResultToast(null), 3000)
           }
           setActiveMatches((previous) => previous.filter((item) => item.id !== match.id))
           return
