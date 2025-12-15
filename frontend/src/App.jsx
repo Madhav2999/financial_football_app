@@ -306,17 +306,27 @@ function AppShell() {
         if (!match?.id) return
         if (match.status === 'completed') {
           if (session.type === 'team' && match.teams?.includes(session.teamId)) {
+            console.debug('[toast check]', {
+              matchId: match.id,
+              winnerId: match.winnerId,
+              loserId: match.loserId,
+              sessionTeamId: session.teamId,
+            })
+
             const isWinner = Boolean(match.winnerId) && match.winnerId === session.teamId
             const isLoser = Boolean(match.loserId) && match.loserId === session.teamId
+
             if (isWinner || isLoser) {
               const message = isWinner ? 'You won!' : 'You lost'
               setTeamResultToast({ message, ts: Date.now() })
               setTimeout(() => setTeamResultToast(null), 3000)
+              console.debug('[toast fired]', { matchId: match.id, message })
             }
           }
-          setActiveMatches((previous) => previous.filter((item) => item.id !== match.id))
+          setActiveMatches((prev) => prev.filter((item) => item.id !== match.id))
           return
         }
+
         // propagate serverNow onto timer for clock offset handling
         if (match.serverNow && match.timer) {
           match.timer = { ...match.timer, serverNow: match.serverNow }
@@ -2110,196 +2120,196 @@ function AppShell() {
   return (
     <>
       <Routes>
-      <Route
-        path="/"
-        element={
-          <LandingPage
-            teams={teams}
-            onTeamLogin={(loginId, password) =>
-              handleTeamLogin(loginId, password, { redirectTo: '/team' })
-            }
-            onAdminLogin={(loginId, password) =>
-              handleAdminLogin(loginId, password, { redirectTo: '/admin' })
-            }
-            onModeratorLogin={(loginId, password) =>
-              handleModeratorLogin(loginId, password, { redirectTo: '/moderator' })
-            }
-            authError={authError}
-            onClearAuthError={() => setAuthError(null)}
-            onTeamRegister={handleTeamRegistration}
-            onModeratorRegister={handleModeratorRegistration}
-            onTeamForgotPassword={handleTeamForgotPassword}
-            onModeratorForgotPassword={handleModeratorForgotPassword}
-          />
-        }
-      />
-      <Route
-        path="/howtoplay"
-        element={
-          <LearnToPlay
-            teams={teams}
-            onTeamLogin={(loginId, password) => handleTeamLogin(loginId, password, { redirectTo: '/team' })}
-            onAdminLogin={(loginId, password) => handleAdminLogin(loginId, password, { redirectTo: '/admin' })}
-            onModeratorLogin={(loginId, password) => handleModeratorLogin(loginId, password, { redirectTo: '/moderator' })}
-            authError={authError}
-            onClearAuthError={() => setAuthError(null)}
-            onTeamRegister={handleTeamRegistration}
-            onModeratorRegister={handleModeratorRegistration}
-            onTeamForgotPassword={handleTeamForgotPassword}
-            onModeratorForgotPassword={handleModeratorForgotPassword}
-          />
-        }
-      />
-      <Route
-        path="/tournament"
-        element={
-          <PublicTournamentPage
-            tournament={tournament}
-            teams={teams}
-            activeMatches={activeMatches}
-            moderators={moderators}
-            history={matchHistory}
-          />
-        }
-      />
-      <Route
-        path="/tournament/match/:matchId"
-        element={
-          <PublicMatchViewer matches={activeMatches} teams={teams} moderators={moderators} />
-        }
-      />
-      <Route path="/reset-password" element={<ResetPasswordPage onResetPassword={handleResetPassword} />} />
-      <Route
-        path="/login"
-        element={
-          <LoginPage
-            authError={authError}
-            onTeamLogin={handleTeamLogin}
-            onAdminLogin={handleAdminLogin}
-            onModeratorLogin={handleModeratorLogin}
-            onTeamRegister={handleTeamRegistration}
-            onModeratorRegister={handleModeratorRegistration}
-            onTeamForgotPassword={handleTeamForgotPassword}
-            onModeratorForgotPassword={handleModeratorForgotPassword}
-            onBack={() => {
-              setAuthError(null)
-              navigate('/')
-            }}
-            session={session}
-          />
-        }
-      />
-      <Route
-        path="/admin/*"
-        element={
-          <ProtectedRoute isAllowed={session.type === 'admin'} redirectTo="/login?mode=admin">
-            <AdminDashboard
+        <Route
+          path="/"
+          element={
+            <LandingPage
+              teams={teams}
+              onTeamLogin={(loginId, password) =>
+                handleTeamLogin(loginId, password, { redirectTo: '/team' })
+              }
+              onAdminLogin={(loginId, password) =>
+                handleAdminLogin(loginId, password, { redirectTo: '/admin' })
+              }
+              onModeratorLogin={(loginId, password) =>
+                handleModeratorLogin(loginId, password, { redirectTo: '/moderator' })
+              }
+              authError={authError}
+              onClearAuthError={() => setAuthError(null)}
+              onTeamRegister={handleTeamRegistration}
+              onModeratorRegister={handleModeratorRegistration}
+              onTeamForgotPassword={handleTeamForgotPassword}
+              onModeratorForgotPassword={handleModeratorForgotPassword}
+            />
+          }
+        />
+        <Route
+          path="/howtoplay"
+          element={
+            <LearnToPlay
+              teams={teams}
+              onTeamLogin={(loginId, password) => handleTeamLogin(loginId, password, { redirectTo: '/team' })}
+              onAdminLogin={(loginId, password) => handleAdminLogin(loginId, password, { redirectTo: '/admin' })}
+              onModeratorLogin={(loginId, password) => handleModeratorLogin(loginId, password, { redirectTo: '/moderator' })}
+              authError={authError}
+              onClearAuthError={() => setAuthError(null)}
+              onTeamRegister={handleTeamRegistration}
+              onModeratorRegister={handleModeratorRegistration}
+              onTeamForgotPassword={handleTeamForgotPassword}
+              onModeratorForgotPassword={handleModeratorForgotPassword}
+            />
+          }
+        />
+        <Route
+          path="/tournament"
+          element={
+            <PublicTournamentPage
+              tournament={tournament}
               teams={teams}
               activeMatches={activeMatches}
-              recentResult={recentResult}
-              history={matchHistory}
-              tournament={tournament}
               moderators={moderators}
-              superAdmin={SUPER_ADMIN_PROFILE}
-              tournamentLaunched={tournamentLaunched}
-              selectedTeamIds={selectedTeamIds}
-              matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
-              onToggleTeamSelection={handleToggleTeamSelection}
-              onMatchMake={handleMatchMaking}
-              onLaunchTournament={handleLaunchTournament}
-              onPauseMatch={(matchId) => handlePauseMatch(matchId, { isAdmin: true })}
-              onResumeMatch={(matchId) => handleResumeMatch(matchId, { isAdmin: true })}
-              onResetMatch={(matchId) => handleResetMatch(matchId, { isAdmin: true })}
-              onGrantBye={handleGrantMatchBye}
-              onDismissRecent={handleDismissRecent}
-              onLogout={handleLogout}
-              teamRegistrations={teamRegistrations}
-              moderatorRegistrations={moderatorRegistrations}
-              onApproveTeamRegistration={approveTeamRegistration}
-              onApproveModeratorRegistration={approveModeratorRegistration}
-              onReloadData={loadAdminData}
-              onDeleteTeam={deleteTeamAccount}
-              onDeleteModerator={deleteModeratorAccount}
-              analyticsSummary={analyticsSummary}
-              analyticsQuestions={analyticsQuestions}
-              analyticsQuestionHistory={analyticsQuestionHistory}
-              onDownloadArchive={handleDownloadTournamentArchive}
-              fetchArchives={fetchArchives}
-              onDeleteTournamentArchive={deleteTournamentArchive}
-              onImportQuestions={importQuestions}
-              onFetchAllQuestions={fetchAllQuestions}
-              onSearchQuestions={searchQuestions}
-              onUpdateQuestion={updateQuestion}
-              onDeleteQuestion={deleteQuestion}
-              profiles={profiles}
-              onSetProfilePassword={setProfilePassword}
-              onDeleteTeamProfile={deleteTeamAccount}
-              onDeleteModeratorProfile={deleteModeratorAccount}
+              history={matchHistory}
             />
-          </ProtectedRoute>
-        }
-      />
+          }
+        />
+        <Route
+          path="/tournament/match/:matchId"
+          element={
+            <PublicMatchViewer matches={activeMatches} teams={teams} moderators={moderators} />
+          }
+        />
+        <Route path="/reset-password" element={<ResetPasswordPage onResetPassword={handleResetPassword} />} />
+        <Route
+          path="/login"
+          element={
+            <LoginPage
+              authError={authError}
+              onTeamLogin={handleTeamLogin}
+              onAdminLogin={handleAdminLogin}
+              onModeratorLogin={handleModeratorLogin}
+              onTeamRegister={handleTeamRegistration}
+              onModeratorRegister={handleModeratorRegistration}
+              onTeamForgotPassword={handleTeamForgotPassword}
+              onModeratorForgotPassword={handleModeratorForgotPassword}
+              onBack={() => {
+                setAuthError(null)
+                navigate('/')
+              }}
+              session={session}
+            />
+          }
+        />
+        <Route
+          path="/admin/*"
+          element={
+            <ProtectedRoute isAllowed={session.type === 'admin'} redirectTo="/login?mode=admin">
+              <AdminDashboard
+                teams={teams}
+                activeMatches={activeMatches}
+                recentResult={recentResult}
+                history={matchHistory}
+                tournament={tournament}
+                moderators={moderators}
+                superAdmin={SUPER_ADMIN_PROFILE}
+                tournamentLaunched={tournamentLaunched}
+                selectedTeamIds={selectedTeamIds}
+                matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
+                onToggleTeamSelection={handleToggleTeamSelection}
+                onMatchMake={handleMatchMaking}
+                onLaunchTournament={handleLaunchTournament}
+                onPauseMatch={(matchId) => handlePauseMatch(matchId, { isAdmin: true })}
+                onResumeMatch={(matchId) => handleResumeMatch(matchId, { isAdmin: true })}
+                onResetMatch={(matchId) => handleResetMatch(matchId, { isAdmin: true })}
+                onGrantBye={handleGrantMatchBye}
+                onDismissRecent={handleDismissRecent}
+                onLogout={handleLogout}
+                teamRegistrations={teamRegistrations}
+                moderatorRegistrations={moderatorRegistrations}
+                onApproveTeamRegistration={approveTeamRegistration}
+                onApproveModeratorRegistration={approveModeratorRegistration}
+                onReloadData={loadAdminData}
+                onDeleteTeam={deleteTeamAccount}
+                onDeleteModerator={deleteModeratorAccount}
+                analyticsSummary={analyticsSummary}
+                analyticsQuestions={analyticsQuestions}
+                analyticsQuestionHistory={analyticsQuestionHistory}
+                onDownloadArchive={handleDownloadTournamentArchive}
+                fetchArchives={fetchArchives}
+                onDeleteTournamentArchive={deleteTournamentArchive}
+                onImportQuestions={importQuestions}
+                onFetchAllQuestions={fetchAllQuestions}
+                onSearchQuestions={searchQuestions}
+                onUpdateQuestion={updateQuestion}
+                onDeleteQuestion={deleteQuestion}
+                profiles={profiles}
+                onSetProfilePassword={setProfilePassword}
+                onDeleteTeamProfile={deleteTeamAccount}
+                onDeleteModeratorProfile={deleteModeratorAccount}
+              />
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/moderator"
-        element={
-          <ProtectedRoute isAllowed={session.type === 'moderator'} redirectTo="/login?mode=moderator">
-            <ModeratorDashboard
-              moderator={activeModerator}
-              matches={activeMatches}
-              teams={teams}
-              tournament={tournament}
-              moderators={moderators}
-              socketConnected={socketConnected}
-              onUploadAvatar={uploadAvatar}
-              selectedTeamIds={selectedTeamIds}
-              matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
-              tournamentLaunched={tournamentLaunched}
-              onFlipCoin={(matchId) =>
-                handleFlipCoin(matchId, { moderatorId: activeModerator?.id })
-              }
-              onSelectFirst={(matchId, deciderId, firstTeamId) =>
-                handleSelectFirst(matchId, deciderId, firstTeamId, {
-                  moderatorId: activeModerator?.id,
-                })
-              }
-              onPauseMatch={(matchId) => handlePauseMatch(matchId, { moderatorId: activeModerator?.id })}
-              onResumeMatch={(matchId) => handleResumeMatch(matchId, { moderatorId: activeModerator?.id })}
-              onResetMatch={(matchId) => handleResetMatch(matchId, { moderatorId: activeModerator?.id })}
-              onLogout={handleLogout}
-            />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/team"
-        element={
-          <ProtectedRoute
-            isAllowed={session.type === 'team' && Boolean(activeTeam)}
-            redirectTo="/login"
-          >
-            <TeamDashboard
-              team={activeTeam}
-              teams={teams}
-              match={activeTeamMatch}
-              history={matchHistory}
-              tournament={tournament}
-              tournamentLaunched={tournamentLaunched}
-              moderators={moderators}
-              resultToast={teamResultToast}
-              onUploadAvatar={uploadAvatar}
-              socketConnected={socketConnected}
-              onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
-              onSelectFirst={(matchId, firstTeamId) =>
-                handleSelectFirst(matchId, activeTeam.id, firstTeamId)
-              }
-              onLogout={handleLogout}
-            />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route
+          path="/moderator"
+          element={
+            <ProtectedRoute isAllowed={session.type === 'moderator'} redirectTo="/login?mode=moderator">
+              <ModeratorDashboard
+                moderator={activeModerator}
+                matches={activeMatches}
+                teams={teams}
+                tournament={tournament}
+                moderators={moderators}
+                socketConnected={socketConnected}
+                onUploadAvatar={uploadAvatar}
+                selectedTeamIds={selectedTeamIds}
+                matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
+                tournamentLaunched={tournamentLaunched}
+                onFlipCoin={(matchId) =>
+                  handleFlipCoin(matchId, { moderatorId: activeModerator?.id })
+                }
+                onSelectFirst={(matchId, deciderId, firstTeamId) =>
+                  handleSelectFirst(matchId, deciderId, firstTeamId, {
+                    moderatorId: activeModerator?.id,
+                  })
+                }
+                onPauseMatch={(matchId) => handlePauseMatch(matchId, { moderatorId: activeModerator?.id })}
+                onResumeMatch={(matchId) => handleResumeMatch(matchId, { moderatorId: activeModerator?.id })}
+                onResetMatch={(matchId) => handleResetMatch(matchId, { moderatorId: activeModerator?.id })}
+                onLogout={handleLogout}
+              />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/team"
+          element={
+            <ProtectedRoute
+              isAllowed={session.type === 'team' && Boolean(activeTeam)}
+              redirectTo="/login"
+            >
+              <TeamDashboard
+                team={activeTeam}
+                teams={teams}
+                match={activeTeamMatch}
+                history={matchHistory}
+                tournament={tournament}
+                tournamentLaunched={tournamentLaunched}
+                moderators={moderators}
+                resultToast={teamResultToast}
+                onUploadAvatar={uploadAvatar}
+                socketConnected={socketConnected}
+                onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
+                onSelectFirst={(matchId, firstTeamId) =>
+                  handleSelectFirst(matchId, activeTeam.id, firstTeamId)
+                }
+                onLogout={handleLogout}
+              />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
       {session.type === 'team' && teamResultToast ? (
         <div className="pointer-events-none fixed left-1/2 top-6 z-[2000] w-full max-w-sm -translate-x-1/2 px-4">
           <div className="rounded-2xl border border-white/20 bg-black/85 px-4 py-3 text-center text-sm font-semibold text-white shadow-xl shadow-black/40">
