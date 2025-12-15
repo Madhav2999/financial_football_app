@@ -314,8 +314,8 @@ export default function TeamDashboard({
         </div>
       </header>
       {resultToast ? (
-        <div className="mx-auto mt-4 max-w-6xl px-6">
-          <div className="rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm font-semibold text-white shadow shadow-black/30">
+        <div className="pointer-events-none fixed left-1/2 top-4 z-50 w-full max-w-md -translate-x-1/2 px-4">
+          <div className="rounded-2xl border border-white/20 bg-black/80 px-4 py-3 text-center text-sm font-semibold text-white shadow-xl shadow-black/40">
             {resultToast.message}
           </div>
         </div>

@@ -339,7 +339,13 @@ function AppShell() {
         setActiveMatches((previous) => {
           const existing = previous.find((item) => item.id === match.id)
           if (existing) {
-            return previous.map((item) => (item.id === match.id ? { ...existing, ...match } : item))
+            const merged = {
+              ...existing,
+              ...match,
+              questionQueue: match.questionQueue ?? existing.questionQueue,
+              history: match.history ?? existing.history,
+            }
+            return previous.map((item) => (item.id === match.id ? merged : item))
           }
           return [...previous, match]
         })
