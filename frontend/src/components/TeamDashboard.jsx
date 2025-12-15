@@ -313,13 +313,6 @@ export default function TeamDashboard({
           </div>
         </div>
       </header>
-      {resultToast ? (
-        <div className="pointer-events-none fixed left-1/2 top-4 z-50 w-full max-w-md -translate-x-1/2 px-4">
-          <div className="rounded-2xl border border-white/20 bg-black/80 px-4 py-3 text-center text-sm font-semibold text-white shadow-xl shadow-black/40">
-            {resultToast.message}
-          </div>
-        </div>
-      ) : null}
 
       <main className="mx-auto max-w-6xl px-6 py-8">
         {showGameRoom ? (
