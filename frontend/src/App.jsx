@@ -289,15 +289,18 @@ function AppShell() {
         auth: session?.token ? { token: session.token } : {},
       })
 
-      const deriveOutcome = (m) => {
+      const deriveOutcome = (m, priorMatch) => {
         let winnerId = m?.winnerId
         let loserId = m?.loserId
         if (winnerId && loserId) {
           console.log({winnerId,loserId})
           return { winnerId, loserId }
         }
-        const lastHistory =
-          Array.isArray(m?.history) && m.history.length ? m.history[m.history.length - 1] : null
+        const historySource =
+          (Array.isArray(m?.history) && m.history.length && m.history) ||
+          (Array.isArray(priorMatch?.history) && priorMatch.history.length && priorMatch.history) ||
+          null
+        const lastHistory = historySource ? historySource[historySource.length - 1] : null
         if (lastHistory?.scores && Array.isArray(m?.teams) && m.teams.length === 2) {
           const [home, away] = m.teams
           const scoreFor = (id) => {
@@ -335,7 +338,8 @@ function AppShell() {
         if (!match?.id) return
         if (match.status === 'completed') {
           if (session.type === 'team' && match.teams?.includes(session.teamId)) {
-            const { winnerId, loserId } = deriveOutcome(match)
+            const prior = activeMatchesRef.current.find((item) => item.id === match.id)
+            const { winnerId, loserId } = deriveOutcome(match, prior)
             const isWinner = Boolean(winnerId) && winnerId === session.teamId
             const isLoser = Boolean(loserId) && loserId === session.teamId
             const alreadySeen = seenResultToastRef.current.has(match.id)
