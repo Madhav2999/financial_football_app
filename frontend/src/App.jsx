@@ -315,7 +315,7 @@ function AppShell() {
 
             const isWinner = Boolean(match.winnerId) && match.winnerId === session.teamId
             const isLoser = Boolean(match.loserId) && match.loserId === session.teamId
-            console.log('hello')
+            console.log(isWinner + ' ' + isLoser)
             if (isWinner || isLoser) {
               const message = isWinner ? 'You won!' : 'You lost'
               setTeamResultToast({ message, ts: Date.now() })
@@ -982,7 +982,10 @@ function AppShell() {
           joinLiveMatchRoom(result.match.id)
         }
       } catch (error) {
-        console.error(`Failed to hydrate live match ${match.matchRefId}`, error)
+        if (error?.status === 401 || error?.status === 403 || error?.status === 404) {
+          const deadId = match.matchRefId
+          setActiveMatches((prev) => prev.filter((m) => m.id !== deadId))
+        }
       }
     }
   }, [activeMatches, joinLiveMatchRoom, requestJson, tournament?.matches])
