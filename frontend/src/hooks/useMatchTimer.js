@@ -33,11 +33,11 @@ export function useMatchTimer(timer) {
 
   useEffect(() => {
     if (timer?.status === 'running' && typeof timer.remainingMs === 'number') {
-      setSyncBaseline({ remainingMs: timer.remainingMs, syncedAt: Date.now() })
+      setSyncBaseline({ remainingMs: timer.remainingMs, syncedAt: nowAdjusted })
     } else {
       setSyncBaseline({ remainingMs: null, syncedAt: null })
     }
-  }, [timer?.remainingMs, timer?.status])
+  }, [nowAdjusted, timer?.remainingMs, timer?.status])
 
   useEffect(() => {
     if (!timer || timer.status !== 'running' || !timer.deadline) {
@@ -62,7 +62,7 @@ export function useMatchTimer(timer) {
   if (!timer) {
     remainingMs = 0
   } else if (timer.status === 'running' && hasSyncedRemaining) {
-    const elapsed = nowAdjusted - (syncBaseline.syncedAt - skew)
+    const elapsed = nowAdjusted - syncBaseline.syncedAt
     remainingMs = Math.max(0, (syncBaseline.remainingMs ?? totalMs) - elapsed)
   } else if (timer.status === 'running' && timer.deadline) {
     remainingMs = Math.max(0, timer.deadline - nowAdjusted)
