@@ -11,27 +11,18 @@ const DURATION_BY_TYPE = {
 
 export function useMatchTimer(timer) {
   const [now, setNow] = useState(Date.now())
-  const [smoothedSkew, setSmoothedSkew] = useState(0)
-
-  // Smooth clock skew to avoid sudden jumps on a single update
-  const rawSkew = timer?.serverNow ? Date.now() - timer.serverNow : 0
-  useEffect(() => {
-    setSmoothedSkew((prev) => {
-      if (!Number.isFinite(rawSkew)) return prev
-      // clamp extreme jumps (>1.5s) to previous value
-      if (prev && Math.abs(rawSkew - prev) > 1500) {
-        return prev
-      }
-      const alpha = 0.25 // smoothing factor
-      return prev ? prev + alpha * (rawSkew - prev) : rawSkew
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawSkew, timer?.serverNow])
-
-  const nowAdjusted = now - smoothedSkew
+  const [syncBaseline, setSyncBaseline] = useState({ remainingMs: null, syncedAt: null })
 
   useEffect(() => {
-    if (!timer || timer.status !== 'running') {
+    if (timer?.status === 'running' && typeof timer.remainingMs === 'number') {
+      setSyncBaseline({ remainingMs: timer.remainingMs, syncedAt: Date.now() })
+    } else {
+      setSyncBaseline({ remainingMs: null, syncedAt: null })
+    }
+  }, [timer?.remainingMs, timer?.status])
+
+  useEffect(() => {
+    if (!timer || timer.status !== 'running' || !timer.deadline) {
       return undefined
     }
 
@@ -48,16 +39,15 @@ export function useMatchTimer(timer) {
   const totalMs = timer?.durationMs ?? defaultDuration
 
   let remainingMs = totalMs
+  const hasSyncedRemaining = typeof syncBaseline.remainingMs === 'number' && syncBaseline.syncedAt
 
   if (!timer) {
     remainingMs = 0
-  } else if (timer.status === 'running') {
-    if (timer.deadline) {
-      remainingMs = Math.max(0, timer.deadline - nowAdjusted)
-    } else if (typeof timer.remainingMs === 'number') {
-      const elapsed = nowAdjusted - (timer.startedAt ? timer.startedAt - smoothedSkew : nowAdjusted)
-      remainingMs = Math.max(0, timer.remainingMs - elapsed)
-    }
+  } else if (timer.status === 'running' && hasSyncedRemaining) {
+    const elapsed = now - syncBaseline.syncedAt
+    remainingMs = Math.max(0, (syncBaseline.remainingMs ?? totalMs) - elapsed)
+  } else if (timer.status === 'running' && timer.deadline) {
+    remainingMs = Math.max(0, timer.deadline - now)
   } else if (timer.status === 'paused') {
     remainingMs = Math.max(0, timer.remainingMs ?? totalMs)
   } else if (timer.status === 'idle') {
