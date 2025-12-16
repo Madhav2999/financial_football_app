@@ -686,14 +686,22 @@ function AppShell() {
 
       const questionRows = [
         ['Prompt', 'Category', 'TimesAsked', 'Correct', 'Incorrect', 'AvgAccuracy'],
-        ...(questions.map((q) => [
-          q.prompt,
-          q.category ?? '',
-          q.totalAsked ?? 0,
-          q.correctCount ?? 0,
-          q.incorrectCount ?? 0,
-          q.accuracy ?? '',
-        ])),
+        ...(questions.map((q) => {
+          const totalAsked = q.totalAsked ?? q.stats?.timesAsked ?? 0
+          const correct = q.correctCount ?? q.stats?.correctCount ?? 0
+          const incorrect = q.incorrectCount ?? q.stats?.incorrectCount ?? 0
+          const accuracy =
+            q.accuracy ??
+            (correct + incorrect > 0 ? Math.round((correct / (correct + incorrect)) * 1000) / 10 : '')
+          return [
+            q.prompt,
+            q.category ?? '',
+            totalAsked,
+            correct,
+            incorrect,
+            accuracy,
+          ]
+        })),
       ]
 
       const topRows = [
