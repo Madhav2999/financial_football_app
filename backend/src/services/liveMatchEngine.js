@@ -352,10 +352,10 @@ const finalizeMatch = async (match) => {
   })
   nextState = detachLiveMatch(nextState, match.tournamentMatchId)
   await persistTournamentState(tournament, nextState)
-  const tournamentObjectId = toObjectId(match.tournamentId)
-  const homeTeamObjectId = toObjectId(match.teams[0])
-  const awayTeamObjectId = toObjectId(match.teams[1])
-  const tournamentName = tournament.name
+  // const tournamentObjectId = toObjectId(match.tournamentId)
+  // const homeTeamObjectId = toObjectId(match.teams[0])
+  // const awayTeamObjectId = toObjectId(match.teams[1])
+  // const tournamentName = tournament.name
   if (!winnerId || !loserId) {
     // Leave the match in memory and signal a reset so moderators can retoss
     // instead of wiping it (which caused “retoss” with no controls).
