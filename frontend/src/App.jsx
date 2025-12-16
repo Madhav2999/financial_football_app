@@ -121,6 +121,7 @@ function AppShell() {
   const eventSourceRef = useRef(null)
   const liveMatchCreationRef = useRef(new Set())
   const coinFlipAnimRef = useRef(new Map())
+  const seenResultToastRef = useRef(new Set())
   const upsertActiveMatch = useCallback((match) => {
     if (!match?.id) return
     setActiveMatches((previous) => {
@@ -288,6 +289,32 @@ function AppShell() {
         auth: session?.token ? { token: session.token } : {},
       })
 
+      const deriveOutcome = (m) => {
+        let winnerId = m?.winnerId
+        let loserId = m?.loserId
+        if (winnerId && loserId) {
+          return { winnerId, loserId }
+        }
+        const lastHistory =
+          Array.isArray(m?.history) && m.history.length ? m.history[m.history.length - 1] : null
+        if (lastHistory?.scores && Array.isArray(m?.teams) && m.teams.length === 2) {
+          const [home, away] = m.teams
+          const scoreFor = (id) => {
+            const raw = lastHistory.scores?.[id]
+            if (typeof raw === 'number') return raw
+            if (raw && typeof raw === 'object' && '$numberInt' in raw) return Number(raw.$numberInt)
+            return Number(raw ?? 0)
+          }
+          const homeScore = scoreFor(home)
+          const awayScore = scoreFor(away)
+          if (homeScore !== awayScore) {
+            winnerId = homeScore > awayScore ? home : away
+            loserId = homeScore > awayScore ? away : home
+          }
+        }
+        return { winnerId, loserId }
+      }
+
       socket.on('connect', () => {
         setSocketConnected(true)
         socket.emit('tournament:subscribe')
@@ -306,22 +333,15 @@ function AppShell() {
         if (!match?.id) return
         if (match.status === 'completed') {
           if (session.type === 'team' && match.teams?.includes(session.teamId)) {
-            console.debug('[toast check]', {
-              matchId: match.id,
-              winnerId: match.winnerId,
-              loserId: match.loserId,
-              sessionTeamId: session.teamId,
-            })
-
-            const isWinner = Boolean(match.winnerId) && match.winnerId === session.teamId
-            const isLoser = Boolean(match.loserId) && match.loserId === session.teamId
-            console.log(isWinner + ' ' + isLoser)
-            if (isWinner || isLoser) {
+            const { winnerId, loserId } = deriveOutcome(match)
+            const isWinner = Boolean(winnerId) && winnerId === session.teamId
+            const isLoser = Boolean(loserId) && loserId === session.teamId
+            const alreadySeen = seenResultToastRef.current.has(match.id)
+            if (!alreadySeen && (isWinner || isLoser)) {
+              seenResultToastRef.current.add(match.id)
               const message = isWinner ? 'You won!' : 'You lost'
               setTeamResultToast({ message, ts: Date.now() })
               setTimeout(() => setTeamResultToast(null), 3000)
-              console.log('hello')
-              console.debug('[toast fired]', { matchId: match.id, message })
             }
           }
           setActiveMatches((prev) => prev.filter((item) => item.id !== match.id))
@@ -2314,13 +2334,6 @@ function AppShell() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {session.type === 'team' && teamResultToast ? (
-        <div className="pointer-events-none fixed left-1/2 top-6 z-[2000] w-full max-w-sm -translate-x-1/2 px-4">
-          <div className="rounded-2xl border border-white/20 bg-black/85 px-4 py-3 text-center text-sm font-semibold text-white shadow-xl shadow-black/40">
-            {teamResultToast.message}
-          </div>
-        </div>
-      ) : null}
     </>
   )
 }
