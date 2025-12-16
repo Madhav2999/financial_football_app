@@ -264,6 +264,7 @@ const scheduleTimer = (match) => {
 const recordQuestionResult = async (questionId, teamId, isCorrect) => {
   if (!questionId) return
   const inc = {
+    'stats.timesAsked': 1,
     [isCorrect ? 'stats.correctCount' : 'stats.incorrectCount']: 1,
   }
   await Question.updateOne({ _id: questionId }, { $inc: inc })
