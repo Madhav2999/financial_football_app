@@ -293,6 +293,7 @@ function AppShell() {
         let winnerId = m?.winnerId
         let loserId = m?.loserId
         if (winnerId && loserId) {
+          console.log({winnerId,loserId})
           return { winnerId, loserId }
         }
         const lastHistory =
@@ -312,6 +313,7 @@ function AppShell() {
             loserId = homeScore > awayScore ? away : home
           }
         }
+        console.log({winnerId,loserId})
         return { winnerId, loserId }
       }
 
@@ -337,6 +339,7 @@ function AppShell() {
             const isWinner = Boolean(winnerId) && winnerId === session.teamId
             const isLoser = Boolean(loserId) && loserId === session.teamId
             const alreadySeen = seenResultToastRef.current.has(match.id)
+            console.log({alreadySeen,isWinner,isLoser})
             if (!alreadySeen && (isWinner || isLoser)) {
               seenResultToastRef.current.add(match.id)
               const message = isWinner ? 'You won!' : 'You lost'
