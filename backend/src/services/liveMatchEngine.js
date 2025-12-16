@@ -315,73 +315,91 @@ const handleTimerExpire = async (matchId) => {
 }
 
 const finalizeMatch = async (match) => {
-  matches.set(match.id, match)
-  emitUpdate(match)
-  clearTimer(match.id)
-  await persistLiveMatchSnapshot({ ...match, status: 'completed' })
-  if (!match.tournamentId || !match.tournamentMatchId) {
-    matches.delete(match.id)
-    return
-  }
-  const tournament = await loadTournamentById(match.tournamentId)
-  if (!tournament || !tournament.state) return
   const [teamAId, teamBId] = match.teams
   const teamAScore = match.scores[teamAId] ?? 0
   const teamBScore = match.scores[teamBId] ?? 0
   const winnerId = teamAScore === teamBScore ? null : teamAScore > teamBScore ? teamAId : teamBId
   const loserId = winnerId ? (winnerId === teamAId ? teamBId : teamAId) : null
+
+  if (!winnerId || !loserId) {
+    resetMatch(match.id)
+    return null
+  }
+
+  const completedAt = Date.now()
+  const completedMatch = {
+    ...match,
+    status: 'completed',
+    winnerId,
+    loserId,
+    completedAt,
+  }
+
+  matches.set(match.id, completedMatch)
+  emitUpdate(completedMatch)
+  clearTimer(match.id)
+  await persistLiveMatchSnapshot(completedMatch)
+  if (!match.tournamentId || !match.tournamentMatchId) {
+    matches.delete(match.id)
+    return completedMatch
+  }
+  const tournament = await loadTournamentById(match.tournamentId)
+  if (!tournament || !tournament.state) return completedMatch
+  let nextState = recordMatchResult(tournament.state, match.tournamentMatchId, {
+    winnerId,
+    loserId,
+    scores: match.scores,
+  })
+  nextState = detachLiveMatch(nextState, match.tournamentMatchId)
+  await persistTournamentState(tournament, nextState)
+  const tournamentObjectId = toObjectId(match.tournamentId)
+  const homeTeamObjectId = toObjectId(match.teams[0])
+  const awayTeamObjectId = toObjectId(match.teams[1])
+  const tournamentName = tournament.name
   if (!winnerId || !loserId) {
     // Leave the match in memory and signal a reset so moderators can retoss
     // instead of wiping it (which caused “retoss” with no controls).
     resetMatch(match.id)
     return
   }
-  if (winnerId && loserId) {
-    let nextState = recordMatchResult(tournament.state, match.tournamentMatchId, {
-      winnerId,
-      loserId,
-      scores: match.scores,
-    })
-    nextState = detachLiveMatch(nextState, match.tournamentMatchId)
-    await persistTournamentState(tournament, nextState)
-    const tournamentObjectId = toObjectId(match.tournamentId)
-    const homeTeamObjectId = toObjectId(match.teams[0])
-    const awayTeamObjectId = toObjectId(match.teams[1])
-    const tournamentName = tournament.name
-    const teamDocs = await Team.find({ _id: { $in: [teamAId, teamBId] } }).lean()
-    const teamNameMap = new Map(teamDocs.map((doc) => [doc._id.toString(), doc.name]))
-    const teamALabel =
-      teamNameMap.get(teamAId) ?? match.teamLabels?.[teamAId] ?? match.teams[0]?.toString?.() ?? teamAId
-    const teamBLabel =
-      teamNameMap.get(teamBId) ?? match.teamLabels?.[teamBId] ?? match.teams[1]?.toString?.() ?? teamBId
-    if (tournamentObjectId && homeTeamObjectId && awayTeamObjectId) {
-      await Match.findOneAndUpdate(
-        { matchRefId: match.id },
-        {
-          matchRefId: match.id,
-          tournament: tournamentObjectId,
-          stage: null,
-          homeTeam: homeTeamObjectId,
-          awayTeam: awayTeamObjectId,
-          result: {
-            homeScore: match.scores[match.teams[0]] ?? 0,
-            awayScore: match.scores[match.teams[1]] ?? 0,
-            winnerTeam: toObjectId(winnerId),
-          },
-          metadata: {
-            tournamentMatchId: match.tournamentMatchId,
-            tournamentName,
-            homeTeamName: teamALabel,
-            awayTeamName: teamBLabel,
-            winnerTeamName: teamALabel && winnerId === teamAId ? teamALabel : teamBLabel,
-          },
-          status: 'completed',
+  const tournamentObjectId = toObjectId(match.tournamentId)
+  const homeTeamObjectId = toObjectId(match.teams[0])
+  const awayTeamObjectId = toObjectId(match.teams[1])
+  const tournamentName = tournament.name
+  const teamDocs = await Team.find({ _id: { $in: [teamAId, teamBId] } }).lean()
+  const teamNameMap = new Map(teamDocs.map((doc) => [doc._id.toString(), doc.name]))
+  const teamALabel =
+    teamNameMap.get(teamAId) ?? match.teamLabels?.[teamAId] ?? match.teams[0]?.toString?.() ?? teamAId
+  const teamBLabel =
+    teamNameMap.get(teamBId) ?? match.teamLabels?.[teamBId] ?? match.teams[1]?.toString?.() ?? teamBId
+  if (tournamentObjectId && homeTeamObjectId && awayTeamObjectId) {
+    await Match.findOneAndUpdate(
+      { matchRefId: match.id },
+      {
+        matchRefId: match.id,
+        tournament: tournamentObjectId,
+        stage: null,
+        homeTeam: homeTeamObjectId,
+        awayTeam: awayTeamObjectId,
+        result: {
+          homeScore: match.scores[match.teams[0]] ?? 0,
+          awayScore: match.scores[match.teams[1]] ?? 0,
+          winnerTeam: toObjectId(winnerId),
         },
-        { upsert: true, new: true },
-      )
-    }
+        metadata: {
+          tournamentMatchId: match.tournamentMatchId,
+          tournamentName,
+          homeTeamName: teamALabel,
+          awayTeamName: teamBLabel,
+          winnerTeamName: teamALabel && winnerId === teamAId ? teamALabel : teamBLabel,
+        },
+        status: 'completed',
+      },
+      { upsert: true, new: true },
+    )
   }
   matches.delete(match.id)
+  return completedMatch
 }
 
 export const createLiveMatch = async ({ teamAId, teamBId, moderatorId = null, tournamentMatchId, tournamentId }) => {
@@ -492,8 +510,8 @@ export const submitAnswer = async (matchId, teamId, answerValue) => {
   await recordQuestionResult(currentQuestion?.id, teamId, isCorrect)
   const outcome = applyAnswerResult(match, teamId, isCorrect)
   if (outcome.completed) {
-    await finalizeMatch(outcome.match)
-    return outcome.match
+    const finalized = await finalizeMatch(outcome.match)
+    return finalized || outcome.match
   }
   const updated = outcome.match
   setMatch(updated)

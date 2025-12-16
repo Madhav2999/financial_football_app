@@ -293,7 +293,6 @@ function AppShell() {
         let winnerId = m?.winnerId
         let loserId = m?.loserId
         if (winnerId && loserId) {
-          console.log({winnerId,loserId})
           return { winnerId, loserId }
         }
         const historySource =
@@ -316,7 +315,6 @@ function AppShell() {
             loserId = homeScore > awayScore ? away : home
           }
         }
-        console.log({winnerId,loserId})
         return { winnerId, loserId }
       }
 
