@@ -33,11 +33,11 @@ export function useMatchTimer(timer) {
 
   useEffect(() => {
     if (timer?.status === 'running' && typeof timer.remainingMs === 'number') {
-      setSyncBaseline({ remainingMs: timer.remainingMs, syncedAt: nowAdjusted })
+      setSyncBaseline({ remainingMs: timer.remainingMs, syncedAt: Date.now() })
     } else {
       setSyncBaseline({ remainingMs: null, syncedAt: null })
     }
-  }, [nowAdjusted, timer?.remainingMs, timer?.status])
+  }, [timer?.remainingMs, timer?.status])
 
   useEffect(() => {
     if (!timer || timer.status !== 'running' || !timer.deadline) {
