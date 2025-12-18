@@ -15,7 +15,7 @@ if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET) {
   })
 }
 
-export const uploadImage = async (dataUri, filenameHint = 'avatar') => {
+export const uploadImage = async (dataUri, _filenameHint = 'avatar') => {
   if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
     throw new Error('Cloudinary is not configured')
   }

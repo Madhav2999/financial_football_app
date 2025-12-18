@@ -45,7 +45,9 @@ const canAnswer = (socket, match, teamId) => {
 const slimMatch = (match) => {
   if (!match) return match
   // Remove heavy fields for lightweight updates
-  const { questionQueue, history, ...rest } = match
+  const rest = { ...match }
+  delete rest.questionQueue
+  delete rest.history
   return rest
 }
 

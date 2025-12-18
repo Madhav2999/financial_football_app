@@ -56,7 +56,6 @@ async function drawQuestions(count, tournamentId = null) {
         { _id: doc._id },
         {
           $set: { lastUsedAt: new Date() },
-          $inc: { 'stats.timesAsked': 1 },
           ...(tournamentKey ? { $set: { 'metadata.currentTournamentId': tournamentKey } } : {}),
         },
       ),

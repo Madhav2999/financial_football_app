@@ -642,7 +642,7 @@ function AppShell() {
       // 3) Pick question stats for this tournament.
       const questionsFromHistory =
         analyticsQuestionHistory.find((entry) => entry.tournamentId === targetTournament.id)?.questions ?? null
-      const snapshotQuestions = targetTournament.state?.questionStats?.questions
+      const snapshotQuestions = stateSource?.questionStats?.questions ?? targetTournament.questionStats?.questions ?? null
       const questions = snapshotQuestions || questionsFromHistory || analyticsQuestions || []
 
       // Derive podium (gold/silver/bronze) from matches only.

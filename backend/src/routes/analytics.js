@@ -116,4 +116,68 @@ router.get('/questions/history', async (req, res, next) => {
     next(error)
   }
 })
+
+// Per-tournament question stats (fallback to snapshot; otherwise return empty)
+router.get('/questions/:tournamentId', async (req, res, next) => {
+  try {
+    const tournament = await Tournament.findById(req.params.tournamentId)
+    if (!tournament) {
+      return res.status(404).json({ message: 'Tournament not found' })
+    }
+
+    const snapshotQuestions = tournament.state?.questionStats?.questions ?? []
+    const questions = snapshotQuestions.map((q) => {
+      const stats = q.stats ?? {}
+      const correctCount = q.correctCount ?? stats.correctCount ?? 0
+      const incorrectCount = q.incorrectCount ?? stats.incorrectCount ?? 0
+      const totalAsked = q.totalAsked ?? stats.timesAsked ?? correctCount + incorrectCount
+      const totalAnswered = correctCount + incorrectCount
+      const accuracy =
+        q.accuracy ??
+        (totalAnswered ? Math.round((correctCount / totalAnswered) * 1000) / 10 : null)
+
+      return {
+        id: q.id || q._id?.toString?.(),
+        prompt: q.prompt,
+        category: q.category,
+        difficulty: q.difficulty,
+        totalAsked,
+        correctCount,
+        incorrectCount,
+        totalAnswered,
+        accuracy,
+        tags: q.tags ?? [],
+      }
+    })
+
+    const summary = questions.reduce(
+      (acc, entry) => {
+        acc.totalQuestions += 1
+        acc.totalAsked += entry.totalAsked
+        if (typeof entry.accuracy === 'number') {
+          acc.accuracySamples += 1
+          acc.accuracySum += entry.accuracy
+        }
+        return acc
+      },
+      { totalQuestions: 0, totalAsked: 0, accuracySum: 0, accuracySamples: 0 },
+    )
+
+    const averageAccuracy =
+      summary.accuracySamples > 0
+        ? Math.round((summary.accuracySum / summary.accuracySamples) * 10) / 10
+        : null
+
+    res.json({
+      questions,
+      summary: {
+        totalQuestions: summary.totalQuestions,
+        totalAsked: summary.totalAsked,
+        averageAccuracy,
+      },
+    })
+  } catch (error) {
+    next(error)
+  }
+})
 export default router

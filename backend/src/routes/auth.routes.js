@@ -375,7 +375,7 @@ authRouter.post('/logout', (req, res) => {
   return res.json({ message: 'Logged out. Please delete any stored tokens.' })
 })
 
-authRouter.post('/reset-password', async (req, res, next) => {
+authRouter.post('/reset-password', async (req, res) => {
   const { token, newPassword } = req.body || {}
   if (!isNonEmptyString(token) || !isNonEmptyString(newPassword)) {
     return res.status(400).json({ message: 'token and newPassword are required' })
