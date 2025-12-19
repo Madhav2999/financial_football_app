@@ -174,6 +174,15 @@ function AppShell() {
   useEffect(() => {
     writeStoredSession(session)
   }, [session])
+  const teamNameMap = useMemo(
+    () =>
+      Object.fromEntries(
+        (teams || []).map((t) => [t.id, t.name || t.teamName || t.organization || t.loginId || t.id])
+      ),
+    [teams]
+  )
+
+  const getTeamNameToast = useCallback((id) => teamNameMap[id] || id || '', [teamNameMap])
 
   const withApiBase = useCallback(
     (path) => {
@@ -333,8 +342,6 @@ function AppShell() {
       socket.on('match:settings', (settings) => setMatchSettings(settings))
 
       socket.on('liveMatch:update', (match) => {
-        const getTeamName = (id) => teams.find((team) => team.id === id)?.name || id || ''
-
         if (!match?.id) return
         if (match.status === 'completed') {
           if (session.type === 'team' && match.teams?.includes(session.teamId)) {
@@ -343,11 +350,11 @@ function AppShell() {
             const isWinner = Boolean(winnerId) && winnerId === session.teamId
             const isLoser = Boolean(loserId) && loserId === session.teamId
             const alreadySeen = seenResultToastRef.current.has(match.id)
-            const winnerName = getTeamName(winnerId)
-            console.log({alreadySeen,isWinner,isLoser})
+            const winnerName = getTeamNameToast(winnerId)
+            console.log({ alreadySeen, isWinner, isLoser })
             if (!alreadySeen && (isWinner || isLoser)) {
               seenResultToastRef.current.add(match.id)
-              const message = `Winner Is Team ${winnerName}` 
+              const message = `Winner Is Team ${winnerName}`
               setTeamResultToast({ message, ts: Date.now() })
               setTimeout(() => setTeamResultToast(null), 10000)
             }
