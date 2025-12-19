@@ -174,15 +174,21 @@ function AppShell() {
   useEffect(() => {
     writeStoredSession(session)
   }, [session])
-  const teamNameMap = useMemo(
-    () =>
-      Object.fromEntries(
-        (teams || []).map((t) => [t.id, t.name || t.teamName || t.organization || t.loginId || t.id])
-      ),
-    [teams]
-  )
+  // top-level in App component
+  const teamNameMap = useMemo(() => {
+    const entries = (teams || []).map((t) => {
+      const key = String(t.id ?? t._id ?? t.loginId ?? '')
+      return [key, t.name || t.teamName || t.organization || t.loginId || key]
+    })
+    // also map loginId → name to cover that case
+    const loginEntries = (teams || [])
+      .filter((t) => t.loginId)
+      .map((t) => [String(t.loginId), t.name || t.teamName || t.organization || t.loginId])
+    return Object.fromEntries([...entries, ...loginEntries])
+  }, [teams])
 
-  const getTeamNameToast = useCallback((id) => teamNameMap[id] || id || '', [teamNameMap])
+  const getTeamNameToast = useCallback((id) => teamNameMap[String(id)] || id || '', [teamNameMap])
+
 
   const withApiBase = useCallback(
     (path) => {
