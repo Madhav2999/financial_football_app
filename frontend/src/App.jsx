@@ -333,6 +333,8 @@ function AppShell() {
       socket.on('match:settings', (settings) => setMatchSettings(settings))
 
       socket.on('liveMatch:update', (match) => {
+        const getTeamName = (id) => teams.find((team) => team.id === id)?.name || id || ''
+
         if (!match?.id) return
         if (match.status === 'completed') {
           if (session.type === 'team' && match.teams?.includes(session.teamId)) {
