@@ -313,10 +313,10 @@ export default function TeamDashboard({
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <main className="mx-auto max-w-6xl px-6 py-8 relative">
         {resultToast ? (
-          <div className="space-y-8 w-full">
-            <div className="rounded-3xl border border-white/40 bg-black/90 px-7 py-5 text-center text-lg font-extrabold text-white shadow-[0_15px_40px_-10px_rgba(0,0,0,0.75)] backdrop-blur-md">
+          <div className="pointer-events-none absolute left-1/2 top-4 z-50 w-full max-w-xl -translate-x-1/2 px-6">
+            <div className="rounded-3xl border border-white/40 bg-black/90 px-7 py-5 text-center text-xl font-extrabold text-white shadow-[0_15px_40px_-10px_rgba(0,0,0,0.75)] backdrop-blur-md">
               {resultToast.message}
             </div>
           </div>

@@ -342,7 +342,6 @@ function AppShell() {
             const isLoser = Boolean(loserId) && loserId === session.teamId
             const alreadySeen = seenResultToastRef.current.has(match.id)
             const winnerName = getTeamName(winnerId)
-            const loserName = getTeamName(loserId)
             console.log({alreadySeen,isWinner,isLoser})
             if (!alreadySeen && (isWinner || isLoser)) {
               seenResultToastRef.current.add(match.id)
