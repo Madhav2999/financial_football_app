@@ -218,7 +218,7 @@ export default function LandingPage({
           <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 pb-30 pt-12 text-white lg:flex-row lg:items-end">
             <div className="max-w-2xl space-y-6">
               <p className="text-sm uppercase tracking-[0.5em] text-emerald-300">Join the Ultimate</p>
-              <h1 className="text-5xl font-semibold leading-tight lg:text-6xl">Financial Football Quiz Showdown</h1>
+              <h1 className="text-5xl font-semibold leading-tight lg:text-6xl">Financial Football Showdown</h1>
               <p className="max-w-xl text-lg text-slate-200">
                 Double elimination drama. Rapid-fire questions. Strategic coin tosses. Rally your roster and conquer the bracket.
               </p>
@@ -237,12 +237,12 @@ export default function LandingPage({
                 >
                   Register Team
                 </button>
-                <a
+                {/* <a
                   href="#how-to-play"
                   className="cursor-pointer rounded-full border border-white/40 px-6 py-3 text-sm font-semibold text-white transition hover:border-emerald-300 hover:text-emerald-300"
                 >
                   Learn how to play
-                </a>
+                </a> */}
               </div>
             </div>
             <div className="rounded-3xl border border-white/60 bg-white/10 p-6 backdrop-blur lg:ml-auto lg:w-[320px]">

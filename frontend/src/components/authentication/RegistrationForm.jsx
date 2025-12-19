@@ -48,17 +48,7 @@ export default function RegistrationForm({
         <div className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-200">Login ID</label>
-              <input
-                required
-                value={registerForm.loginId}
-                onChange={(e) => onRegisterFormChange({ ...registerForm, loginId: e.target.value })}
-                placeholder="Unique login ID"
-                className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400 px-5 py-3.5 border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-200">Team Name</label>
+              <label className="mb-2 block text-sm font-semibold text-slate-200">School Name</label>
               <input
                 required
                 value={registerForm.teamName}
@@ -67,11 +57,8 @@ export default function RegistrationForm({
                 className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400 px-5 py-3.5 border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
               />
             </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-200">Organization</label>
+              <label className="mb-2 block text-sm font-semibold text-slate-200">Address</label>
               <input
                 required
                 value={registerForm.organization}
@@ -80,8 +67,24 @@ export default function RegistrationForm({
                 className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400 px-5 py-3.5 border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
               />
             </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-200">Contact Name</label>
+              <label className="mb-2 block text-sm font-semibold text-slate-200">County</label>
+              <input
+                value={registerForm.county}
+                onChange={(e) => onRegisterFormChange({ ...registerForm, county: e.target.value })}
+                placeholder="County"
+                className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400 px-5 py-3.5 border border-zi
+nc-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
+              />
+            </div>
+            <div />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-200">Coach Name</label>
               <input
                 value={registerForm.contactName}
                 onChange={(e) => onRegisterFormChange({ ...registerForm, contactName: e.target.value })}
@@ -89,9 +92,6 @@ export default function RegistrationForm({
                 className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400 px-5 py-3.5 border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
               />
             </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-200">Contact Email</label>
               <input
@@ -100,6 +100,19 @@ export default function RegistrationForm({
                 value={registerForm.contactEmail}
                 onChange={(e) => onRegisterFormChange({ ...registerForm, contactEmail: e.target.value })}
                 placeholder="Contact email"
+                className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400 px-5 py-3.5 border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-200">Login ID</label>
+              <input
+                required
+                value={registerForm.loginId}
+                onChange={(e) => onRegisterFormChange({ ...registerForm, loginId: e.target.value })}
+                placeholder="Unique login ID"
                 className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400 px-5 py-3.5 border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
               />
             </div>
@@ -116,19 +129,6 @@ export default function RegistrationForm({
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-200">County</label>
-              <input
-                value={registerForm.county}
-                onChange={(e) => onRegisterFormChange({ ...registerForm, county: e.target.value })}
-                placeholder="County"
-                className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400 px-5 py-3.5 border border-zi
-nc-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
-              />
-            </div>
-            <div />
-          </div>
 
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-200">Notes</label>

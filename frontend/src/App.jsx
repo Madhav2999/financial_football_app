@@ -341,12 +341,14 @@ function AppShell() {
             const isWinner = Boolean(winnerId) && winnerId === session.teamId
             const isLoser = Boolean(loserId) && loserId === session.teamId
             const alreadySeen = seenResultToastRef.current.has(match.id)
+            const winnerName = getTeamName(winnerId)
+            const loserName = getTeamName(loserId)
             console.log({alreadySeen,isWinner,isLoser})
             if (!alreadySeen && (isWinner || isLoser)) {
               seenResultToastRef.current.add(match.id)
-              const message = isWinner ? 'You won!' : 'You lost'
+              const message = `Winner Is Team ${winnerName}` 
               setTeamResultToast({ message, ts: Date.now() })
-              setTimeout(() => setTeamResultToast(null), 3000)
+              setTimeout(() => setTeamResultToast(null), 10000)
             }
           }
           setActiveMatches((prev) => prev.filter((item) => item.id !== match.id))
