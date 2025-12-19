@@ -278,8 +278,8 @@ export default function TeamDashboard({
                 type="button"
                 onClick={() => setViewMode('overview')}
                 className={`rounded-xl px-4 py-2 font-semibold transition ${viewMode === 'overview'
-                    ? 'bg-sky-500 text-white shadow shadow-sky-500/40'
-                    : 'text-slate-200 hover:text-white'
+                  ? 'bg-sky-500 text-white shadow shadow-sky-500/40'
+                  : 'text-slate-200 hover:text-white'
                   }`}
               >
                 Overview
@@ -289,10 +289,10 @@ export default function TeamDashboard({
                 onClick={() => tournamentActive && setViewMode('game-room')}
                 disabled={!tournamentActive}
                 className={`rounded-xl px-4 py-2 font-semibold transition ${showGameRoom
-                    ? 'bg-emerald-500 text-white shadow shadow-emerald-500/40'
-                    : tournamentActive
-                      ? 'text-slate-200 hover:text-white'
-                      : 'cursor-not-allowed text-slate-500'
+                  ? 'bg-emerald-500 text-white shadow shadow-emerald-500/40'
+                  : tournamentActive
+                    ? 'text-slate-200 hover:text-white'
+                    : 'cursor-not-allowed text-slate-500'
                   }`}
               >
                 Game Room
@@ -311,18 +311,16 @@ export default function TeamDashboard({
               Log out
             </button>
           </div>
-  </div>
-      </header>
-
-      {resultToast ? (
-        <div className="pointer-events-none fixed left-1/2 top-4 z-[2000] w-full max-w-md -translate-x-1/2 px-4">
-          <div className="rounded-2xl border border-white/30 bg-slate-900/95 px-5 py-4 text-center text-base font-bold text-white shadow-2xl shadow-black/50 backdrop-blur">
-            {resultToast.message}
-          </div>
         </div>
-      ) : null}
-
+      </header>
       <main className="mx-auto max-w-6xl px-6 py-8">
+        {resultToast ? (
+          <div className="pointer-events-none fixed left-1/2 top-4 z-[2000] w-full max-w-md -translate-x-1/2 px-4">
+            <div className="rounded-2xl border border-white/30 bg-slate-900/95 px-5 py-4 text-center text-base font-bold text-white shadow-2xl shadow-black/50 backdrop-blur">
+              {resultToast.message}
+            </div>
+          </div>
+        ) : null}
         {showGameRoom ? (
           <div className="space-y-8">
             {isInLiveMatch ? (

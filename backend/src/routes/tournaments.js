@@ -203,6 +203,11 @@ router.post('/:id/matches/:matchId/attach', requireUser, async (req, res, next) 
       return res.status(400).json({ message: 'liveMatchId is required.' })
     }
 
+    const existingMatchRef = tournament.state?.matches?.[req.params.matchId]?.matchRefId
+    if (existingMatchRef && existingMatchRef === liveMatchId) {
+      return res.json({ tournament: sanitizeTournament(tournament) })
+    }
+
     if (!canAttachMatch(tournament.state, req.params.matchId, req.user)) {
       return res.status(403).json({ message: 'Insufficient permissions to attach this match.' })
     }

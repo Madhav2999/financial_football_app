@@ -140,10 +140,10 @@ const registerSocketHandlers = (io) => {
       }
     })
 
-    socket.on('liveMatch:reset', ({ matchId }) => {
+    socket.on('liveMatch:reset', async ({ matchId }) => {
       const match = joinMatch(matchId)
       if (!match || !canControlMatch(socket, match)) return
-      const updated = resetMatch(matchId)
+      const updated = await resetMatch(matchId)
       if (updated) {
         io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...updated, serverNow: Date.now() })
       }

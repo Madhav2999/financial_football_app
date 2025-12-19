@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { requireUser } from '../middleware/auth.js'
+import LiveMatch from '../db/models/liveMatch.js'
 import { createLiveMatch, joinMatch } from '../services/liveMatchEngine.js'
 
 const router = Router()
@@ -12,6 +13,18 @@ router.post('/', async (req, res, next) => {
     if (!teamAId || !teamBId || !tournamentMatchId || !tournamentId) {
       return res.status(400).json({ message: 'teamAId, teamBId, tournamentMatchId, and tournamentId are required.' })
     }
+
+    // Idempotent create: if a live match already exists for this bracket match (and not completed), reuse it.
+    const existingDoc = await LiveMatch.findOne({
+      tournamentId: tournamentId.toString(),
+      tournamentMatchId,
+      status: { $ne: 'completed' },
+    })
+    if (existingDoc) {
+      const inMemory = joinMatch(existingDoc.matchRefId)
+      return res.status(200).json({ match: inMemory || existingDoc.state })
+    }
+
     const match = await createLiveMatch({
       teamAId,
       teamBId,

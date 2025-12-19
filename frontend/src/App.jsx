@@ -363,6 +363,19 @@ function AppShell() {
         const flipStart = coinFlipAnimRef.current.get(match.id)
         const applyUpdate = () => upsertActiveMatch(match)
 
+        // If we didn't previously mark it as flipping, but the server sends a final toss state,
+        // start a local flip timer so teams still see ~1800ms of spin before the result.
+        if (isFlipUpdate && !wasFlipping && !flipStart) {
+          const startedAt = Date.now()
+          coinFlipAnimRef.current.set(match.id, startedAt)
+          const delay = 1800
+          setTimeout(() => {
+            coinFlipAnimRef.current.delete(match.id)
+            applyUpdate()
+          }, delay)
+          return
+        }
+
         if (isFlipUpdate && wasFlipping && flipStart) {
           const elapsed = Date.now() - flipStart
           const delay = Math.max(0, 1800 - elapsed)

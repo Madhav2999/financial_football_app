@@ -545,16 +545,19 @@ export const resumeMatch = (matchId) => {
   return updated
 }
 
-export const resetMatch = (matchId) => {
+export const resetMatch = async (matchId) => {
   const match = getMatch(matchId)
   if (!match) return null
   const [teamAId, teamBId] = match.teams
+  const questionQueue =
+    match.tournamentId ? await drawQuestions(QUESTIONS_PER_TEAM * 2, match.tournamentId) : match.questionQueue ?? []
   const reset = {
     ...match,
     scores: {
       [teamAId]: 0,
       [teamBId]: 0,
     },
+    questionQueue,
     questionIndex: 0,
     assignedTeamOrder: [],
     activeTeamId: null,
