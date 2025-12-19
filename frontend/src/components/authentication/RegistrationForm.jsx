@@ -103,6 +103,12 @@ nc-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-
                 className="w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400 px-5 py-3.5 border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner"
               />
             </div>
+            <div>
+              <label className='mb-2 block text-sm font-semibold text-slate-200'>Coach Contact Number</label>
+              <input required type="text" value={registerForm.coachContact} onChange={(e)=> onRegisterFormChange({...registerForm,coachContact: e.target.value})}
+               className='w-full rounded-full bg-zinc-700/60 text-white placeholder:text-slate-400 px-5 py-3.5 border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400 shadow-inner'
+              placeholder="Coach Contact No"/>
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

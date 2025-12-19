@@ -8,6 +8,7 @@ const teamSchema = new Schema(
     loginId: { type: String, required: true, trim: true, unique: true },
     passwordHash: { type: String, required: true, select: false },
     region: { type: String, trim: true },
+    coachContact: { type: String, trim: true },
     seed: { type: Number },
     avatarUrl: { type: String },
     metadata: { type: Map, of: Schema.Types.Mixed },

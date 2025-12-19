@@ -32,6 +32,7 @@ const sanitizeTeam = (teamDoc) => ({
   loginId: teamDoc.loginId,
   name: teamDoc.name,
   region: teamDoc.region,
+  coachContact: teamDoc.coachContact,
   seed: teamDoc.seed,
   avatarUrl: teamDoc.avatarUrl,
   metadata: teamDoc.metadata,
@@ -53,6 +54,7 @@ const sanitizeTeamRegistration = (registrationDoc) => ({
   organization: registrationDoc.organization,
   contactName: registrationDoc.contactName,
   contactEmail: registrationDoc.contactEmail,
+  coachContact: registrationDoc.coachContact,
   county: registrationDoc.county,
   status: registrationDoc.status,
   linkedTeamId: registrationDoc.linkedTeamId,
@@ -186,7 +188,7 @@ authRouter.get('/session', async (req, res, next) => {
 })
 
 authRouter.post('/register', async (req, res, next) => {
-  const { teamName, organization, contactName, contactEmail, notes, password, loginId } = req.body || {}
+  const { teamName, organization, contactName, contactEmail, notes, password, loginId, coachContact } = req.body || {}
 
   const trimmedTeamName = teamName?.trim()
   const trimmedOrganization = organization?.trim()
@@ -195,11 +197,12 @@ authRouter.post('/register', async (req, res, next) => {
   const trimmedCounty = notes?.trim()
   const trimmedPassword = password?.trim()
   const trimmedLoginId = loginId?.trim().toLowerCase() || trimmedContactEmail
+  const trimmedCoachContact = coachContact?.trim()
 
-  if (!trimmedTeamName || !trimmedOrganization || !trimmedContactEmail || !trimmedPassword) {
+  if (!trimmedTeamName || !trimmedOrganization || !trimmedContactEmail || !trimmedPassword || !trimmedCoachContact) {
     return res
       .status(400)
-      .json({ message: 'teamName, organization, contactEmail, and password are required for registration' })
+      .json({ message: 'teamName, organization, contactEmail, coachContact, and password are required for registration' })
   }
 
   try {
@@ -224,6 +227,7 @@ authRouter.post('/register', async (req, res, next) => {
       passwordHash,
       contactName: trimmedContactName,
       contactEmail: trimmedContactEmail,
+      coachContact: trimmedCoachContact,
       county: trimmedCounty,
       metadata: { notes: trimmedCounty },
     })

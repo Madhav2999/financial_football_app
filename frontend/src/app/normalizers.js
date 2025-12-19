@@ -8,6 +8,7 @@ export function normalizeTeamRecord(team) {
     loginId: team.loginId || normalizedId,
     name: team.name || team.teamName || team.organization || team.loginId,
     region: team.region || team.county || '',
+    coachContact: team.coachContact || '',
     seed: typeof team.seed === 'number' ? team.seed : null,
     avatarUrl: team.avatarUrl,
     metadata: team.metadata || {},

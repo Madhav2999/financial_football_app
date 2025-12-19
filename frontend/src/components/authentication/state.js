@@ -15,6 +15,7 @@ export const INITIAL_REGISTER_FORM = {
   county: '',
   notes: '',
   password: '',
+  coachContact:'',
   acknowledgements: {
     authorization: false,
     noGuarantee: false,
