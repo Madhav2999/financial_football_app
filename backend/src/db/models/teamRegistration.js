@@ -10,7 +10,7 @@ const teamRegistrationSchema = new Schema(
     passwordHash: { type: String, required: true, select: false },
     contactName: { type: String, trim: true },
     contactEmail: { type: String, required: true, trim: true, lowercase: true },
-    coachContact: {type: String,required: true,trim:  true, lowercase: true,unique: true},
+    coachContact: { type: String, required: true, trim: true },
     county: { type: String, trim: true },
     status: {
       type: String,

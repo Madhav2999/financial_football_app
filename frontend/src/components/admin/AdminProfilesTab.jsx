@@ -105,17 +105,27 @@ export default function AdminProfilesTab({
           </div>
         </div>
         {isExpanded ? (
-          <div className="mt-3 space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-            <div className="grid gap-2 text-xs text-slate-300 md:grid-cols-2">
-              {type === 'team' ? (
-                <>
-                  <span>Region: {entry.region || '-'}</span>
-                  <span>Seed: {entry.seed ?? '-'}</span>
-                </>
-              ) : null}
-              <span>Created: {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : '-'}</span>
-              <span>ID: {entry.id}</span>
-            </div>
+            <div className="mt-3 space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+              <div className="grid gap-2 text-xs text-slate-300 md:grid-cols-2">
+                {type === 'team' ? (
+                  <>
+                    <span>Region: {entry.region || '-'}</span>
+                    <span>Seed: {entry.seed ?? '-'}</span>
+                    <span>Coach contact: {entry.coachContact || '-'}</span>
+                    <span>Organization: {entry.organization || '-'}</span>
+                    <span>Contact name: {entry.contactName || '-'}</span>
+                    <span>Contact email: {entry.contactEmail || '-'}</span>
+                    <span>County: {entry.county || '-'}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Email: {entry.email || '-'}</span>
+                    <span>Role: {entry.role || 'moderator'}</span>
+                  </>
+                )}
+                <span>Created: {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : '-'}</span>
+                <span>ID: {entry.id}</span>
+              </div>
             {isPasswordOpen ? (
               <div className="space-y-2 border-t border-slate-800 pt-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-200">Set new password</p>

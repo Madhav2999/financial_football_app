@@ -36,6 +36,10 @@ const sanitizeTeam = (teamDoc) => ({
   seed: teamDoc.seed,
   avatarUrl: teamDoc.avatarUrl,
   metadata: teamDoc.metadata,
+  organization: teamDoc.metadata?.get?.('organization') || teamDoc.metadata?.organization,
+  contactName: teamDoc.metadata?.get?.('contactName') || teamDoc.metadata?.contactName,
+  contactEmail: teamDoc.metadata?.get?.('contactEmail') || teamDoc.metadata?.contactEmail,
+  county: teamDoc.metadata?.get?.('county') || teamDoc.metadata?.county,
 })
 
 const sanitizeModerator = (moderatorDoc) => ({
