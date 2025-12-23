@@ -215,19 +215,33 @@ export default function ModeratorDashboard({
                     </div>
                     {interactiveAssignments.map((match) => {
                       const isOpen = openMatchIds.has(match.id);
+
+                      const [teamAId, teamBId] = match.teams ?? [];
+                      const teamA = teams.find((t) => t.id === teamAId) ?? null;
+                      const teamB = teams.find((t) => t.id === teamBId) ?? null;
+
+                      const title = `${teamA?.name ?? "TBD"} vs ${teamB?.name ?? "TBD"}`;
+
                       return (
-                        <div key={match.id}
-                          className='rounded-3xl border border-white/10 bg-slate-900/50 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.25)]'
-                        >
-                          <button type='button' onClick={() => toggleMatch(match.id)} aria-expanded={isOpen} className='flex w-full items-center justify-between gap-4 px-6 py-4 text-left'>
-                            <div className='min-w-0'>
-                              <p className='text-xs uppercase tracking-[0.3em] text-slate-300'>{match.status}</p>
-                              <p className='mt-1 truncate text-base font-semibold text-white'>{match.label ?? `Match ${match.id}`}</p>
+                        <div key={match.id} className="rounded-3xl border border-white/10 bg-slate-900/50">
+                          <button
+                            type="button"
+                            onClick={() => toggleMatch(match.id)}
+                            className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left"
+                            aria-expanded={isOpen}
+                          >
+                            <div className="min-w-0">
+                              <p className="text-xs uppercase tracking-[0.3em] text-slate-300">{match.status}</p>
+                              <p className="mt-1 truncate text-base font-semibold text-white">
+                                {title}
+                              </p>
                             </div>
-                            <span className='shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-100'>
+
+                            <span className="shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-100">
                               {isOpen ? "Hide ▲" : "Show ▼"}
                             </span>
                           </button>
+
                           {isOpen ? (
                             <div className="px-6 pb-6">
                               {match.status === "coin-toss" ? (
@@ -254,8 +268,9 @@ export default function ModeratorDashboard({
                             </div>
                           ) : null}
                         </div>
-                      )
+                      );
                     })}
+
                   </div>
                 </div>
               ) : null}
