@@ -4,7 +4,6 @@ import bgHero from '/assets/moderator-bg.jpg'; // <-- update this path for your 
 
 import { useMemo } from 'react'
 import { CoinTossPanel, LiveMatchPanel, MatchControlButtons } from './MatchPanels'
-import RosterSelectionPanel from './RosterSelectionPanel'
 
 function AssignmentHeader({ moderator }) {
   return (
@@ -19,39 +18,7 @@ function AssignmentHeader({ moderator }) {
   )
 }
 
-function UpcomingAssignments({ bracketAssignments }) {
-  if (!bracketAssignments.length) {
-    return null
-  }
-  return (
-    <section className="rounded-3xl border border-white/10 bg-slate-900/60 backdrop-blur-md p-6 shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
-      <h2 className="text-lg font-semibold text-white">Upcoming Bracket Matches</h2>
-      <ul className="mt-4 space-y-3 text-sm text-slate-300">
-        {bracketAssignments.map((assignment) => (
-          <li key={assignment.id} className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{assignment.stageLabel}</p>
-                <p className="mt-1 text-base text-white">{assignment.label}</p>
-              </div>
-              <span className="rounded-full border border-white/15 px-3 py-1 text-[11px] uppercase tracking-[0.3em] text-slate-200">
-                {assignment.status}
-              </span>
-            </div>
-            <p className="mt-3 text-sm text-slate-300">
-              {assignment.teamA?.name ?? 'TBD'} vs {assignment.teamB?.name ?? 'TBD'}
-            </p>
-            {assignment.liveMatchId ? (
-              <p className="mt-2 text-xs uppercase tracking-[0.3em] text-emerald-300">
-                Linked live match: {assignment.liveMatchId}
-              </p>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </section>
-  )
-}
+
 
 export default function ModeratorDashboard({
   moderator,
@@ -117,6 +84,25 @@ export default function ModeratorDashboard({
     />
   )
 
+  const [openMatchIds, setOpenMatchIds] = useState(() => new Set());
+
+  const toggleMatch = (id) => {
+    setOpenMatchIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    })
+  }
+
+  const expandAll = () => {
+    setOpenMatchIds(new Set(interactiveAssignments.map((m) => m.id)))
+  }
+
+  const collapseAll = () => {
+    setOpenMatchIds(new Set());
+  }
+
   return (
     <div className="relative min-h-dvh md:min-h-screen text-slate-100">
       {/* background image + gradient/blur overlay */}
@@ -142,7 +128,7 @@ export default function ModeratorDashboard({
             <AssignmentHeader moderator={moderator} />
             {!socketConnected ? (
               <span className="rounded-full border border-amber-500/60 bg-amber-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-amber-200">
-                Connection lost. Please refresh.
+                Connection lost. Reconnecting...
               </span>
             ) : null}
             {moderator?.avatarUrl ? (
@@ -192,7 +178,7 @@ export default function ModeratorDashboard({
                 <div className="space-y-6 rounded-3xl">
                   <h2 className="text-3xl font-semibold text-white items-center flex justify-center">Quiz Moderator</h2>
                   <div className="space-y-6">
-                    {interactiveAssignments.map((match) =>
+                    {/* {interactiveAssignments.map((match) =>
                       match.status === 'coin-toss' ? (
                         <CoinTossPanel
                           key={match.id}
@@ -216,7 +202,60 @@ export default function ModeratorDashboard({
                           description="Monitor scoring, track question progress, and adjust tempo as needed."
                         />
                       ),
-                    )}
+                    )} */}
+                    <div className='space-y-4'>
+                      <button type='button' onClick={expandAll}
+                        className='rounded-full border border-white/15 bg-slate-900/40 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-slate-100 hover:border-sky-400 hover:text-sky-300'>
+                        Expand all
+                      </button>
+                      <button type='button' onClick={collapseAll}
+                        className='rounded-full border border-white/15 bg-slate-900/40 px-3 py-1 text-[11px] uppercase tracking-[0.2 em] text-slate-100 hover:border-sky-400 hover:text-sky-300'>
+                        Collapse All
+                      </button>
+                    </div>
+                    {interactiveAssignments.map((match) => {
+                      const isOpen = openMatchIds.has(match.id);
+                      return (
+                        <div key={match.id}
+                          className='rounded-3xl border border-white/10 bg-slate-900/50 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.25)]'
+                        >
+                          <button type='button' onClick={() => toggleMatch(match.id)} aria-expanded={isOpen} className='flex w-full items-center justify-between gap-4 px-6 py-4 text-left'>
+                            <div className='min-w-0'>
+                              <p className='text-xs uppercase tracking-[0.3em] text-slate-300'>{match.status}</p>
+                              <p className='mt-1 truncate text-base font-semibold text-white'>{match.label ?? `Match ${match.id}`}</p>
+                            </div>
+                            <span className='shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-100'>
+                              {isOpen ? "Hide ▲" : "Show ▼"}
+                            </span>
+                          </button>
+                          {isOpen ? (
+                            <div className="px-6 pb-6">
+                              {match.status === "coin-toss" ? (
+                                <CoinTossPanel
+                                  match={match}
+                                  teams={teams}
+                                  moderators={moderators}
+                                  canControl
+                                  onFlip={() => onFlipCoin?.(match.id)}
+                                  onSelectFirst={(deciderId, firstTeamId) =>
+                                    onSelectFirst?.(match.id, deciderId, firstTeamId)
+                                  }
+                                  description="Flip the coin and choose who receives the opening question."
+                                />
+                              ) : (
+                                <LiveMatchPanel
+                                  match={match}
+                                  teams={teams}
+                                  moderators={moderators}
+                                  actions={renderActions(match)}
+                                  description="Monitor scoring, track question progress, and adjust tempo as needed."
+                                />
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               ) : null}
