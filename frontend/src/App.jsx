@@ -301,6 +301,10 @@ function AppShell() {
     if (!socketRef.current) {
       const socket = io(SOCKET_BASE, {
         autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
         auth: session?.token ? { token: session.token } : {},
       })
 

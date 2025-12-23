@@ -300,7 +300,7 @@ export default function TeamDashboard({
             </div>
             {!socketConnected ? (
               <span className="rounded-full border border-amber-500/60 bg-amber-500/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">
-                Connection lost. Refresh to continue.
+                Connection lost. Reconnecting…
               </span>
             ) : null}
             <button
