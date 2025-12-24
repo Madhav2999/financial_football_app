@@ -305,6 +305,8 @@ function AppShell() {
         reconnectionAttempts: Infinity,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
+        pingInterval: 25000,
+        pingTimeout: 60000,
         auth: session?.token ? { token: session.token } : {},
       })
 
