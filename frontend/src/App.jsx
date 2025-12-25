@@ -124,12 +124,24 @@ function AppShell() {
   const seenResultToastRef = useRef(new Set())
   const upsertActiveMatch = useCallback((match) => {
     if (!match?.id) return
+    const bracketKey = match.tournamentMatchId || match.id
     setActiveMatches((previous) => {
-      const existing = previous.find((item) => item.id === match.id)
-      if (existing) {
-        return previous.map((item) => (item.id === match.id ? { ...existing, ...match } : item))
+      // Drop any other entries that represent the same bracket match (tournamentMatchId) to avoid duplicates.
+      let next = previous
+      if (bracketKey) {
+        const filtered = previous.filter(
+          (item) => (item.tournamentMatchId || item.id) !== bracketKey || item.id === match.id,
+        )
+        if (filtered.length !== previous.length) {
+          next = filtered
+        }
       }
-      return [...previous, match]
+
+      const existing = next.find((item) => item.id === match.id)
+      if (existing) {
+        return next.map((item) => (item.id === match.id ? { ...existing, ...match } : item))
+      }
+      return [...next, match]
     })
   }, [])
 

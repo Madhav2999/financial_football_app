@@ -1,9 +1,30 @@
 import { Router } from 'express'
-import { Moderator, Team, TeamRecord, Tournament } from '../db/models/index.js'
+import { LiveMatch, Moderator, Team, TeamRecord, Tournament } from '../db/models/index.js'
 import { subscribeToTournamentUpdates } from '../services/tournamentEvents.js'
 import { sanitizeTournament } from '../services/tournamentState.js'
+import { joinMatch } from '../services/liveMatchEngine.js'
 
 const publicRouter = Router()
+
+const publicLimiter = rateLimit({ windowMs: 60_000, max: 120 }); // 120 req/min/IP
+publicRouter.use(publicLimiter);
+
+const sanitizePublicMatch = (match) => {
+  if(!match) return null
+
+  const {questionQueue, history,...rest} = match
+  return {
+    ...rest,
+    id:match.id || match._id?.toString(),
+    scores:match.scores || {},
+    coinToss: match.coinToss || {},
+    status: match.status,
+    teams: match.teams || [],
+    label: match.label,
+    tournamentMatchId: match.tournamentMatchId,
+    moderatorId: match.moderatorId
+  }
+}
 
 const sanitizeTeam = (teamDoc, record = null) => {
   const recordData = record ?? {}
@@ -108,6 +129,20 @@ publicRouter.get('/tournaments/:id', async (req, res, next) => {
   }
 })
 
-
+publicRouter.get('/live-matches/:id',async(req,res,next)=>{
+    try {
+      const inMemory = joinMatch(req.params.id)
+      if(inMemory){
+        return res.json({match: sanitizePublicMatch(inMemory)})
+      }
+      const doc = await LiveMatch.findById(req.params.id).lean()
+      if(!doc){
+        return res.status(404).json({message:'Live match not found'})
+      }
+      return res.json({match: sanitizePublicMatch(match)})      
+    } catch (error) {
+      return next(error)
+    }
+})
 
 export default publicRouter
