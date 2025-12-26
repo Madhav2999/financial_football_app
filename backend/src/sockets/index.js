@@ -164,7 +164,11 @@ const registerSocketHandlers = (io) => {
 
   liveMatchEmitter.on('update', (match) => {
     if (!match) return
-    io.to(`live-match:${match.id}`).emit('liveMatch:update', { ...slimMatch(match), serverNow: Date.now() })
+    io.to(`live-match:${match.id}`).emit('liveMatch:update', {
+      ...slimMatch(match),
+      questionResults: match.questionResults ?? [],
+      serverNow: Date.now(),
+    })
   })
 }
 
