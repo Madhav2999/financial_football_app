@@ -6,8 +6,8 @@ import { joinMatch } from '../services/liveMatchEngine.js'
 
 const publicRouter = Router()
 
-const publicLimiter = rateLimit({ windowMs: 60_000, max: 120 }); // 120 req/min/IP
-publicRouter.use(publicLimiter);
+// const publicLimiter = rateLimit({ windowMs: 60_000, max: 120 }); // 120 req/min/IP
+// publicRouter.use(publicLimiter);
 
 const sanitizePublicMatch = (match) => {
   if(!match) return null
