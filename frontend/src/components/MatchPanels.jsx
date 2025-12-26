@@ -243,8 +243,9 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
   const opponent = teams.find((team) => team.id === opponentId)
   const awaitingSteal = match.awaitingSteal
   const moderatorName = resolveModeratorName(moderators, match.moderatorId)
-  const indicatorCount = totalQuestions || QUESTIONS_PER_TEAM * 2 || 8
   const results = Array.isArray(match.questionResults) ? match.questionResults : []
+  const maxResultIndex = results.reduce((max, r) => Math.max(max, Number.isFinite(r?.questionIndex) ? r.questionIndex : 0), 0)
+  const indicatorCount = Math.max(totalQuestions, maxResultIndex + 1, QUESTIONS_PER_TEAM * 2 || 8)
   const buildStatusForTeam = (teamId) =>
     Array.from({ length: indicatorCount }).map((_, idx) => {
       const entry = results.find((r) => r.questionIndex === idx && r.teamId === teamId)
