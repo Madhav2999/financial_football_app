@@ -76,9 +76,19 @@ function OverviewPanel({ team, tournamentLaunched, upcomingMatch, teams, moderat
   )
 }
 
-function AnalyticsSection({ team, teams, history , tournament }) {
-  const activeIds = tournament?.teams || [];
-  const activeTeams = tournament?.teams ? teams.filter((t) => tournament.teams.includes(t.id)) : teams;
+function AnalyticsSection({ team, teams, history, tournament }) {
+  const currentTournamentId = tournament?.backendId || tournament?.id || null
+  const activeIds = tournament?.teams || []
+  const activeTeams = activeIds.length ? teams.filter((t) => activeIds.includes(t.id)) : teams
+  const filteredHistory =
+    currentTournamentId && Array.isArray(history)
+      ? history.filter(
+          (m) =>
+            m.tournamentId === currentTournamentId ||
+            m.tournament?.id === currentTournamentId ||
+            m.metadata?.tournamentId === currentTournamentId,
+        )
+      : history
 
   return (
     <section className="mt-8 grid gap-8 lg:grid-cols-[1.2fr,1fr]">
@@ -89,7 +99,7 @@ function AnalyticsSection({ team, teams, history , tournament }) {
 
       <div>
         <h2 className="text-xl font-bold text-white tracking-tight">Recent Matches</h2>
-        <RecentResults history={history} teamId={team.id} teams={activeTeams} />
+        <RecentResults history={filteredHistory} teamId={team.id} teams={activeTeams} />
       </div>
     </section>
   )
