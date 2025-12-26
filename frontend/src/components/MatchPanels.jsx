@@ -1,4 +1,5 @@
 import { useMatchTimer, formatSeconds } from '../hooks/useMatchTimer'
+import { QUESTIONS_PER_TEAM } from '../app/constants'
 
 export function InlineCoinFlipAnimation({ status, teamAName, teamBName, resultFace }) {
   const classes = ['coin-flip__scene']
@@ -242,6 +243,16 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
   const opponent = teams.find((team) => team.id === opponentId)
   const awaitingSteal = match.awaitingSteal
   const moderatorName = resolveModeratorName(moderators, match.moderatorId)
+  const indicatorCount = totalQuestions || QUESTIONS_PER_TEAM * 2 || 8
+  const results = Array.isArray(match.questionResults) ? match.questionResults : []
+  const buildStatusForTeam = (teamId) =>
+    Array.from({ length: indicatorCount }).map((_, idx) => {
+      const entry = results.find((r) => r.questionIndex === idx && r.teamId === teamId)
+      if (!entry) return 'pending'
+      return entry.correct ? 'correct' : 'incorrect'
+    })
+  const teamAStatuses = buildStatusForTeam(teamAId)
+  const teamBStatuses = buildStatusForTeam(teamBId)
 
   const isPaused = match.status === 'paused'
   const { remainingSeconds, timerType, timerStatus } = useMatchTimer(match.timer)
@@ -253,10 +264,12 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
       : 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
   const timerLabel = timerType === 'steal' ? 'Steal window' : 'Answer window'
 
-  // tiny helper to paint neutral score pips without touching any logic
-  const indicatorCount = 8
-  const renderPip = (filled, good) =>
-    `h-4 w-4 rounded-full ${filled ? (good ? 'bg-emerald-400' : 'bg-rose-400') : 'border border-white/15 bg-transparent'}`
+  // tiny helper to paint score pips based on per-question result
+const renderPip = (status) => {
+  if (status === 'correct') return 'h-4 w-4 rounded-full bg-emerald-400'
+  if (status === 'incorrect') return 'h-4 w-4 rounded-full bg-rose-400'
+  return 'h-4 w-4 rounded-full border border-white/15 bg-transparent'
+}
 
   return (
     <div className="rounded-3xl border border-white/10 bg-slate-800/60 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
@@ -349,21 +362,21 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
             <span className="text-lg font-bold text-amber-400">{match.scores[teamBId]}</span>
           </div>
 
-          {/* neutral progress pips (purely visual; does not change behavior) */}
+          {/* progress pips: green correct, red incorrect, blank pending */}
           <div className="mt-4 grid gap-4">
             <div>
               <div className="mb-2 text-xs uppercase tracking-widest text-slate-400">{teamA?.name}</div>
               <div className="flex flex-wrap gap-2">
-                {Array.from({ length: indicatorCount }).map((_, i) => (
-                  <span key={`a-${i}`} className={renderPip(i < match.questionIndex && !match.awaitingSteal, true)} />
+                {teamAStatuses.map((status, i) => (
+                  <span key={`a-${i}`} className={renderPip(status)} />
                 ))}
               </div>
             </div>
             <div>
               <div className="mb-2 text-xs uppercase tracking-widest text-slate-400">{teamB?.name}</div>
               <div className="flex flex-wrap gap-2">
-                {Array.from({ length: indicatorCount }).map((_, i) => (
-                  <span key={`b-${i}`} className={renderPip(i < match.questionIndex && !match.awaitingSteal, true)} />
+                {teamBStatuses.map((status, i) => (
+                  <span key={`b-${i}`} className={renderPip(status)} />
                 ))}
               </div>
             </div>

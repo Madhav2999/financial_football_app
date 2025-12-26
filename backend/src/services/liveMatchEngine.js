@@ -304,7 +304,15 @@ const handleTimerExpire = async (matchId) => {
   if (!actingTeamId) return
   const currentQuestion = match.questionQueue?.[match.questionIndex]
   await recordQuestionResult(currentQuestion?.id, actingTeamId, false)
-  const outcome = applyAnswerResult(match, actingTeamId, false)
+  const updatedResults = Array.isArray(match.questionResults) ? [...match.questionResults] : []
+  updatedResults.push({
+    questionIndex: match.questionIndex,
+    teamId: actingTeamId,
+    correct: false,
+    type: 'timeout',
+  })
+  const matchWithResults = { ...match, questionResults: updatedResults }
+  const outcome = applyAnswerResult(matchWithResults, actingTeamId, false)
   if (outcome.completed) {
     await finalizeMatch(outcome.match)
   } else {
@@ -415,6 +423,7 @@ export const createLiveMatch = async ({ teamAId, teamBId, moderatorId = null, to
       [teamBId]: 0,
     },
     questionQueue,
+    questionResults: [],
     assignedTeamOrder: [],
     questionIndex: 0,
     activeTeamId: null,
@@ -508,7 +517,15 @@ export const submitAnswer = async (matchId, teamId, answerValue) => {
   const isCorrect = isAnswerCorrect(match, answerValue)
   const currentQuestion = match.questionQueue?.[match.questionIndex]
   await recordQuestionResult(currentQuestion?.id, teamId, isCorrect)
-  const outcome = applyAnswerResult(match, teamId, isCorrect)
+  const updatedResults = Array.isArray(match.questionResults) ? [...match.questionResults] : []
+  updatedResults.push({
+    questionIndex: match.questionIndex,
+    teamId,
+    correct: isCorrect,
+    type: match.awaitingSteal ? 'steal' : 'primary',
+  })
+  const matchWithResults = { ...match, questionResults: updatedResults }
+  const outcome = applyAnswerResult(matchWithResults, teamId, isCorrect)
   if (outcome.completed) {
     const finalized = await finalizeMatch(outcome.match)
     return finalized || outcome.match
@@ -558,6 +575,7 @@ export const resetMatch = async (matchId) => {
       [teamBId]: 0,
     },
     questionQueue,
+    questionResults: [],
     questionIndex: 0,
     assignedTeamOrder: [],
     activeTeamId: null,
