@@ -76,17 +76,20 @@ function OverviewPanel({ team, tournamentLaunched, upcomingMatch, teams, moderat
   )
 }
 
-function AnalyticsSection({ team, teams, history }) {
+function AnalyticsSection({ team, teams, history , tournament }) {
+  const activeIds = tournament?.teams || [];
+  const activeTeams = tournament?.teams ? teams.filter((t) => tournament.teams.includes(t.id)) : teams;
+
   return (
     <section className="mt-8 grid gap-8 lg:grid-cols-[1.2fr,1fr]">
       <div>
         <h2 className="text-xl font-bold text-white tracking-tight">Tournament Standings</h2>
-        <ScoreboardTable teams={teams} highlightTeamId={team.id} />
+        <ScoreboardTable teams={activeTeams} highlightTeamId={team.id} />
       </div>
 
       <div>
         <h2 className="text-xl font-bold text-white tracking-tight">Recent Matches</h2>
-        <RecentResults history={history} teamId={team.id} teams={teams} />
+        <RecentResults history={history} teamId={team.id} teams={activeTeams} />
       </div>
     </section>
   )
@@ -409,7 +412,7 @@ export default function TeamDashboard({
               upcomingMatch={upcomingMatch}
               moderators={safeModerators}
             />
-            <AnalyticsSection team={team} teams={teams} history={history} />
+            <AnalyticsSection team={team} teams={teams} history={history} tournament={tournament} />
           </>
         )}
 
