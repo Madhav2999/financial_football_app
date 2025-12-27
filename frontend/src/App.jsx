@@ -46,6 +46,7 @@ const mapTournamentFromApi = (apiTournament) => {
     status: baseState.status || apiTournament.status,
     createdAt: baseState.createdAt ?? apiTournament.createdAt,
     updatedAt: baseState.updatedAt ?? apiTournament.updatedAt,
+    teams: (apiTournament.teams || baseState.teams || []).map((t) => (t?.toString ? t.toString() : t)),
   }
 }
 
