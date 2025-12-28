@@ -251,6 +251,7 @@ export function LiveMatchPanel({ match, teams, moderators, actions, description 
     Array.from({ length: indicatorCount }).map((_, idx) => {
       const entry = results.find((r) => r.questionIndex === idx && r.teamId === teamId)
       if (!entry) return 'pending'
+      if (entry.type === 'timeout') return 'pending'
       return entry.correct ? 'correct' : 'incorrect'
     })
   const teamAStatuses = buildStatusForTeam(teamAId)

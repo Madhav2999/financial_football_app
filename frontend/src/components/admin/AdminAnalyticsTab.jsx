@@ -107,7 +107,7 @@ function TeamAnalyticsPanel({ teams }) {
 
 export default function AdminAnalyticsTab({ history, teams, summary, questions, analyticsQuestionHistory = [],tournament }) {
   const activeIds = tournament?.teams || []
-  const activeTeams = activeIds.length ? teams.filter((t)=>activeIds.include(t.id)) : teams
+  const activeTeams = activeIds.length ? teams.filter((t)=>activeIds.includes(t.id)) : teams
   const answeredByYear = useMemo(() => {
     if (!Array.isArray(history) || !history.length) return []
     const counts = history.reduce((map, match) => {
