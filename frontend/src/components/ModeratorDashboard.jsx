@@ -34,6 +34,7 @@ export default function ModeratorDashboard({
   onResumeMatch,
   onResetMatch,
   onLogout,
+  resultToasts = [],
 }) {
   const interactiveAssignments = useMemo(() => {
     if (!moderator) return []
@@ -105,6 +106,18 @@ export default function ModeratorDashboard({
 
   return (
     <div className="relative min-h-dvh md:min-h-screen text-slate-100">
+      {Array.isArray(resultToasts) && resultToasts.length ? (
+        <div className="pointer-events-none fixed right-4 top-4 z-[2000] space-y-3">
+          {resultToasts.map((toast) => (
+            <div
+              key={`${toast.id}-${toast.ts}`}
+              className="rounded-2xl border border-white/25 bg-black/85 px-4 py-3 text-sm font-bold text-white shadow-xl shadow-black/40"
+            >
+              {toast.message}
+            </div>
+          ))}
+        </div>
+      ) : null}
       {/* background image + gradient/blur overlay */}
       {/* Fixed, viewport-sized background */}
       <div className="fixed inset-0 -z-10">

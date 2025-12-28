@@ -22,7 +22,13 @@ router.post('/', async (req, res, next) => {
     })
     if (existingDoc) {
       const inMemory = joinMatch(existingDoc.matchRefId)
-      return res.status(200).json({ match: inMemory || existingDoc.state })
+      const payload = inMemory || existingDoc.state
+      return res.status(200).json({
+        match: {
+          ...payload,
+          questionResults: payload?.questionResults ?? [],
+        },
+      })
     }
 
     const match = await createLiveMatch({
@@ -52,7 +58,12 @@ router.get('/:matchId', (req, res) => {
     return res.status(403).json({ message: 'Not authorized to view this live match' })
   }
 
-  return res.json({ match })
+  return res.json({
+    match: {
+      ...match,
+      questionResults: match.questionResults ?? [],
+    },
+  })
 })
 
 export default router

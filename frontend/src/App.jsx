@@ -77,6 +77,7 @@ function AppShell() {
   const [analyticsQuestionHistory, setAnalyticsQuestionHistory] = useState([])
   const [profiles, setProfiles] = useState({ teams: [], moderators: [] })
   const [teamResultToast, setTeamResultToast] = useState(null)
+  const [moderatorResultToasts, setModeratorResultToasts] = useState([])
   const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api'
   const SOCKET_BASE = API_BASE.replace(/\/api$/, '')
   const apiBaseHost = useMemo(() => API_BASE.replace(/\/api$/, ''), [API_BASE])
@@ -382,7 +383,31 @@ function AppShell() {
               const message = `Winner Is Team ${winnerName}`
               setTeamResultToast({ message, ts: Date.now() })
               setTimeout(() => setTeamResultToast(null), 10000)
+            } else if (!alreadySeen && (!isWinner || !isLoser)) {
+              seenResultToastRef.current.add(match.id)
+              const message = `Match is Tied`
+              setTeamResultToast({ message, ts: Date.now() })
+              setTimeout(() => setTeamResultToast(null), 5000)
             }
+          }
+          if((session.type === 'moderator' && match.moderatorId === session.moderatorId) || session.type === 'admin'){
+             const prior = activeMatchesRef.current.find((item)=>item.id === match.id)
+             const {winnerId,loserId} = deriveOutcome(match,prior)
+             const alreadySeen = seenResultToastRef.current.has(`mod-${match.id}`)
+             if(!alreadySeen){
+              seenResultToastRef.current.add(`mod-${match.id}`)
+              const winnerName = winnerId ? getTeamNameToast(winnerId) : 'TBD'
+              const loserName = loserId ? getTeamNameToast(loserId) : 'TBD'
+              const message = winnerId && loserId ? `${winnerName} defeated ${loserName}` : `Match ${match.id} completed`
+              const toast = {id: match.id,message,ts:Date.now()}
+              setModeratorResultToasts((prev)=>{
+                const next = [...prev,toast].slice(-3)
+                setTimeout(()=>{
+                  setModeratorResultToasts((curr)=>curr.filter((t)=>t.ts !== toast.ts))
+                },5000)
+                return next
+              })
+             }
           }
           setActiveMatches((prev) => prev.filter((item) => item.id !== match.id))
           return
