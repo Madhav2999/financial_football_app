@@ -170,7 +170,7 @@ export default function AdminDashboard(props) {
                 />
               }
             />
-            <Route path="standings" element={<AdminStandingsTab teams={teams} />} />
+            <Route path="standings" element={<AdminStandingsTab teams={teams} tournament={tournament} />} />
             <Route
               path="analytics"
               element={
@@ -180,6 +180,7 @@ export default function AdminDashboard(props) {
                   summary={analyticsSummary}
                   questions={analyticsQuestions}
                   analyticsQuestionHistory={analyticsQuestionHistory}
+                  tournament = {tournament}
                 />
               }
             />
