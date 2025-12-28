@@ -148,6 +148,7 @@ function AppShell() {
   }, [])
 
   const navigate = useNavigate()
+  const location = useNavigate()
 
   const activeTeam = useMemo(() => {
     if (session.type !== 'team') return null
@@ -188,6 +189,19 @@ function AppShell() {
   useEffect(() => {
     writeStoredSession(session)
   }, [session])
+
+  // Redirect to role dashboard if a valid session exists and we’re on a neutral path
+  useEffect(() => {
+    const neutral = ['/', '/login']
+    if (!neutral.includes(location.pathname)) return
+    if (session.type === 'team') {
+      navigate('/team', { replace: true })
+    } else if (session.type === 'moderator') {
+      navigate('/moderator', { replace: true })
+    } else if (session.type === 'admin') {
+      navigate('/admin', { replace: true })
+    }
+  }, [session.type, location.pathname, navigate])
   // top-level in App component
   const teamNameMap = useMemo(() => {
     const entries = (teams || []).map((t) => {
@@ -2375,6 +2389,7 @@ function AppShell() {
                 selectedTeamIds={selectedTeamIds}
                 matchMakingLimit={TOURNAMENT_TEAM_LIMIT}
                 tournamentLaunched={tournamentLaunched}
+                resultToasts={moderatorResultToasts}
                 onFlipCoin={(matchId) =>
                   handleFlipCoin(matchId, { moderatorId: activeModerator?.id })
                 }
