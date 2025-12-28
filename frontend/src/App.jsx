@@ -148,7 +148,7 @@ function AppShell() {
   }, [])
 
   const navigate = useNavigate()
-  const location = useNavigate()
+  const location = useLocation()
 
   const activeTeam = useMemo(() => {
     if (session.type !== 'team') return null
