@@ -18,7 +18,7 @@ const signToken = ({ id, loginId, role }) =>
 
 const signResetToken = ({ id, role }) =>
   jwt.sign({ sub: id, role, purpose: 'password-reset' }, secret, {
-    expiresIn: '1m',
+    expiresIn: '15m',
   })
 
 const buildResetUrl = (token, role) => {
