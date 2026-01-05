@@ -34,7 +34,12 @@ export default function ResetPasswordPage({ onResetPassword }) {
       setMessage('Password updated. You can now sign in with your new password.')
       setTimeout(() => navigate('/login', { replace: true }), 1200)
     } catch (err) {
-      setError(err?.message || 'Unable to reset password. Please request a new link.')
+      const rawMessage = err?.message || ''
+      if (rawMessage.toLowerCase().includes('expired')) {
+        setError('Link expired, request a new one.')
+      } else {
+        setError(rawMessage || 'Unable to reset password. Please request a new link.')
+      }
     } finally {
       setSubmitting(false)
     }
