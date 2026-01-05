@@ -410,6 +410,7 @@ export default function TeamDashboard({
                 team={team}
                 moderators={safeModerators}
                 teams={teams}
+                tournament={tournament}
               />
             )}
           </div>

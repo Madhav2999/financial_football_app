@@ -384,7 +384,7 @@ function AppShell() {
       socket.on('liveMatch:update', (match) => {
         if (!match?.id) return
         if (match.status === 'completed') {
-          if (session.type === 'team' && match.teams?.includes(session.teamId)) {
+          if (teams.length > 0 && session.type === 'team' && match.teams?.includes(session.teamId)) {
             const prior = activeMatchesRef.current.find((item) => item.id === match.id)
             const { winnerId, loserId } = deriveOutcome(match, prior)
             const isWinner = Boolean(winnerId) && winnerId === session.teamId
@@ -404,7 +404,7 @@ function AppShell() {
               setTimeout(() => setTeamResultToast(null), 5000)
             }
           }
-          if((session.type === 'moderator' && match.moderatorId === session.moderatorId) || session.type === 'admin'){
+          if (teams.length > 0 && ((session.type === 'moderator' && match.moderatorId === session.moderatorId) || session.type === 'admin')) {
              const prior = activeMatchesRef.current.find((item)=>item.id === match.id)
              const {winnerId,loserId} = deriveOutcome(match,prior)
              const alreadySeen = seenResultToastRef.current.has(`mod-${match.id}`)
@@ -412,7 +412,7 @@ function AppShell() {
               seenResultToastRef.current.add(`mod-${match.id}`)
               const winnerName = winnerId ? getTeamNameToast(winnerId) : 'TBD'
               const loserName = loserId ? getTeamNameToast(loserId) : 'TBD'
-              const message = winnerId && loserId ? `${winnerName} defeated ${loserName}` : `Match ${match.id} completed`
+              const message = winnerId && loserId ? `${winnerName} defeated ${loserName}` : `Match is Draw`
               const toast = {id: match.id,message,ts:Date.now()}
               setModeratorResultToasts((prev)=>{
                 const next = [...prev,toast].slice(-3)

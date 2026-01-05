@@ -1,6 +1,6 @@
 import UpcomingOpponentLine from './UpcomingOpponentLine'
 
-export default function GameRoomPlaceholder({ tournamentLaunched, upcomingMatch, team, moderators, teams }) {
+export default function GameRoomPlaceholder({ tournamentLaunched, upcomingMatch, team, moderators, teams, tournament }) {
   const hasModerator = Boolean(upcomingMatch?.moderatorId)
   const moderator = hasModerator ? moderators?.find((item) => item.id === upcomingMatch.moderatorId) : null
 
@@ -9,7 +9,11 @@ export default function GameRoomPlaceholder({ tournamentLaunched, upcomingMatch,
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Game Room</p>
-          <h3 className="text-xl font-bold text-white">Awaiting Moderator</h3>
+          <h3 className="text-xl font-bold text-white">
+            {
+              tournament.status == 'completed' ? 'Tournament Over' : 'Awaiting Moderator' 
+            }
+          </h3>
           <p className="mt-2 text-sm text-slate-300">
             {tournamentLaunched
               ? 'The next match will begin shortly. Stay ready for the moderator to join.'
