@@ -119,7 +119,14 @@ export default function AdminAnalyticsTab({ history, teams, summary, questions, 
     }, new Map())
     return Array.from(counts.entries())
       .map(([year, count]) => ({ year, count }))
-      .sort((a, b) => a.year.localeCompare(b.year))
+      .sort((a, b) => {
+        const aNum = typeof a.year === 'number' ? a.year : null
+        const bNum = typeof b.year === 'number' ? b.year : null
+        if (aNum !== null && bNum !== null) return aNum - bNum
+        if (aNum !== null) return -1
+        if (bNum !== null) return 1
+        return String(a.year ?? '').localeCompare(String(b.year ?? ''))
+      })
   }, [history])
 
   const answeredMax = answeredByYear.reduce((max, entry) => Math.max(max, entry.count), 0) || 1
