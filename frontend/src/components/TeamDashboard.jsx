@@ -39,7 +39,7 @@ function OverviewPanel({ team, tournamentLaunched, upcomingMatch, teams, moderat
         <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 text-slate-200 shadow shadow-slate-900/30">
           <p className="text-xs uppercase tracking-[0.3em] text-sky-400">Tournament status</p>
           <h3 className="mt-2 text-xl font-semibold text-white">
-            {tournamentLaunched ? 'Tournament in progress' : 'Tournament pending'}
+            {tournamentLaunched ? 'Tournament in progress' : 'Tournament Not Started Yet'}
           </h3>
 
           <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
