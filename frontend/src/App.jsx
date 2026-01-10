@@ -1986,15 +1986,38 @@ function AppShell() {
       finalizedMatchesRef.current.add(match.id)
 
       const [teamAId, teamBId] = match.teams
-      const teamAScore = match.scores[teamAId]
-      const teamBScore = match.scores[teamBId]
+      const normalizeScoreValue = (value) => {
+        if (typeof value === 'number' && Number.isFinite(value)) return value
+        if (typeof value === 'string' && value.trim() !== '') {
+          const parsed = Number(value)
+          return Number.isFinite(parsed) ? parsed : 0
+        }
+        if (value && typeof value === 'object') {
+          if ('$numberInt' in value) {
+            const parsed = Number(value.$numberInt)
+            return Number.isFinite(parsed) ? parsed : 0
+          }
+          if ('$numberDouble' in value) {
+            const parsed = Number(value.$numberDouble)
+            return Number.isFinite(parsed) ? parsed : 0
+          }
+        }
+        return 0
+      }
+      const teamAScore = normalizeScoreValue(match.scores?.[teamAId])
+      const teamBScore = normalizeScoreValue(match.scores?.[teamBId])
+      const normalizedScores = {
+        ...match.scores,
+        [teamAId]: teamAScore,
+        [teamBId]: teamBScore,
+      }
       const winnerId = teamAScore === teamBScore ? null : teamAScore > teamBScore ? teamAId : teamBId
       const loserId = winnerId ? (winnerId === teamAId ? teamBId : teamAId) : null
 
       const record = {
         id: match.id,
         teams: match.teams,
-        scores: match.scores,
+        scores: normalizedScores,
         winnerId,
         loserId,
         completedAt: new Date().toISOString(),
@@ -2007,7 +2030,7 @@ function AppShell() {
               return team
             }
 
-            const updatedScore = team.totalScore + match.scores[team.id]
+            const updatedScore = team.totalScore + normalizeScoreValue(match.scores?.[team.id])
 
             if (team.id === winnerId) {
               return {
@@ -2050,7 +2073,7 @@ function AppShell() {
               nextState = recordMatchResult(nextState, match.tournamentMatchId, {
                 winnerId,
                 loserId,
-                scores: match.scores,
+                scores: normalizedScores,
               })
             }
             return detachLiveMatch(nextState, match.tournamentMatchId)

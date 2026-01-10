@@ -14,12 +14,20 @@ export function useMatchTimer(timer) {
   const [syncBaseline, setSyncBaseline] = useState({ remainingMs: null, syncedAt: null })
 
   useEffect(() => {
-    if (timer?.status === 'running' && typeof timer.remainingMs === 'number') {
-      setSyncBaseline({ remainingMs: timer.remainingMs, syncedAt: Date.now() })
-    } else {
-      setSyncBaseline({ remainingMs: null, syncedAt: null })
+    if (timer?.status === 'running') {
+      const remainingMs =
+        typeof timer.remainingMs === 'number'
+          ? timer.remainingMs
+          : timer.deadline
+            ? Math.max(0, timer.deadline - Date.now())
+            : null
+      if (typeof remainingMs === 'number') {
+        setSyncBaseline({ remainingMs, syncedAt: Date.now() })
+        return
+      }
     }
-  }, [timer?.remainingMs, timer?.status])
+    setSyncBaseline({ remainingMs: null, syncedAt: null })
+  }, [timer?.remainingMs, timer?.status, timer?.deadline, timer?.startedAt])
 
   useEffect(() => {
     if (!timer || timer.status !== 'running' || !timer.deadline) {
