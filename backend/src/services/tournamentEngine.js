@@ -6,6 +6,25 @@ const BRACKET_BASE_ORDER = {
 
 const DEFAULT_RECORD = { wins: 0, losses: 0, points: 0, eliminated: false, initialBye: false }
 
+function normalizeScoreValue(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  if (value && typeof value === 'object') {
+    if ('$numberInt' in value) {
+      const parsed = Number(value.$numberInt)
+      return Number.isFinite(parsed) ? parsed : 0
+    }
+    if ('$numberDouble' in value) {
+      const parsed = Number(value.$numberDouble)
+      return Number.isFinite(parsed) ? parsed : 0
+    }
+  }
+  return 0
+}
+
 function cloneProgress() {
   return {
     winners: {},
@@ -142,18 +161,20 @@ function applyMatchCompletion(state, matchId, payload) {
 
   const winnerRecord = state.records[winnerId] ?? { ...DEFAULT_RECORD }
   const loserRecord = state.records[loserId] ?? { ...DEFAULT_RECORD }
+  const winnerPoints = normalizeScoreValue(scores[winnerId])
+  const loserPoints = normalizeScoreValue(scores[loserId])
 
   const nextRecords = {
     ...state.records,
     [winnerId]: {
       ...winnerRecord,
       wins: winnerRecord.wins + 1,
-      points: winnerRecord.points + (scores[winnerId] ?? 0),
+      points: winnerRecord.points + winnerPoints,
     },
     [loserId]: {
       ...loserRecord,
       losses: loserRecord.losses + 1,
-      points: loserRecord.points + (scores[loserId] ?? 0),
+      points: loserRecord.points + loserPoints,
       eliminated: loserRecord.losses + 1 >= 2,
     },
   }

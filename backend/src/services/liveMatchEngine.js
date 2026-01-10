@@ -35,6 +35,24 @@ const toObjectId = (value) => {
     return null
   }
 }
+const normalizeScoreValue = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  if (value && typeof value === 'object') {
+    if ('$numberInt' in value) {
+      const parsed = Number(value.$numberInt)
+      return Number.isFinite(parsed) ? parsed : 0
+    }
+    if ('$numberDouble' in value) {
+      const parsed = Number(value.$numberDouble)
+      return Number.isFinite(parsed) ? parsed : 0
+    }
+  }
+  return 0
+}
 
 async function drawQuestions(count, tournamentId = null) {
   const pipeline = [{ $sample: { size: count } }]
@@ -324,8 +342,13 @@ const handleTimerExpire = async (matchId) => {
 
 const finalizeMatch = async (match) => {
   const [teamAId, teamBId] = match.teams
-  const teamAScore = match.scores[teamAId] ?? 0
-  const teamBScore = match.scores[teamBId] ?? 0
+  const teamAScore = normalizeScoreValue(match.scores?.[teamAId])
+  const teamBScore = normalizeScoreValue(match.scores?.[teamBId])
+  const normalizedScores = {
+    ...match.scores,
+    [teamAId]: teamAScore,
+    [teamBId]: teamBScore,
+  }
   const winnerId = teamAScore === teamBScore ? null : teamAScore > teamBScore ? teamAId : teamBId
   const loserId = winnerId ? (winnerId === teamAId ? teamBId : teamAId) : null
 
@@ -341,6 +364,7 @@ const finalizeMatch = async (match) => {
     winnerId,
     loserId,
     completedAt,
+    scores: normalizedScores,
   }
 
   matches.set(match.id, completedMatch)
@@ -356,7 +380,7 @@ const finalizeMatch = async (match) => {
   let nextState = recordMatchResult(tournament.state, match.tournamentMatchId, {
     winnerId,
     loserId,
-    scores: match.scores,
+    scores: normalizedScores,
   })
   nextState = detachLiveMatch(nextState, match.tournamentMatchId)
   await persistTournamentState(tournament, nextState)
@@ -390,8 +414,8 @@ const finalizeMatch = async (match) => {
         homeTeam: homeTeamObjectId,
         awayTeam: awayTeamObjectId,
         result: {
-          homeScore: match.scores[match.teams[0]] ?? 0,
-          awayScore: match.scores[match.teams[1]] ?? 0,
+          homeScore: normalizedScores[match.teams[0]] ?? 0,
+          awayScore: normalizedScores[match.teams[1]] ?? 0,
           winnerTeam: toObjectId(winnerId),
         },
         metadata: {
