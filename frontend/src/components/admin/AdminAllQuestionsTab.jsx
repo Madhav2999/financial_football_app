@@ -102,9 +102,9 @@ export default function AdminAllQuestionsTab({ getQuestions, onSearch, onUpdate,
         <div key={ans.key} className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2">
           <span className="font-semibold text-sky-300 mr-2">{ans.key}.</span>
           <span>{ans.text}</span>
-          {editDraft?.correctAnswerKey === ans.key ? (
+          {/* {editDraft?.correctAnswerKey === ans.key ? (
             <span className="ml-2 text-emerald-300 font-semibold">[Correct]</span>
-          ) : null}
+          ) : null} */}
         </div>
       ))}
     </div>
