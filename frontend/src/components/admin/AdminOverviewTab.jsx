@@ -70,6 +70,7 @@ export default function AdminOverviewTab({
   onToggleTeamSelection,
   onMatchMake,
   onLaunchTournament,
+  onDeleteTournament,
   onDownloadArchive,
   onDismissRecent,
 }) {
@@ -110,6 +111,31 @@ export default function AdminOverviewTab({
         history={history}
         tournament={tournament}
       />
+
+      {tournament ? (
+        <div className="rounded-3xl border border-rose-500/40 bg-rose-500/10 p-5 text-sm text-rose-100 shadow shadow-rose-500/20">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-rose-300">Danger zone</p>
+              <p className="text-base font-semibold text-white">
+                Delete the current tournament, live matches, and match history.
+              </p>
+              <p className="mt-1 text-xs text-rose-200/80">
+                This cannot be undone.
+              </p>
+            </div>
+            {onDeleteTournament ? (
+              <button
+                type="button"
+                onClick={onDeleteTournament}
+                className="rounded-full border border-rose-500/70 bg-rose-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-rose-100 transition hover:border-rose-400 hover:text-white"
+              >
+                Delete Tournament
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {recentResult ? (
         <div className="rounded-3xl border border-emerald-600/40 bg-emerald-500/10 p-5 text-sm text-emerald-200 shadow shadow-emerald-500/20">

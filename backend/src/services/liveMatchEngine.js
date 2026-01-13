@@ -256,6 +256,20 @@ const clearTimer = (matchId) => {
   }
 }
 
+export const removeLiveMatchesForTournament = (tournamentId) => {
+  if (!tournamentId) return 0
+  const targetId = tournamentId.toString()
+  let removed = 0
+  for (const [matchId, match] of matches.entries()) {
+    if (match?.tournamentId?.toString?.() === targetId) {
+      clearTimer(matchId)
+      matches.delete(matchId)
+      removed += 1
+    }
+  }
+  return removed
+}
+
 const scheduleTimer = (match) => {
   clearTimer(match.id)
   if (!match.timer || match.timer.status !== 'running') return

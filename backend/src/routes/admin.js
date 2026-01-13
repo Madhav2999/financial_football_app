@@ -2,6 +2,7 @@ import { Router } from 'express'
 import bcrypt from 'bcrypt'
 import { parse } from 'csv-parse/sync'
 import {
+  Match,
   Moderator,
   ModeratorRegistration,
   Question,
@@ -12,6 +13,7 @@ import {
 import { requireAdmin } from '../middleware/auth.js'
 import { seedModerators, seedQuestions, seedTeams } from '../seeds/initialData.js'
 import { sanitizeTournament } from '../services/tournamentState.js'
+import { removeLiveMatchesForTournament } from '../services/liveMatchEngine.js'
 import LiveMatch from '../db/models/liveMatch.js'
 import Tournament from '../db/models/tournament.js'
 
@@ -562,9 +564,15 @@ adminRouter.delete('/tournaments/:id', async (req, res, next) => {
     if (!tournament) {
       return res.status(404).json({ message: 'Tournament not found' })
     }
-    await LiveMatch.deleteMany({ tournamentId: tournament._id.toString() })
+    const tournamentId = tournament._id.toString()
+    removeLiveMatchesForTournament(tournamentId)
+    await LiveMatch.deleteMany({ tournamentId })
+    await Match.deleteMany({ tournament: tournament._id })
     await tournament.deleteOne()
-    return res.json({ message: 'Tournament and related live matches deleted', tournament: sanitizeTournament(tournament) })
+    return res.json({
+      message: 'Tournament, live matches, and match history deleted',
+      tournament: sanitizeTournament(tournament),
+    })
   } catch (error) {
     next(error)
   }

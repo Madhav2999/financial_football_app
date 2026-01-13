@@ -34,9 +34,10 @@ export default function AdminDashboard(props) {
     matchMakingLimit,
     tournamentLaunched,
     onToggleTeamSelection,
-    onMatchMake,
-    onLaunchTournament,
-    onPauseMatch,
+  onMatchMake,
+  onLaunchTournament,
+  onDeleteTournament,
+  onPauseMatch,
     onResumeMatch,
     onResetMatch,
     onGrantBye,
@@ -131,11 +132,12 @@ export default function AdminDashboard(props) {
                   matchMakingLimit={matchMakingLimit}
                   tournamentLaunched={tournamentLaunched}
                   onToggleTeamSelection={onToggleTeamSelection}
-                  onMatchMake={onMatchMake}
-                  onLaunchTournament={onLaunchTournament}
-                  onDownloadArchive={onDownloadArchive}
-                  onDismissRecent={onDismissRecent}
-                />
+                onMatchMake={onMatchMake}
+                onLaunchTournament={onLaunchTournament}
+                onDeleteTournament={onDeleteTournament}
+                onDownloadArchive={onDownloadArchive}
+                onDismissRecent={onDismissRecent}
+              />
               }
             />
             <Route

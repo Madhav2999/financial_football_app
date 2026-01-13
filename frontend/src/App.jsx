@@ -976,6 +976,22 @@ function AppShell() {
     },
     [requestJson],
   )
+
+  const deleteCurrentTournament = useCallback(async () => {
+    const tournamentId = tournament?.backendId || tournament?.id
+    if (!tournamentId) return
+    const confirmed = window.confirm(
+      'Delete the current tournament? This will remove live matches and match history.',
+    )
+    if (!confirmed) return
+    await requestJson(`/admin/tournaments/${tournamentId}`, { method: 'DELETE', auth: true })
+    finalizedMatchesRef.current = new Set()
+    setActiveMatches([])
+    setMatchHistory([])
+    setRecentResult(null)
+    setTournament(null)
+    setTournamentLaunched(false)
+  }, [requestJson, tournament?.backendId, tournament?.id])
   const loadAdminData = useCallback(async () => {
     if (session.type !== 'admin') return null
 
@@ -2368,6 +2384,7 @@ function AppShell() {
                 onToggleTeamSelection={handleToggleTeamSelection}
                 onMatchMake={handleMatchMaking}
                 onLaunchTournament={handleLaunchTournament}
+                onDeleteTournament={deleteCurrentTournament}
                 onPauseMatch={(matchId) => handlePauseMatch(matchId, { isAdmin: true })}
                 onResumeMatch={(matchId) => handleResumeMatch(matchId, { isAdmin: true })}
                 onResetMatch={(matchId) => handleResetMatch(matchId, { isAdmin: true })}
