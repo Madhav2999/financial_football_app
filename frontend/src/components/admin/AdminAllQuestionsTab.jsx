@@ -330,10 +330,9 @@ export default function AdminAllQuestionsTab({ getQuestions, onSearch, onUpdate,
         <div className="flex items-center gap-3 text-sm text-slate-200">
           <button
             type="button"
-            disabled={page <= 1}
+            disabled={loading || page <= 1}
             onClick={() => {
               const nextPage = Math.max(1, page - 1)
-              setPage(nextPage)
               load({ page: nextPage })
             }}
             className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 disabled:opacity-50"
@@ -343,10 +342,9 @@ export default function AdminAllQuestionsTab({ getQuestions, onSearch, onUpdate,
           <span className="text-xs text-slate-400">Page {paginatedInfo}</span>
           <button
             type="button"
-            disabled={page >= totalPages}
+            disabled={loading || page >= totalPages}
             onClick={() => {
               const nextPage = Math.min(totalPages, page + 1)
-              setPage(nextPage)
               load({ page: nextPage })
             }}
             className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 disabled:opacity-50"
