@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import bcrypt from 'bcrypt'
+import { parse } from 'csv-parse/sync'
 import {
   Moderator,
   ModeratorRegistration,
@@ -139,25 +140,19 @@ const normalizeQuestionDoc = (doc) => {
 
 const parseCsvQuestions = (csvText) => {
   if (!csvText) return []
-  const lines = csvText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-  if (!lines.length) return []
-  const headers = lines[0].split(',').map((h) => h.trim())
-  const rows = lines.slice(1)
-  const docs = rows
-    .map((line) => {
-      const cols = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''))
-      const obj = {}
-      headers.forEach((header, idx) => {
-        obj[header] = cols[idx] ?? ''
-      })
-      return obj
+  try {
+    const records = parse(csvText, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+      bom: true,
+      relax_quotes: true,
     })
-    .map((raw) => normalizeQuestionDoc(raw))
-    .filter(Boolean)
-  return docs
+    return records.map((raw) => normalizeQuestionDoc(raw)).filter(Boolean)
+  } catch (error) {
+    console.error('Failed to parse question CSV', error)
+    return []
+  }
 }
 
 const ensureTeamRecord = async (teamId) => {

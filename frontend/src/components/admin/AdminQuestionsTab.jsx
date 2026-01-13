@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 
 const SAMPLE_CSV = `prompt,category,difficulty,correctAnswerKey,answerA,answerB,answerC,answerD,tags
-Which budget item is the hardest to cut?,budget,moderate,A,Car payment,Eating out,Entertainment,No-contract cell phone plan,budgeting,saving`
+Which budget item is the hardest to cut?,budget,moderate,A,Car payment,Eating out,Entertainment,No-contract cell phone plan,"budgeting,saving"`
 
 export default function AdminQuestionsTab({ onImport }) {
   const [text, setText] = useState('')
