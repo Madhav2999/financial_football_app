@@ -25,7 +25,7 @@ router.get('/', async (req, res, next) => {
     const skip = (page - 1) * limit
 
     const [questions, total] = await Promise.all([
-      Question.find().sort({ updatedAt: -1 }).skip(skip).limit(limit),
+      Question.find().sort({ updatedAt: -1, _id: -1 }).skip(skip).limit(limit),
       Question.countDocuments(),
     ])
 
@@ -75,17 +75,17 @@ router.get('/search', async (req, res, next) => {
     let sortOption = {}
     switch (sort) {
       case 'oldest':
-        sortOption = { createdAt: 1 }
+        sortOption = { createdAt: 1, _id: 1 }
         break
       case 'az':
-        sortOption = { prompt: 1 }
+        sortOption = { prompt: 1, _id: 1 }
         break
       case 'za':
-        sortOption = { prompt: -1 }
+        sortOption = { prompt: -1, _id: -1 }
         break
       case 'recent':
       default:
-        sortOption = { updatedAt: -1 }
+        sortOption = { updatedAt: -1, _id: -1 }
     }
 
     const pageNumber = Number(page) || 1
