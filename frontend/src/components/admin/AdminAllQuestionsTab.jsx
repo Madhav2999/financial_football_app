@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 export default function AdminAllQuestionsTab({ getQuestions, onSearch, onUpdate, onDelete }) {
   const [questions, setQuestions] = useState([])
@@ -12,9 +12,11 @@ export default function AdminAllQuestionsTab({ getQuestions, onSearch, onUpdate,
   const [totalPages, setTotalPages] = useState(1)
   const [editingId, setEditingId] = useState(null)
   const [editDraft, setEditDraft] = useState(null)
+  const requestIdRef = useRef(0)
 
   const load = async (opts = {}) => {
     if (!getQuestions && !onSearch) return
+    const requestId = ++requestIdRef.current
     setLoading(true)
     setError('')
     try {
@@ -27,18 +29,27 @@ export default function AdminAllQuestionsTab({ getQuestions, onSearch, onUpdate,
           page: opts.page ?? page,
           limit: 20,
         })
-        setQuestions(result.questions || [])
-        setPage(result.page || 1)
-        setTotalPages(result.totalPages || 1)
+        if (requestId === requestIdRef.current) {
+          setQuestions(result.questions || [])
+          setPage(result.page || 1)
+          setTotalPages(result.totalPages || 1)
+        }
       } else {
         const result = await getQuestions({ page: opts.page ?? page, limit: 20 })
-        setQuestions(result || [])
-        setTotalPages(1)
+        if (requestId === requestIdRef.current) {
+          setQuestions(result?.questions || [])
+          setPage(result?.page || 1)
+          setTotalPages(result?.totalPages || 1)
+        }
       }
     } catch (err) {
-      setError(err?.message || 'Failed to load questions')
+      if (requestId === requestIdRef.current) {
+        setError(err?.message || 'Failed to load questions')
+      }
     } finally {
-      setLoading(false)
+      if (requestId === requestIdRef.current) {
+        setLoading(false)
+      }
     }
   }
 

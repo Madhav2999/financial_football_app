@@ -855,7 +855,11 @@ function AppShell() {
     async ({ page = 1, limit = 20 } = {}) => {
       const params = new URLSearchParams({ page, limit })
       const result = await requestJson(`/allquestions?${params.toString()}`, { auth: true })
-      return Array.isArray(result?.questions) ? result.questions : []
+      return {
+        questions: Array.isArray(result?.questions) ? result.questions : [],
+        page: result?.page ?? page,
+        totalPages: result?.totalPages ?? 1,
+      }
     },
     [requestJson],
   )
