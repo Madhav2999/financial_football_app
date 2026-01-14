@@ -11,37 +11,47 @@ const DURATION_BY_TYPE = {
 
 export function useMatchTimer(timer) {
   const [now, setNow] = useState(Date.now())
+  const [serverOffsetMs, setServerOffsetMs] = useState(0)
   const [syncBaseline, setSyncBaseline] = useState({ remainingMs: null, syncedAt: null })
 
   useEffect(() => {
+    if (typeof timer?.serverNow === 'number') {
+      setServerOffsetMs(timer.serverNow - Date.now())
+    } else {
+      setServerOffsetMs(0)
+    }
+  }, [timer?.serverNow])
+
+  useEffect(() => {
     if (timer?.status === 'running') {
+      const baseNow = typeof timer?.serverNow === 'number' ? timer.serverNow : Date.now() + serverOffsetMs
       const remainingMs =
         typeof timer.remainingMs === 'number'
           ? timer.remainingMs
           : timer.deadline
-            ? Math.max(0, timer.deadline - Date.now())
+            ? Math.max(0, timer.deadline - baseNow)
             : null
       if (typeof remainingMs === 'number') {
-        setSyncBaseline({ remainingMs, syncedAt: Date.now() })
+        setSyncBaseline({ remainingMs, syncedAt: baseNow })
         return
       }
     }
     setSyncBaseline({ remainingMs: null, syncedAt: null })
-  }, [timer?.remainingMs, timer?.status, timer?.deadline, timer?.startedAt])
+  }, [timer?.remainingMs, timer?.status, timer?.deadline, timer?.startedAt, timer?.serverNow, serverOffsetMs])
 
   useEffect(() => {
-    if (!timer || timer.status !== 'running' || !timer.deadline) {
+    if (!timer || timer.status !== 'running') {
       return undefined
     }
 
-    setNow(Date.now())
+    setNow(Date.now() + serverOffsetMs)
 
     const interval = setInterval(() => {
-      setNow(Date.now())
+      setNow(Date.now() + serverOffsetMs)
     }, 250)
 
     return () => clearInterval(interval)
-  }, [timer])
+  }, [timer, serverOffsetMs])
 
   const defaultDuration = DURATION_BY_TYPE[timer?.type ?? 'primary'] ?? 0
   const totalMs = timer?.durationMs ?? defaultDuration
