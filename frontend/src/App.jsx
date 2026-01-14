@@ -222,7 +222,10 @@ function AppShell() {
 
   const getTeamNameToast = useCallback((id) => {
     if (!id) return ''
-    return teamNameMapRef.current[String(id)] || ''
+    const key = String(id)
+    const name = teamNameMapRef.current[key]
+    if (!name || name === key) return ''
+    return name
   }, [])
 
 
