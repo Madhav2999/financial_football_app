@@ -12,6 +12,7 @@ import { loadTournamentById, persistTournamentState } from './tournamentState.js
 const matches = new Map()
 const timerHandles = new Map()
 const liveMatchEvents = new EventEmitter()
+const TIMER_GRACE_MS = 300
 
 const withRunningTimerRemaining = (match) => {
   if (!match?.timer || match.timer.status !== 'running') return match
@@ -273,11 +274,9 @@ export const removeLiveMatchesForTournament = (tournamentId) => {
 const scheduleTimer = (match) => {
   clearTimer(match.id)
   if (!match.timer || match.timer.status !== 'running') return
-  const remainingMs = Math.max(0, (match.timer.deadline ?? Date.now()) - Date.now())
-  if (!remainingMs) {
-    handleTimerExpire(match.id).catch((error) => console.error('Timer expire failed', error))
-    return
-  }
+  const now = Date.now()
+  const deadline = match.timer.deadline ?? now
+  const remainingMs = Math.max(0, deadline - now)
   const updatedTimer = {
     ...match.timer,
     remainingMs,
@@ -286,9 +285,20 @@ const scheduleTimer = (match) => {
   matches.set(match.id, updatedMatch)
   persistLiveMatchSnapshot(updatedMatch)
   emitUpdate(updatedMatch)
+  const expectedIndex = match.questionIndex
+  const expectedDeadline = deadline
+  const delay = Math.max(0, remainingMs + TIMER_GRACE_MS)
+  if (!delay) {
+    handleTimerExpire(match.id, expectedIndex, expectedDeadline).catch((error) =>
+      console.error('Timer expire failed', error),
+    )
+    return
+  }
   const handle = setTimeout(() => {
-    handleTimerExpire(match.id).catch((error) => console.error('Timer expire failed', error))
-  }, remainingMs)
+    handleTimerExpire(match.id, expectedIndex, expectedDeadline).catch((error) =>
+      console.error('Timer expire failed', error),
+    )
+  }, delay)
   timerHandles.set(match.id, handle)
 }
 
@@ -327,10 +337,34 @@ const recordQuestionResult = async (questionId, teamId, isCorrect) => {
   }
 }
 
-const handleTimerExpire = async (matchId) => {
+const handleTimerExpire = async (matchId, expectedQuestionIndex = null, expectedDeadline = null) => {
   const match = getMatch(matchId)
   if (!match || match.status !== 'in-progress') {
     return
+  }
+  if (match.timer?.status !== 'running') return
+  if (typeof expectedQuestionIndex === 'number' && match.questionIndex !== expectedQuestionIndex) {
+    return
+  }
+  if (
+    typeof expectedDeadline === 'number' &&
+    typeof match.timer?.deadline === 'number' &&
+    match.timer.deadline !== expectedDeadline
+  ) {
+    return
+  }
+  if (typeof expectedDeadline === 'number') {
+    const now = Date.now()
+    const graceRemaining = Math.max(0, expectedDeadline + TIMER_GRACE_MS - now)
+    if (graceRemaining > 0) {
+      const handle = setTimeout(() => {
+        handleTimerExpire(matchId, expectedQuestionIndex, expectedDeadline).catch((error) =>
+          console.error('Timer expire failed', error),
+        )
+      }, graceRemaining)
+      timerHandles.set(matchId, handle)
+      return
+    }
   }
   const actingTeamId = match.activeTeamId
   if (!actingTeamId) return
@@ -552,6 +586,14 @@ export const submitAnswer = async (matchId, teamId, answerValue) => {
   if (match.activeTeamId !== teamId && !(match.awaitingSteal && match.teams.includes(teamId))) {
     return null
   }
+  if (
+    match.timer?.status === 'running' &&
+    match.timer?.deadline &&
+    Date.now() > match.timer.deadline + TIMER_GRACE_MS
+  ) {
+    return null
+  }
+  clearTimer(matchId)
   const isCorrect = isAnswerCorrect(match, answerValue)
   const currentQuestion = match.questionQueue?.[match.questionIndex]
   await recordQuestionResult(currentQuestion?.id, teamId, isCorrect)
@@ -648,7 +690,9 @@ export const initializeLiveMatches = async () => {
           remainingMs: remaining,
         }
         if (remaining <= 0) {
-          handleTimerExpire(state.id).catch((error) => console.error('Timer expire failed', error))
+          handleTimerExpire(state.id, state.questionIndex, state.timer.deadline).catch((error) =>
+            console.error('Timer expire failed', error),
+          )
         } else {
           scheduleTimer(state)
         }
