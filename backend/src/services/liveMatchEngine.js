@@ -12,7 +12,7 @@ import { loadTournamentById, persistTournamentState } from './tournamentState.js
 const matches = new Map()
 const timerHandles = new Map()
 const liveMatchEvents = new EventEmitter()
-const TIMER_GRACE_MS = 1000
+const TIMER_GRACE_MS = 1500
 
 const withRunningTimerRemaining = (match) => {
   if (!match?.timer || match.timer.status !== 'running') return match
