@@ -124,6 +124,7 @@ function AppShell() {
   const liveMatchCreationRef = useRef(new Set())
   const coinFlipAnimRef = useRef(new Map())
   const seenResultToastRef = useRef(new Set())
+  const teamNameMapRef = useRef({})
   const upsertActiveMatch = useCallback((match) => {
     if (!match?.id) return
     const bracketKey = match.tournamentMatchId || match.id
@@ -215,7 +216,14 @@ function AppShell() {
     return Object.fromEntries([...entries, ...loginEntries])
   }, [teams])
 
-  const getTeamNameToast = useCallback((id) => teamNameMap[String(id)] || id || '', [teamNameMap])
+  useEffect(() => {
+    teamNameMapRef.current = teamNameMap
+  }, [teamNameMap])
+
+  const getTeamNameToast = useCallback((id) => {
+    if (!id) return ''
+    return teamNameMapRef.current[String(id)] || ''
+  }, [])
 
 
   const withApiBase = useCallback(
@@ -394,7 +402,7 @@ function AppShell() {
             console.log({ alreadySeen, isWinner, isLoser })
             if (!alreadySeen && (isWinner || isLoser)) {
               seenResultToastRef.current.add(match.id)
-              const message = `Winner Is Team ${winnerName}`
+              const message = winnerName ? `Winner Is Team ${winnerName}` : isWinner ? 'You won!' : 'You lost'
               setTeamResultToast({ message, ts: Date.now() })
               setTimeout(() => setTeamResultToast(null), 10000)
             } else if (!alreadySeen && (!isWinner || !isLoser)) {
@@ -410,9 +418,11 @@ function AppShell() {
              const alreadySeen = seenResultToastRef.current.has(`mod-${match.id}`)
              if(!alreadySeen){
               seenResultToastRef.current.add(`mod-${match.id}`)
-              const winnerName = winnerId ? getTeamNameToast(winnerId) : 'TBD'
-              const loserName = loserId ? getTeamNameToast(loserId) : 'TBD'
-              const message = winnerId && loserId ? `${winnerName} defeated ${loserName}` : `Match is Draw`
+              const winnerName = winnerId ? getTeamNameToast(winnerId) : ''
+              const loserName = loserId ? getTeamNameToast(loserId) : ''
+              const message = winnerId && loserId && winnerName && loserName
+                ? `${winnerName} defeated ${loserName}`
+                : 'Match completed'
               const toast = {id: match.id,message,ts:Date.now()}
               setModeratorResultToasts((prev)=>{
                 const next = [...prev,toast].slice(-3)
