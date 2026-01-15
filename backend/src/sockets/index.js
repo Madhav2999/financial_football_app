@@ -114,7 +114,7 @@ const registerSocketHandlers = (io) => {
       }
     })
 
-    socket.on('liveMatch:answer', async ({ matchId, teamId, answerKey }, ack) => {
+    socket.on('liveMatch:answer', async ({ matchId, teamId, answerKey, questionInstanceId }, ack) => {
       const respond = (payload) => {
         if (typeof ack === 'function') {
           ack(payload)
@@ -137,6 +137,15 @@ const registerSocketHandlers = (io) => {
         respond({ ok: false, reason: 'not-turn' })
         return
       }
+      const currentQuestion = match.questionQueue?.[match.questionIndex]
+      if (
+        questionInstanceId &&
+        currentQuestion?.instanceId &&
+        questionInstanceId !== currentQuestion.instanceId
+      ) {
+        respond({ ok: false, reason: 'stale' })
+        return
+      }
       if (
         match.timer?.status === 'running' &&
         match.timer?.deadline &&
@@ -145,7 +154,7 @@ const registerSocketHandlers = (io) => {
         respond({ ok: false, reason: 'late' })
         return
       }
-      const updated = await submitAnswer(matchId, teamId, answerKey)
+      const updated = await submitAnswer(matchId, teamId, answerKey, questionInstanceId)
       if (updated) {
         respond({ ok: true })
         io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...slimMatch(updated), serverNow: Date.now() })

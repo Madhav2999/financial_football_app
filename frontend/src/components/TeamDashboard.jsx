@@ -182,8 +182,8 @@ export default function TeamDashboard({
     onSelectFirst?.(matchId, firstTeamId)
   }
 
-  const handleAnswer = (matchId, option) => {
-    onAnswer?.(matchId, option)
+  const handleAnswer = (matchId, option, questionInstanceId) => {
+    onAnswer?.(matchId, option, questionInstanceId)
   }
 
   return (

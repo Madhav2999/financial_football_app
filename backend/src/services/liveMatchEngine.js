@@ -594,10 +594,14 @@ const isAnswerCorrect = (match, answerValue) => {
   return false
 }
 
-export const submitAnswer = async (matchId, teamId, answerValue) => {
+export const submitAnswer = async (matchId, teamId, answerValue, questionInstanceId = null) => {
   const match = getMatch(matchId)
   if (!match || match.status !== 'in-progress') return null
   if (match.activeTeamId !== teamId && !(match.awaitingSteal && match.teams.includes(teamId))) {
+    return null
+  }
+  const currentQuestion = match.questionQueue?.[match.questionIndex]
+  if (questionInstanceId && currentQuestion?.instanceId && questionInstanceId !== currentQuestion.instanceId) {
     return null
   }
   if (
@@ -609,7 +613,6 @@ export const submitAnswer = async (matchId, teamId, answerValue) => {
   }
   clearTimer(matchId)
   const isCorrect = isAnswerCorrect(match, answerValue)
-  const currentQuestion = match.questionQueue?.[match.questionIndex]
   recordQuestionResult(currentQuestion?.id, teamId, isCorrect).catch((error) =>
     console.error('Failed to record question result', error),
   )

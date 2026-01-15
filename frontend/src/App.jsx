@@ -2239,19 +2239,23 @@ function AppShell() {
     return () => clearInterval(interval)
   }, [scheduleFinalization])
 
-  const handleTeamAnswer = (matchId, teamId, selectedOption) => {
+  const handleTeamAnswer = (matchId, teamId, selectedOption, questionInstanceId) => {
     const match = activeMatches.find((item) => item.id === matchId)
     const useSocket = Boolean(match && (tournament?.backendId || match?.tournamentId))
     if (useSocket) {
       joinLiveMatchRoom(matchId)
       const socket = ensureSocket()
-      socket?.emit('liveMatch:answer', { matchId, teamId, answerKey: selectedOption }, (response) => {
-        if (!response || response.ok) return
-        if (response.reason === 'late') {
-          setTeamAnswerToast({ message: 'Too late — answer missed the deadline.', ts: Date.now() })
-          setTimeout(() => setTeamAnswerToast(null), 2500)
-        }
-      })
+      socket?.emit(
+        'liveMatch:answer',
+        { matchId, teamId, answerKey: selectedOption, questionInstanceId },
+        (response) => {
+          if (!response || response.ok) return
+          if (response.reason === 'late' || response.reason === 'stale') {
+            setTeamAnswerToast({ message: 'Too late - answer missed the deadline.', ts: Date.now() })
+            setTimeout(() => setTeamAnswerToast(null), 2500)
+          }
+        },
+      )
       return
     }
     setActiveMatches((previousMatches) => {
@@ -2270,6 +2274,11 @@ function AppShell() {
 
         const questionQueue = Array.isArray(match.questionQueue) ? match.questionQueue : []
         const question = questionQueue[match.questionIndex]
+
+        if (questionInstanceId && question?.instanceId && questionInstanceId !== question.instanceId) {
+          updated.push(match)
+          return updated
+        }
 
         if (!question) {
           // If we ran out of questions, finalize the match to avoid blank prompts.
@@ -2300,6 +2309,7 @@ function AppShell() {
 
       return nextMatches
     })
+    return
   }
 
   const handleDismissRecent = () => setRecentResult(null)
@@ -2489,7 +2499,9 @@ function AppShell() {
                 answerToast={teamAnswerToast}
                 onUploadAvatar={uploadAvatar}
                 socketConnected={socketConnected}
-                onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
+                onAnswer={(matchId, option, questionInstanceId) =>
+                  handleTeamAnswer(matchId, activeTeam.id, option, questionInstanceId)
+                }
                 onSelectFirst={(matchId, firstTeamId) =>
                   handleSelectFirst(matchId, activeTeam.id, firstTeamId)
                 }

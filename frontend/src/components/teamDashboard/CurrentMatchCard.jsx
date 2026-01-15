@@ -183,10 +183,18 @@ export default function CurrentMatchCard({ match, teamId, teams, onAnswer, socke
     setFlashType(isCorrect === null ? null : isCorrect ? 'correct' : 'wrong')
 
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+    const immediateSubmit = remainingSeconds <= 2
+    if (immediateSubmit) {
+      onAnswer(match.id, option, questionInstanceId)
+      setFlashKey(null)
+      setFlashType(null)
+      flashTimerRef.current = null
+      return
+    }
     flashTimerRef.current = setTimeout(() => {
       // after 1.8s, continue your normal flow:
-      onAnswer(match.id, option)
-      // clear flash if parent didn’t advance immediately
+      onAnswer(match.id, option, questionInstanceId)
+      // clear flash if parent didn't advance immediately
       setFlashKey(null)
       setFlashType(null)
       flashTimerRef.current = null
