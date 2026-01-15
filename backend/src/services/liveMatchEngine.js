@@ -287,15 +287,16 @@ const scheduleTimer = (match) => {
   emitUpdate(updatedMatch)
   const expectedIndex = match.questionIndex
   const expectedDeadline = deadline
+  const expectedSeq = typeof match.eventSeq === 'number' ? match.eventSeq : 0
   const delay = Math.max(0, remainingMs + TIMER_GRACE_MS)
   if (!delay) {
-    handleTimerExpire(match.id, expectedIndex, expectedDeadline).catch((error) =>
+    handleTimerExpire(match.id, expectedIndex, expectedDeadline, expectedSeq).catch((error) =>
       console.error('Timer expire failed', error),
     )
     return
   }
   const handle = setTimeout(() => {
-    handleTimerExpire(match.id, expectedIndex, expectedDeadline).catch((error) =>
+    handleTimerExpire(match.id, expectedIndex, expectedDeadline, expectedSeq).catch((error) =>
       console.error('Timer expire failed', error),
     )
   }, delay)
@@ -337,12 +338,21 @@ const recordQuestionResult = async (questionId, teamId, isCorrect) => {
   }
 }
 
-const handleTimerExpire = async (matchId, expectedQuestionIndex = null, expectedDeadline = null) => {
+const handleTimerExpire = async (
+  matchId,
+  expectedQuestionIndex = null,
+  expectedDeadline = null,
+  expectedSeq = null,
+) => {
   const match = getMatch(matchId)
   if (!match || match.status !== 'in-progress') {
     return
   }
   if (match.timer?.status !== 'running') return
+  const currentSeq = typeof match.eventSeq === 'number' ? match.eventSeq : 0
+  if (typeof expectedSeq === 'number' && currentSeq !== expectedSeq) {
+    return
+  }
   if (typeof expectedQuestionIndex === 'number' && match.questionIndex !== expectedQuestionIndex) {
     return
   }
@@ -358,7 +368,7 @@ const handleTimerExpire = async (matchId, expectedQuestionIndex = null, expected
     const graceRemaining = Math.max(0, expectedDeadline + TIMER_GRACE_MS - now)
     if (graceRemaining > 0) {
       const handle = setTimeout(() => {
-        handleTimerExpire(matchId, expectedQuestionIndex, expectedDeadline).catch((error) =>
+        handleTimerExpire(matchId, expectedQuestionIndex, expectedDeadline, expectedSeq).catch((error) =>
           console.error('Timer expire failed', error),
         )
       }, graceRemaining)
@@ -368,8 +378,11 @@ const handleTimerExpire = async (matchId, expectedQuestionIndex = null, expected
   }
   const actingTeamId = match.activeTeamId
   if (!actingTeamId) return
+  const nextSeq = currentSeq + 1
   const currentQuestion = match.questionQueue?.[match.questionIndex]
-  await recordQuestionResult(currentQuestion?.id, actingTeamId, false)
+  recordQuestionResult(currentQuestion?.id, actingTeamId, false).catch((error) =>
+    console.error('Failed to record question result', error),
+  )
   const updatedResults = Array.isArray(match.questionResults) ? [...match.questionResults] : []
   updatedResults.push({
     questionIndex: match.questionIndex,
@@ -377,12 +390,12 @@ const handleTimerExpire = async (matchId, expectedQuestionIndex = null, expected
     correct: false,
     type: 'timeout',
   })
-  const matchWithResults = { ...match, questionResults: updatedResults }
+  const matchWithResults = { ...match, questionResults: updatedResults, eventSeq: nextSeq }
   const outcome = applyAnswerResult(matchWithResults, actingTeamId, false)
   if (outcome.completed) {
     await finalizeMatch(outcome.match)
   } else {
-    const updated = outcome.match
+    const updated = { ...outcome.match, eventSeq: nextSeq }
     setMatch(updated)
     scheduleTimer(updated)
   }
@@ -496,6 +509,7 @@ export const createLiveMatch = async ({ teamAId, teamBId, moderatorId = null, to
     },
     questionQueue,
     questionResults: [],
+    eventSeq: 0,
     assignedTeamOrder: [],
     questionIndex: 0,
     activeTeamId: null,
@@ -596,7 +610,9 @@ export const submitAnswer = async (matchId, teamId, answerValue) => {
   clearTimer(matchId)
   const isCorrect = isAnswerCorrect(match, answerValue)
   const currentQuestion = match.questionQueue?.[match.questionIndex]
-  await recordQuestionResult(currentQuestion?.id, teamId, isCorrect)
+  recordQuestionResult(currentQuestion?.id, teamId, isCorrect).catch((error) =>
+    console.error('Failed to record question result', error),
+  )
   const updatedResults = Array.isArray(match.questionResults) ? [...match.questionResults] : []
   updatedResults.push({
     questionIndex: match.questionIndex,
@@ -604,13 +620,14 @@ export const submitAnswer = async (matchId, teamId, answerValue) => {
     correct: isCorrect,
     type: match.awaitingSteal ? 'steal' : 'primary',
   })
-  const matchWithResults = { ...match, questionResults: updatedResults }
+  const nextSeq = (typeof match.eventSeq === 'number' ? match.eventSeq : 0) + 1
+  const matchWithResults = { ...match, questionResults: updatedResults, eventSeq: nextSeq }
   const outcome = applyAnswerResult(matchWithResults, teamId, isCorrect)
   if (outcome.completed) {
     const finalized = await finalizeMatch(outcome.match)
     return finalized || outcome.match
   }
-  const updated = outcome.match
+  const updated = { ...outcome.match, eventSeq: nextSeq }
   setMatch(updated)
   scheduleTimer(updated)
   return updated
@@ -656,6 +673,7 @@ export const resetMatch = async (matchId) => {
     },
     questionQueue,
     questionResults: [],
+    eventSeq: 0,
     questionIndex: 0,
     assignedTeamOrder: [],
     activeTeamId: null,
@@ -682,6 +700,9 @@ export const initializeLiveMatches = async () => {
     docs.forEach((doc) => {
       const state = doc.state
       if (!state || !state.id) return
+      if (typeof state.eventSeq !== 'number') {
+        state.eventSeq = 0
+      }
       matches.set(state.id, state)
       if (state.timer?.status === 'running') {
         const remaining = Math.max(0, (state.timer.deadline ?? Date.now()) - Date.now())
@@ -690,7 +711,12 @@ export const initializeLiveMatches = async () => {
           remainingMs: remaining,
         }
         if (remaining <= 0) {
-          handleTimerExpire(state.id, state.questionIndex, state.timer.deadline).catch((error) =>
+          handleTimerExpire(
+            state.id,
+            state.questionIndex,
+            state.timer.deadline,
+            typeof state.eventSeq === 'number' ? state.eventSeq : 0,
+          ).catch((error) =>
             console.error('Timer expire failed', error),
           )
         } else {
