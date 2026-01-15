@@ -7,6 +7,7 @@ import {
   flipCoin,
   decideFirst,
   submitAnswer,
+  TIMER_GRACE_MS,
   pauseMatch,
   resumeMatch,
   resetMatch,
@@ -113,13 +114,49 @@ const registerSocketHandlers = (io) => {
       }
     })
 
-    socket.on('liveMatch:answer', async ({ matchId, teamId, answerKey }) => {
+    socket.on('liveMatch:answer', async ({ matchId, teamId, answerKey }, ack) => {
+      const respond = (payload) => {
+        if (typeof ack === 'function') {
+          ack(payload)
+        }
+      }
       const match = joinMatch(matchId)
-      if (!match || !canAnswer(socket, match, teamId)) return
+      if (!match) {
+        respond({ ok: false, reason: 'not-found' })
+        return
+      }
+      if (!canAnswer(socket, match, teamId)) {
+        respond({ ok: false, reason: 'unauthorized' })
+        return
+      }
+      if (match.status !== 'in-progress') {
+        respond({ ok: false, reason: 'inactive' })
+        return
+      }
+      if (match.activeTeamId !== teamId && !(match.awaitingSteal && match.teams.includes(teamId))) {
+        respond({ ok: false, reason: 'not-turn' })
+        return
+      }
+      if (
+        match.timer?.status === 'running' &&
+        match.timer?.deadline &&
+        Date.now() > match.timer.deadline + TIMER_GRACE_MS
+      ) {
+        respond({ ok: false, reason: 'late' })
+        return
+      }
       const updated = await submitAnswer(matchId, teamId, answerKey)
       if (updated) {
+        respond({ ok: true })
         io.to(`live-match:${matchId}`).emit('liveMatch:update', { ...slimMatch(updated), serverNow: Date.now() })
+        return
       }
+      const current = joinMatch(matchId)
+      const isLate =
+        current?.timer?.status === 'running' &&
+        current?.timer?.deadline &&
+        Date.now() > current.timer.deadline + TIMER_GRACE_MS
+      respond({ ok: false, reason: isLate ? 'late' : 'rejected' })
     })
 
     socket.on('liveMatch:pause', ({ matchId }) => {

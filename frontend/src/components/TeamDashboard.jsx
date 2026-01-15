@@ -114,6 +114,7 @@ export default function TeamDashboard({
   tournamentLaunched,
   moderators = [],
   resultToast,
+  answerToast,
   onUploadAvatar,
   socketConnected,
   onAnswer,
@@ -311,6 +312,14 @@ export default function TeamDashboard({
                 Game Room
               </button>
             </div>
+            <a
+              href="/tournament"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-2xl border border-white/20 bg-slate-900/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 transition hover:border-white/40"
+            >
+              View Bracket
+            </a>
             {!socketConnected ? (
               <span className="rounded-full border border-amber-500/60 bg-amber-500/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">
                 Connection lost. Reconnecting…
@@ -331,6 +340,13 @@ export default function TeamDashboard({
           <div className="pointer-events-none absolute left-1/2 top-4 z-50 w-full max-w-xl -translate-x-1/2 px-6">
             <div className="rounded-3xl border border-white/40 bg-black/90 px-7 py-5 text-center text-xl font-extrabold text-white shadow-[0_15px_40px_-10px_rgba(0,0,0,0.75)] backdrop-blur-md">
               {resultToast.message}
+            </div>
+          </div>
+        ) : null}
+        {answerToast ? (
+          <div className="pointer-events-none absolute left-1/2 top-24 z-40 w-full max-w-lg -translate-x-1/2 px-6">
+            <div className="rounded-2xl border border-amber-400/60 bg-amber-500/10 px-5 py-3 text-center text-base font-semibold text-amber-100 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.75)] backdrop-blur-md">
+              {answerToast.message}
             </div>
           </div>
         ) : null}

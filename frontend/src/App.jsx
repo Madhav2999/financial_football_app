@@ -77,6 +77,7 @@ function AppShell() {
   const [analyticsQuestionHistory, setAnalyticsQuestionHistory] = useState([])
   const [profiles, setProfiles] = useState({ teams: [], moderators: [] })
   const [teamResultToast, setTeamResultToast] = useState(null)
+  const [teamAnswerToast, setTeamAnswerToast] = useState(null)
   const [moderatorResultToasts, setModeratorResultToasts] = useState([])
   const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api'
   const SOCKET_BASE = API_BASE.replace(/\/api$/, '')
@@ -2244,7 +2245,13 @@ function AppShell() {
     if (useSocket) {
       joinLiveMatchRoom(matchId)
       const socket = ensureSocket()
-      socket?.emit('liveMatch:answer', { matchId, teamId, answerKey: selectedOption })
+      socket?.emit('liveMatch:answer', { matchId, teamId, answerKey: selectedOption }, (response) => {
+        if (!response || response.ok) return
+        if (response.reason === 'late') {
+          setTeamAnswerToast({ message: 'Too late — answer missed the deadline.', ts: Date.now() })
+          setTimeout(() => setTeamAnswerToast(null), 2500)
+        }
+      })
       return
     }
     setActiveMatches((previousMatches) => {
@@ -2479,6 +2486,7 @@ function AppShell() {
                 tournamentLaunched={tournamentLaunched}
                 moderators={moderators}
                 resultToast={teamResultToast}
+                answerToast={teamAnswerToast}
                 onUploadAvatar={uploadAvatar}
                 socketConnected={socketConnected}
                 onAnswer={(matchId, option) => handleTeamAnswer(matchId, activeTeam.id, option)}
