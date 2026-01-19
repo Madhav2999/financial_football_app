@@ -1105,7 +1105,12 @@ function AppShell() {
   const hydrateMatchHistory = useCallback(async () => {
     if (!session?.token) return
     try {
-      const result = await requestJson('/matches/history?limit=100', { auth: true })
+      const currentTournamentId = tournament?.backendId || tournament?.id || null
+      const params = new URLSearchParams({ limit: '200' })
+      if (currentTournamentId) {
+        params.set('tournamentId', currentTournamentId)
+      }
+      const result = await requestJson(`/matches/history?${params.toString()}`, { auth: true })
       const matches = Array.isArray(result?.matches) ? result.matches : []
       const deduped = Array.from(
         matches.reduce((map, match) => map.set(match.id, match), new Map()).values(),
@@ -1117,7 +1122,7 @@ function AppShell() {
     } catch (error) {
       console.error('Failed to hydrate match history; using local history', error)
     }
-  }, [requestJson, session?.token])
+  }, [requestJson, session?.token, tournament?.backendId, tournament?.id])
 
   const hydrateLiveMatchesFromBackend = useCallback(async () => {
     if (!tournament?.matches) return

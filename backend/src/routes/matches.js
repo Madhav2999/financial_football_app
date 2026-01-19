@@ -34,7 +34,12 @@ const sanitizeMatch = (doc) => {
 router.get('/history', async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 50, 200)
-    const matches = await Match.find({ status: 'completed' }).sort({ updatedAt: -1 }).limit(limit)
+    const tournamentId = req.query.tournamentId
+    const filter = { status: 'completed' }
+    if (tournamentId) {
+      filter.tournament = tournamentId
+    }
+    const matches = await Match.find(filter).sort({ updatedAt: -1 }).limit(limit)
     res.json({ matches: matches.map(sanitizeMatch) })
   } catch (error) {
     next(error)
