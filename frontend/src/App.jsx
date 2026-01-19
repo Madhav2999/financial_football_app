@@ -298,10 +298,15 @@ function AppShell() {
   const syncMatchHistoryFromTournament = useCallback((state) => {
     if (!state?.matches) return
     setMatchHistory((previous) => {
-      const existing = new Map(previous.map((item) => [item.id, item]))
+      const keyFor = (item) => item?.tournamentMatchId || item?.id
+      const existing = new Map(previous.map((item) => [keyFor(item), item]))
       Object.values(state.matches)
         .filter((match) => match.status === 'completed')
         .forEach((match) => {
+          const key = match.id
+          if (existing.has(key)) {
+            return
+          }
           const lastHistory = Array.isArray(match.history) && match.history.length ? match.history[match.history.length - 1] : null
           const completedAt = lastHistory?.timestamp
             ? new Date(lastHistory.timestamp).toISOString()
@@ -309,8 +314,9 @@ function AppShell() {
           const winnerId = match.winnerId ?? lastHistory?.winnerId ?? null
           const loserId = match.loserId ?? lastHistory?.loserId ?? null
           const scores = lastHistory?.scores ?? match.scores ?? {}
-          existing.set(match.id, {
+          existing.set(key, {
             id: match.id,
+            tournamentMatchId: match.id,
             teams: match.teams ?? [],
             scores,
             winnerId,
@@ -1112,9 +1118,14 @@ function AppShell() {
       }
       const result = await requestJson(`/matches/history?${params.toString()}`, { auth: true })
       const matches = Array.isArray(result?.matches) ? result.matches : []
-      const deduped = Array.from(
-        matches.reduce((map, match) => map.set(match.id, match), new Map()).values(),
-      )
+      const dedupeMap = new Map()
+      matches.forEach((match) => {
+        const key = match?.tournamentMatchId || match?.id
+        if (!dedupeMap.has(key)) {
+          dedupeMap.set(key, match)
+        }
+      })
+      const deduped = Array.from(dedupeMap.values())
       const sorted = deduped.sort(
         (left, right) => new Date(right.completedAt || 0) - new Date(left.completedAt || 0),
       )
@@ -1763,6 +1774,7 @@ function AppShell() {
         return [
           {
             id: completedMatchId,
+            tournamentMatchId: completedMatchId,
             teams: matchTeams,
             scores,
             winnerId,
@@ -2054,7 +2066,8 @@ function AppShell() {
       const loserId = winnerId ? (winnerId === teamAId ? teamBId : teamAId) : null
 
       const record = {
-        id: match.id,
+        id: match.tournamentMatchId ?? match.id,
+        tournamentMatchId: match.tournamentMatchId ?? null,
         teams: match.teams,
         scores: normalizedScores,
         winnerId,
