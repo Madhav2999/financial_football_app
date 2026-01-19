@@ -21,7 +21,7 @@ const app = express()
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const uploadsDir = path.join(__dirname, '..', 'uploads')
 
-app.set('trust proxy', 1)
+app.set('trust proxy', true)
 
 app.use(
   helmet({
