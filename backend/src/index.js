@@ -47,27 +47,27 @@ app.use(hpp())
 app.use(cors({ origin: security.allowedOrigins, credentials: true }))
 app.use('/uploads', express.static(uploadsDir))
 app.use(authMiddleware)
-const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 300,
-  standardHeaders: true,
-  legacyHeaders: false,
-})
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-})
+// const apiLimiter = rateLimit({
+//   windowMs: 60 * 1000,
+//   limit: 300,
+//   standardHeaders: true,
+//   legacyHeaders: false,
+// })
+// const authLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000,
+//   limit: 20,
+//   standardHeaders: true,
+//   legacyHeaders: false,
+// })
 const publicLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 120,
   standardHeaders: true,
   legacyHeaders: false,
 })
-app.use('/api/auth', authLimiter)
+// app.use('/api/auth', authLimiter)
 app.use('/api/public', publicLimiter)
-app.use('/api', apiLimiter)
+// app.use('/api', apiLimiter)
 app.use('/api', apiRouter)
 
 app.use((err, req, res, _next) => {
