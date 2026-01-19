@@ -3,6 +3,10 @@ import http from 'http'
 import express from 'express'
 import cors from 'cors'
 import mongoose from 'mongoose'
+import helmet from 'helmet'
+import rateLimit from 'express-rate-limit'
+import mongoSanitize from 'express-mongo-sanitize'
+import hpp from 'hpp'
 import { Server as SocketIOServer } from 'socket.io'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -17,10 +21,40 @@ const app = express()
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const uploadsDir = path.join(__dirname, '..', 'uploads')
 
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  }),
+)
 app.use(express.json({ limit: '5mb' }))
+app.use(express.urlencoded({ extended: true, limit: '5mb' }))
+app.use(mongoSanitize())
+app.use(hpp())
 app.use(cors({ origin: security.allowedOrigins, credentials: true }))
 app.use('/uploads', express.static(uploadsDir))
 app.use(authMiddleware)
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+const publicLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+app.use('/api/auth', authLimiter)
+app.use('/api/public', publicLimiter)
+app.use('/api', apiLimiter)
 app.use('/api', apiRouter)
 
 app.use((err, req, res, _next) => {
